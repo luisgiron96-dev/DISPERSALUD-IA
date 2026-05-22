@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 // Importa todas las pantallas
 import 'screens/home/home_screen.dart';
-import 'screens/gestacion/gestacion_screen.dart';
+import 'screens/modulos/gestacion/gestacion_screen.dart';
 import 'screens/modulos/primera_infancia/primera_infancia_screen.dart';
 import 'screens/modulos/infancia/infancia_screen.dart';
 import 'screens/modulos/adolescencia/adolescencia_screen.dart';
@@ -28,14 +28,14 @@ class DispersaludApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/':                (context) => const HomeScreen(),
-        '/gestacion':       (context) => const GestacionScreen(),
-        '/primera-infancia':(context) => const PrimeraInfanciaScreen(),
-        '/infancia':        (context) => const InfanciaScreen(),
-        '/adolescencia':    (context) => const AdolescenciaScreen(),
-        '/juventud':        (context) => const JuventudScreen(),
-        '/adultez':         (context) => const AdultezScreen(),
-        '/vejez':           (context) => const VejezScreen(),
+        '/':                 (context) => const HomeScreen(),
+        '/gestacion':        (context) => const GestacionScreen(),
+        '/primera-infancia': (context) => const PrimeraInfanciaScreen(),
+        '/infancia':         (context) => const InfanciaScreen(),
+        '/adolescencia':     (context) => const AdolescenciaScreen(),
+        '/juventud':         (context) => const JuventudScreen(),
+        '/adultez':          (context) => const AdultezScreen(),
+        '/vejez':            (context) => const VejezScreen(),
       },
     );
   }
