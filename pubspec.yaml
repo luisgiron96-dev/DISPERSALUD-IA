@@ -1,0 +1,28 @@
+name: dispersalud_ia
+
+description: App de salud rural inteligente
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '^3.11.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  sqflite: ^2.3.0
+  path_provider: ^2.1.2
+  speech_to_text: ^7.0.0
+  flutter_tts: ^3.8.5
+  provider: ^6.1.2
+  encrypt: ^5.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
