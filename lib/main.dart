@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-// Importa todas las pantallas
-import 'screens/home/home_screen.dart';
+// Navegación principal
+import 'screens/main_screen.dart';
+
+// Pantallas de módulos (para las rutas)
 import 'screens/modulos/gestacion/gestacion_screen.dart';
 import 'screens/modulos/primera_infancia/primera_infancia_screen.dart';
 import 'screens/modulos/infancia/infancia_screen.dart';
@@ -23,12 +25,23 @@ class DispersaludApp extends StatelessWidget {
       title: 'DISPERSALUD IA',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF0F6E56),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF111111),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF1D9E75),
+          surface: Color(0xFF1E1E1E),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF111111),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
         useMaterial3: true,
       ),
+      // ✅ Ahora abre MainScreen (con las 4 pestañas)
       initialRoute: '/',
       routes: {
-        '/':                 (context) => const HomeScreen(),
+        '/':                 (context) => const MainScreen(),
         '/gestacion':        (context) => const GestacionScreen(),
         '/primera-infancia': (context) => const PrimeraInfanciaScreen(),
         '/infancia':         (context) => const InfanciaScreen(),
