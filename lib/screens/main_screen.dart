@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
 import 'dashboard_screen.dart';
+import 'pacientes_screen.dart';
 import 'alertas_screen.dart';
 import 'config_screen.dart';
 
@@ -19,10 +20,11 @@ class _MainScreenState extends State<MainScreen> {
   int _tab = 0;
 
   final List<Widget> _screens = const [
-    DashboardScreen(),  // pestaña Inicio
-    HomeScreen(),       // pestaña Módulos
-    AlertasScreen(),    // pestaña Alertas
-    ConfigScreen(),     // pestaña Config
+    DashboardScreen(),   // Inicio
+    HomeScreen(),        // Módulos
+    PacientesScreen(),   // Pacientes ← nuevo con SQLite
+    AlertasScreen(),     // Alertas
+    ConfigScreen(),      // Config
   ];
 
   @override
@@ -43,30 +45,14 @@ class _MainScreenState extends State<MainScreen> {
           type: BottomNavigationBarType.fixed,
           selectedItemColor: _kVerde,
           unselectedItemColor: Colors.white30,
-          selectedLabelStyle: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600),
+          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Inicio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              activeIcon: Icon(Icons.people_rounded),
-              label: 'Módulos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_outlined),
-              activeIcon: Icon(Icons.notifications_rounded),
-              label: 'Alertas',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Config',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home_outlined),          activeIcon: Icon(Icons.home_rounded),          label: 'Inicio'),
+            BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined),     activeIcon: Icon(Icons.grid_view_rounded),     label: 'Módulos'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_outline),         activeIcon: Icon(Icons.people_rounded),        label: 'Pacientes'),
+            BottomNavigationBarItem(icon: Icon(Icons.notifications_outlined), activeIcon: Icon(Icons.notifications_rounded), label: 'Alertas'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings_outlined),      activeIcon: Icon(Icons.settings_rounded),      label: 'Config'),
           ],
         ),
       ),

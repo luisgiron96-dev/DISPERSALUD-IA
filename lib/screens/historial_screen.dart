@@ -1,0 +1,172 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import '../database/database_helper.dart';
+
+const Color _kBg     = Color(0xFF111111);
+const Color _kCard   = Color(0xFF1E1E1E);
+const Color _kVerde  = Color(0xFF1D9E75);
+const Color _kBorder = Color(0xFF2A2A2A);
+
+class HistorialScreen extends StatefulWidget {
+  final int    pacienteId;
+  final String nombre;
+  const HistorialScreen({super.key, required this.pacienteId, required this.nombre});
+  @override
+  State<HistorialScreen> createState() => _HistorialScreenState();
+}
+
+class _HistorialScreenState extends State<HistorialScreen> {
+  List<Map<String, dynamic>> _consultas = [];
+  Map<String, dynamic>?      _paciente;
+  bool _cargando = true;
+
+  @override
+  void initState() { super.initState(); _cargar(); }
+
+  Future<void> _cargar() async {
+    setState(() => _cargando = true);
+    final p = await DatabaseHelper.instance.obtenerPaciente(widget.pacienteId);
+    final c = await DatabaseHelper.instance.consultasDePaciente(widget.pacienteId);
+    setState(() { _paciente = p; _consultas = c; _cargando = false; });
+  }
+
+  Color _nivelColor(String? nivel) {
+    switch (nivel?.toLowerCase()) {
+      case 'urgente': case 'rojo': return Colors.red;
+      case 'alerta':  case 'naranja': return Colors.orange;
+      default: return _kVerde;
+    }
+  }
+
+  String _formatFecha(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(iso);
+      return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}  ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+    } catch (_) { return iso; }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kBg,
+      appBar: AppBar(
+        backgroundColor: _kBg, foregroundColor: Colors.white,
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.nombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          const Text('Historial clínico', style: TextStyle(color: Colors.white54, fontSize: 12)),
+        ]),
+      ),
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1D9E75)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(children: [
+
+                // ── Datos del paciente ──────────────────────────────────
+                if (_paciente != null)
+                  Container(
+                    width: double.infinity, padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: _kCard, borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('👤 Datos del paciente',
+                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      _InfoRow(label: 'Documento', value: _paciente!['documento'] ?? '—'),
+                      _InfoRow(label: 'Fecha nac.', value: _paciente!['fecha_nac'] ?? '—'),
+                      _InfoRow(label: 'Sexo',       value: _paciente!['sexo']      ?? '—'),
+                      _InfoRow(label: 'Vereda',     value: _paciente!['vereda']    ?? '—'),
+                      _InfoRow(label: 'Municipio',  value: _paciente!['municipio'] ?? '—'),
+                      _InfoRow(label: 'Teléfono',   value: _paciente!['telefono']  ?? '—'),
+                      _InfoRow(label: 'Módulo',     value: _paciente!['modulo']    ?? '—'),
+                    ]),
+                  ),
+
+                // ── Consultas ───────────────────────────────────────────
+                Row(children: [
+                  const Text('Consultas registradas',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: _kVerde.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                    child: Text('${_consultas.length} total',
+                        style: const TextStyle(color: Color(0xFF1D9E75), fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+
+                if (_consultas.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14)),
+                    child: const Center(child: Text('Sin consultas registradas aún.',
+                        style: TextStyle(color: Colors.white38, fontSize: 14))),
+                  )
+                else
+                  ..._consultas.map((c) {
+                    final color = _nivelColor(c['nivel_riesgo']);
+                    Map<String, dynamic> datos = {};
+                    try { datos = jsonDecode(c['datos_json'] ?? '{}'); } catch (_) {}
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _kCard, borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: color.withOpacity(0.4)),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                            child: Text(c['modulo'] ?? '',
+                                style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+                          ),
+                          const Spacer(),
+                          Text(_formatFecha(c['fecha']),
+                              style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                        ]),
+                        if ((c['diagnostico'] ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                                color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+                            child: Text(c['diagnostico'],
+                                style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500)),
+                          ),
+                        ],
+                        if (datos.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ...datos.entries.take(5).map((e) =>
+                            _InfoRow(label: e.key, value: e.value.toString())),
+                        ],
+                      ]),
+                    );
+                  }),
+                const SizedBox(height: 24),
+              ]),
+            ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label, value;
+  const _InfoRow({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(children: [
+      SizedBox(width: 100, child: Text(label,
+          style: const TextStyle(color: Colors.white38, fontSize: 12))),
+      Expanded(child: Text(value,
+          style: const TextStyle(color: Colors.white70, fontSize: 13))),
+    ]),
+  );
+}

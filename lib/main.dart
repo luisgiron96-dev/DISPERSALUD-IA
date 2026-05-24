@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-// Navegación principal
+// Splash
+import 'screens/splash/splash_screen.dart';
+
+// Navegación principal (con las 4 pestañas)
 import 'screens/main_screen.dart';
 
-// Pantallas de módulos (para las rutas)
+// Pantallas de módulos
 import 'screens/modulos/gestacion/gestacion_screen.dart';
 import 'screens/modulos/primera_infancia/primera_infancia_screen.dart';
 import 'screens/modulos/infancia/infancia_screen.dart';
@@ -13,6 +17,11 @@ import 'screens/modulos/adultez/adultez_screen.dart';
 import 'screens/modulos/vejez/vejez_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
   runApp(const DispersaludApp());
 }
 
@@ -38,10 +47,12 @@ class DispersaludApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // ✅ Ahora abre MainScreen (con las 4 pestañas)
-      initialRoute: '/',
+
+      // ── Arranca en el splash, luego va al MainScreen ────────────────
+      initialRoute: '/splash',
       routes: {
-        '/':                 (context) => const MainScreen(),
+        '/splash':           (context) => const SplashScreen(),
+        '/':                 (context) => const MainScreen(),   // ← Dashboard + 4 pestañas
         '/gestacion':        (context) => const GestacionScreen(),
         '/primera-infancia': (context) => const PrimeraInfanciaScreen(),
         '/infancia':         (context) => const InfanciaScreen(),
