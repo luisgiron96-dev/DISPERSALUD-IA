@@ -1,21 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Splash Android 12 -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
 
-        <!-- Usa tu mismo splash -->
         <item name="android:windowSplashScreenBackground">@android:color/transparent</item>
 
-        <!-- Elimina icono automático -->
         <item name="android:windowSplashScreenAnimatedIcon">@null</item>
 
-        <!-- Mantiene fullscreen -->
         <item name="android:windowFullscreen">true</item>
 
     </style>
 
-    <!-- Tema normal -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>

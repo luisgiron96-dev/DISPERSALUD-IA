@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Splash Screen -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">@drawable/launch_background</item>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+
+        <item name="android:windowBackground">@android:color/transparent</item>
+
         <item name="android:windowFullscreen">true</item>
+
     </style>
 
-    <!-- Tema normal SIN fondo negro -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+
         <item name="android:windowBackground">@android:color/transparent</item>
+
     </style>
 
 </resources>
