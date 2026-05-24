@@ -146,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen>
                           'Tecnología que cuida tu salud,\ndonde más se necesita.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Color(0xFF1A4F4F),
+                            color: Color.fromARGB(255, 248, 250, 250),
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                             height: 1.45,
@@ -155,19 +155,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
 
-                    SizedBox(height: size.height * 0.07),
-
-                    // Corazón pulsante con ícono limpio
-                    AnimatedBuilder(
-                      animation: _pulseCtrl,
-                      builder: (_, child) =>
-                          ScaleTransition(scale: _pulse, child: child),
-                      child: const Icon(
-                        Icons.favorite_rounded,
-                        size: 64,
-                        color: Color(0xFF1A6060),
-                      ),
-                    ),
+                    
                   ],
                 ),
               ),
