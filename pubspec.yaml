@@ -14,7 +14,7 @@ dependencies:
     sdk: flutter
 
   sqflite: ^2.3.0
-  
+  path: ^1.9.0
   path_provider: ^2.1.2
   speech_to_text: ^7.0.0
   flutter_tts: ^3.8.5
@@ -22,6 +22,7 @@ dependencies:
   encrypt: ^5.0.3
   flutter_secure_storage: ^9.2.2
   fl_chart: ^0.68.0
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -39,3 +40,5 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/logo_dispersalud.png"
   min_sdk_android: 21
+  adaptive_icon_background: "#111111"
+  adaptive_icon_foreground: "assets/logo_dispersalud.png"
