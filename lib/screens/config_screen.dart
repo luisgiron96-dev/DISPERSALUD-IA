@@ -126,64 +126,72 @@ class _ConfigScreenState extends State<ConfigScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: _kCard,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Configurar voz',
-                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(14)),
-              child: Row(children: [
-                const Icon(Icons.mic_rounded, color: _kVerde, size: 22),
-                const SizedBox(width: 12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Consulta por voz', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-                  Text('Activar reconocimiento de voz en el dashboard',
-                      style: TextStyle(color: Colors.white54, fontSize: 12)),
-                ])),
-                Switch(
-                  value: _vozActiva,
-                  activeColor: _kVerde,
-                  onChanged: (v) async {
-                    setS(() {});
-                    setState(() => _vozActiva = v);
-                    await _guardarPreferencia('voz_activa', v);
-                  },
+        builder: (ctx, setS) {
+          final bottom = MediaQuery.of(context).padding.bottom;
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(24, 24, 24, bottom + 24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+                const Text('Configurar voz',
+                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(14)),
+                  child: Row(children: [
+                    const Icon(Icons.mic_rounded, color: _kVerde, size: 22),
+                    const SizedBox(width: 12),
+                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Consulta por voz', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                      Text('Activar reconocimiento de voz en el dashboard',
+                          style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    ])),
+                    Switch(
+                      value: _vozActiva,
+                      activeColor: _kVerde,
+                      onChanged: (v) async {
+                        setS(() {});
+                        setState(() => _vozActiva = v);
+                        await _guardarPreferencia('voz_activa', v);
+                      },
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(14)),
+                  child: Row(children: [
+                    const Icon(Icons.record_voice_over_outlined, color: _kVerde, size: 22),
+                    const SizedBox(width: 12),
+                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Idioma', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                      Text('Español colombiano', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    ])),
+                    const Icon(Icons.check_circle, color: _kVerde, size: 20),
+                  ]),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity, height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(backgroundColor: _kVerde,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
                 ),
               ]),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(14)),
-              child: Row(children: [
-                const Icon(Icons.record_voice_over_outlined, color: _kVerde, size: 22),
-                const SizedBox(width: 12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Idioma', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-                  Text('Español colombiano',
-                      style: TextStyle(color: Colors.white54, fontSize: 12)),
-                ])),
-                const Icon(Icons.check_circle, color: _kVerde, size: 20),
-              ]),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(backgroundColor: _kVerde,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ]),
-        ),
+          );
+        },
       ),
     );
   }
@@ -192,38 +200,47 @@ class _ConfigScreenState extends State<ConfigScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: _kCard,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Seguridad y privacidad',
-              style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          _InfoTile(icon: Icons.lock_outline, color: Colors.green,
-              titulo: 'Cifrado AES-256 activo',
-              desc: 'Documentos, teléfonos y diagnósticos cifrados en el dispositivo'),
-          const SizedBox(height: 10),
-          _InfoTile(icon: Icons.phone_android_outlined, color: _kVerde,
-              titulo: 'Datos solo en tu celular',
-              desc: 'Sin envío a servidores externos. Cumple Ley 1581 de protección de datos'),
-          const SizedBox(height: 10),
-          _InfoTile(icon: Icons.sync_outlined, color: Colors.blue,
-              titulo: 'Sincronización cifrada',
-              desc: 'Cuando haya internet, los datos se envían con TLS 1.3'),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white24),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: const Text('Cerrar', style: TextStyle(color: Colors.white70)),
-            ),
+      builder: (_) {
+        final bottom = MediaQuery.of(context).padding.bottom;
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(24, 24, 24, bottom + 24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+              const Text('Seguridad y privacidad',
+                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              _InfoTile(icon: Icons.lock_outline, color: Colors.green,
+                  titulo: 'Cifrado AES-256 activo',
+                  desc: 'Documentos, teléfonos y diagnósticos cifrados en el dispositivo'),
+              const SizedBox(height: 10),
+              _InfoTile(icon: Icons.phone_android_outlined, color: _kVerde,
+                  titulo: 'Datos solo en tu celular',
+                  desc: 'Sin envío a servidores externos. Cumple Ley 1581 de protección de datos'),
+              const SizedBox(height: 10),
+              _InfoTile(icon: Icons.sync_outlined, color: Colors.blue,
+                  titulo: 'Sincronización cifrada',
+                  desc: 'Cuando haya internet, los datos se envían con TLS 1.3'),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity, height: 48,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text('Cerrar', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ]),
           ),
-        ]),
-      ),
+        );
+      },
     );
   }
 

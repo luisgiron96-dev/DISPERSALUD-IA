@@ -129,6 +129,14 @@ class DatabaseHelper {
     return await db.delete('pacientes', where: 'id = ?', whereArgs: [id]);
   }
 
+
+  Future<int> actualizarPaciente(int id, Map<String, dynamic> data) async {
+    final db      = await database;
+    final cifrado = _sec.cifrarPaciente(data);
+    return await db.update('pacientes', cifrado,
+        where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<int> totalPacientes() async {
     final db = await database;
     final r  = await db.rawQuery('SELECT COUNT(*) as total FROM pacientes');

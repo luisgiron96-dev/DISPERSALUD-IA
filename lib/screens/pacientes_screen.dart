@@ -70,14 +70,14 @@ class _PacientesScreenState extends State<PacientesScreen> {
 
   Color _colorModulo(String modulo) {
     switch (modulo) {
-      case 'Gestación':       return const Color(0xFF993556);
-      case 'Primera infancia':return const Color(0xFF854F0B);
-      case 'Infancia':        return const Color(0xFF185FA5);
-      case 'Adolescencia':    return const Color(0xFF534AB7);
-      case 'Juventud':        return const Color(0xFF3B6D11);
-      case 'Adultez':         return const Color(0xFF0F6E56);
-      case 'Vejez':           return const Color(0xFF5F5E5A);
-      default:                return _kVerde;
+      case 'Gestación':        return const Color(0xFF993556);
+      case 'Primera infancia': return const Color(0xFF854F0B);
+      case 'Infancia':         return const Color(0xFF185FA5);
+      case 'Adolescencia':     return const Color(0xFF534AB7);
+      case 'Juventud':         return const Color(0xFF3B6D11);
+      case 'Adultez':          return const Color(0xFF0F6E56);
+      case 'Vejez':            return const Color(0xFF5F5E5A);
+      default:                 return _kVerde;
     }
   }
 
@@ -182,7 +182,8 @@ class _PacientesScreenState extends State<PacientesScreen> {
                             child: GestureDetector(
                               onTap: () async {
                                 await Navigator.push(context, MaterialPageRoute(
-                                    builder: (_) => HistorialScreen(pacienteId: p['id'], nombre: p['nombre'])));
+                                    builder: (_) => HistorialScreen(
+                                        pacienteId: p['id'], nombre: p['nombre'])));
                                 _cargar();
                               },
                               child: Container(
@@ -197,11 +198,15 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                     radius: 22,
                                     backgroundColor: color.withOpacity(0.2),
                                     child: Text(_iniciales(p['nombre'] ?? ''),
-                                        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+                                        style: TextStyle(color: color,
+                                            fontWeight: FontWeight.bold, fontSize: 14)),
                                   ),
                                   const SizedBox(width: 12),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(p['nombre'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  Expanded(child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(p['nombre'] ?? '',
+                                        style: const TextStyle(color: Colors.white,
+                                            fontSize: 14, fontWeight: FontWeight.w600)),
                                     const SizedBox(height: 2),
                                     Text('${p['vereda'] ?? ''} · ${p['municipio'] ?? ''}',
                                         style: const TextStyle(color: Colors.white54, fontSize: 12)),
@@ -213,10 +218,24 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                           color: color.withOpacity(0.15),
                                           borderRadius: BorderRadius.circular(20)),
                                       child: Text(p['modulo'] ?? '',
-                                          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+                                          style: TextStyle(color: color,
+                                              fontSize: 10, fontWeight: FontWeight.w600)),
                                     ),
                                     const SizedBox(height: 4),
-                                    const Icon(Icons.chevron_right, color: Colors.white24, size: 18),
+                                    Row(mainAxisSize: MainAxisSize.min, children: [
+                                      GestureDetector(
+                                        onTap: () async {
+                                          await Navigator.push(context, MaterialPageRoute(
+                                              builder: (_) => NuevoPacienteScreen(pacienteEditar: p)));
+                                          _cargar();
+                                        },
+                                        child: const Icon(Icons.edit_outlined,
+                                            color: Colors.white38, size: 18),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.chevron_right,
+                                          color: Colors.white24, size: 18),
+                                    ]),
                                   ]),
                                 ]),
                               ),
