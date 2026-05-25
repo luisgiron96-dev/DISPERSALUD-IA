@@ -20,6 +20,8 @@ dependencies:
   flutter_tts: ^3.8.5
   provider: ^6.1.2
   encrypt: ^5.0.3
+  flutter_secure_storage: ^9.2.2
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:
@@ -37,4 +39,3 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/logo_dispersalud.png"
   min_sdk_android: 21
-  

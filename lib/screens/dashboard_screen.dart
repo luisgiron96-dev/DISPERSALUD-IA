@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../database/database_helper.dart';
 
 const Color _kBg     = Color(0xFF111111);
 const Color _kCard   = Color(0xFF1E1E1E);
 const Color _kVerde  = Color(0xFF1D9E75);
 const Color _kBorder = Color(0xFF2A2A2A);
+
+// Colores para cada módulo (orden consistente)
+const List<Color> _kModuloColores = [
+  Color(0xFF1D9E75),
+  Color(0xFF185FA5),
+  Color(0xFF993556),
+  Color(0xFF854F0B),
+  Color(0xFF534AB7),
+  Color(0xFF3B6D11),
+  Color(0xFF5F5E5A),
+];
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,7 +29,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
 
-  // ── Voz ────────────────────────────────────────────────────────────────
+  // ── Voz ─────────────────────────────────────────────────────────────────
   final stt.SpeechToText _stt = stt.SpeechToText();
   final FlutterTts        _tts = FlutterTts();
   bool   _sttDisponible  = false;
@@ -25,12 +37,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _textoVoz       = '';
   String _respuestaIA    = '';
 
-  // ── Datos SQLite ────────────────────────────────────────────────────────
+  // ── Datos SQLite ─────────────────────────────────────────────────────────
   int    _consultasHoy   = 0;
   int    _totalPacientes = 0;
   int    _totalConsultas = 0;
   List<Map<String, dynamic>> _recientes = [];
-  bool   _cargando       = true;
+
+  // ── Datos para gráficas ──────────────────────────────────────────────────
+  Map<String, int>              _porModulo   = {};
+  List<Map<String, dynamic>>    _porDia      = [];
+  Map<String, int>              _porRiesgo   = {};
+  bool _cargando = true;
+
+  // ── Gráfica activa (tab) ─────────────────────────────────────────────────
+  int _graficaTab = 0; // 0=barras módulo, 1=línea días, 2=dona riesgo
 
   @override
   void initState() {
@@ -40,7 +60,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _cargar();
   }
 
-  // ── Inicializar voz ─────────────────────────────────────────────────────
   Future<void> _iniciarVoz() async {
     _sttDisponible = await _stt.initialize(
       onError: (e) => setState(() { _escuchando = false; _textoVoz = 'Error de micrófono: ${e.errorMsg}'; }),
@@ -53,7 +72,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() {});
   }
 
-  // ── Escuchar / detener ──────────────────────────────────────────────────
   Future<void> _toggleVoz() async {
     if (!_sttDisponible) {
       setState(() => _textoVoz = 'Micrófono no disponible en este dispositivo.');
@@ -78,48 +96,33 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // ── Lógica clínica de voz ───────────────────────────────────────────────
   Future<void> _procesarConsulta(String texto) async {
     setState(() => _escuchando = false);
     final t = texto.toLowerCase();
     String respuesta;
 
     if (t.contains('presión') || t.contains('tension') || t.contains('hipertension')) {
-      respuesta = 'Para evaluar presión arterial, ve al módulo de Adultez o Vejez. '
-          'Si la presión sistólica es mayor a 140, es hipertensión. '
-          'Si supera 180, es una emergencia, remite de inmediato.';
+      respuesta = 'Para evaluar presión arterial, ve al módulo de Adultez o Vejez. Si la presión sistólica es mayor a 140, es hipertensión. Si supera 180, es una emergencia, remite de inmediato.';
     } else if (t.contains('gestante') || t.contains('embaraz') || t.contains('semanas')) {
-      respuesta = 'Para control prenatal, ve al módulo de Gestación. '
-          'Registra las semanas de gestación, presión arterial y altura uterina. '
-          'Recuerda verificar toxoide tetánico y ácido fólico.';
+      respuesta = 'Para control prenatal, ve al módulo de Gestación. Registra las semanas de gestación, presión arterial y altura uterina. Recuerda verificar toxoide tetánico y ácido fólico.';
     } else if (t.contains('niño') || t.contains('bebe') || t.contains('infan')) {
-      respuesta = 'Para atención infantil usa el módulo de Primera Infancia o Infancia. '
-          'Evalúa peso, talla, hemoglobina y esquema de vacunación.';
+      respuesta = 'Para atención infantil usa el módulo de Primera Infancia o Infancia. Evalúa peso, talla, hemoglobina y esquema de vacunación.';
     } else if (t.contains('diabetes') || t.contains('glucemia') || t.contains('azucar')) {
-      respuesta = 'Para evaluar diabetes, ingresa al módulo de Adultez. '
-          'Glucemia en ayunas mayor a 126 miligramos indica posible diabetes. '
-          'Mayor a 200 es una emergencia hiperglucémica.';
+      respuesta = 'Para evaluar diabetes, ingresa al módulo de Adultez. Glucemia en ayunas mayor a 126 miligramos indica posible diabetes. Mayor a 200 es una emergencia hiperglucémica.';
     } else if (t.contains('dengue') || t.contains('fiebre') || t.contains('sivigila')) {
-      respuesta = 'Revisa la pestaña de Alertas para ver los eventos SIVIGILA activos en tu zona. '
-          'Dengue, EDA e IRA son los principales eventos a vigilar.';
+      respuesta = 'Revisa la pestaña de Alertas para ver los eventos SIVIGILA activos en tu zona. Dengue, EDA e IRA son los principales eventos a vigilar.';
     } else if (t.contains('paciente') || t.contains('registrar') || t.contains('nuevo')) {
-      respuesta = 'Para registrar un nuevo paciente, ve a la pestaña Pacientes '
-          'y toca el botón Nuevo. Ingresa nombre, vereda y municipio.';
+      respuesta = 'Para registrar un nuevo paciente, ve a la pestaña Pacientes y toca el botón Nuevo. Ingresa nombre, vereda y municipio.';
     } else if (t.contains('hola') || t.contains('buenos') || t.contains('ayuda')) {
-      respuesta = 'Hola, soy DISPERSALUD IA. Puedo ayudarte con consultas de gestación, '
-          'infancia, adolescencia, adultez, vejez, diabetes, presión arterial y alertas SIVIGILA. '
-          '¿Qué necesitas?';
+      respuesta = 'Hola, soy DISPERSALUD IA. Puedo ayudarte con consultas de gestación, infancia, adolescencia, adultez, vejez, diabetes, presión arterial y alertas SIVIGILA. ¿Qué necesitas?';
     } else {
-      respuesta = 'Entendí: $texto. '
-          'Puedo orientarte sobre gestación, infancia, adolescencia, adultez, vejez, '
-          'diabetes, presión arterial y alertas de salud pública.';
+      respuesta = 'Entendí: $texto. Puedo orientarte sobre gestación, infancia, adolescencia, adultez, vejez, diabetes, presión arterial y alertas de salud pública.';
     }
 
     setState(() => _respuestaIA = respuesta);
     await _tts.speak(respuesta);
   }
 
-  // ── Datos SQLite ────────────────────────────────────────────────────────
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _cargar();
@@ -136,24 +139,54 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _cargar() async {
     if (!mounted) return;
     setState(() => _cargando = true);
-    final hoy      = await DatabaseHelper.instance.totalConsultasHoy();
-    final total    = await DatabaseHelper.instance.totalPacientes();
-    final totalCon = await DatabaseHelper.instance.totalConsultas();
-    final recientes= await DatabaseHelper.instance.consultasRecientes(limit: 5);
+    final hoy       = await DatabaseHelper.instance.totalConsultasHoy();
+    final total     = await DatabaseHelper.instance.totalPacientes();
+    final totalCon  = await DatabaseHelper.instance.totalConsultas();
+    final recientes = await DatabaseHelper.instance.consultasRecientes(limit: 5);
+    final porModulo = await DatabaseHelper.instance.consultasPorModulo();
+    final porDia    = await DatabaseHelper.instance.consultasUltimosDias(dias: 7);
+    final porRiesgo = await DatabaseHelper.instance.distribucionRiesgo();
     if (!mounted) return;
     setState(() {
       _consultasHoy   = hoy;
       _totalPacientes = total;
       _totalConsultas = totalCon;
       _recientes      = recientes;
+      _porModulo      = porModulo;
+      _porDia         = porDia;
+      _porRiesgo      = porRiesgo;
       _cargando       = false;
     });
   }
 
   Color  _nivelColor(String? n) { switch (n?.toLowerCase()) { case 'urgente': return Colors.red; case 'alerta': return Colors.orange; default: return _kVerde; } }
   String _nivelLabel(String? n) { switch (n?.toLowerCase()) { case 'urgente': return 'Urgente'; case 'alerta': return 'Alerta'; default: return 'Estable'; } }
-  String _tiempoRelativo(String? iso) { if (iso == null) return ''; try { final dt = DateTime.parse(iso); final d = DateTime.now().difference(dt); if (d.inMinutes < 1) return 'ahora mismo'; if (d.inMinutes < 60) return 'hace ${d.inMinutes} min'; if (d.inHours < 24) return 'hace ${d.inHours}h'; return 'hace ${d.inDays}d'; } catch (_) { return ''; } }
+  String _tiempoRelativo(String? iso) {
+    if (iso == null) return '';
+    try {
+      final dt = DateTime.parse(iso);
+      final d  = DateTime.now().difference(dt);
+      if (d.inMinutes < 1)  return 'ahora mismo';
+      if (d.inMinutes < 60) return 'hace ${d.inMinutes} min';
+      if (d.inHours < 24)   return 'hace ${d.inHours}h';
+      return 'hace ${d.inDays}d';
+    } catch (_) { return ''; }
+  }
   String _saludo() { final h = DateTime.now().hour; if (h < 12) return 'Buenos días'; if (h < 18) return 'Buenas tardes'; return 'Buenas noches'; }
+
+  // ── Nombre corto para etiquetas de barras ────────────────────────────────
+  String _cortoModulo(String nombre) {
+    const abrev = {
+      'Gestación': 'Gest.',
+      'Primera infancia': '0-5',
+      'Infancia': '6-11',
+      'Adolescencia': 'Adol.',
+      'Juventud': 'Juv.',
+      'Adultez': 'Adult.',
+      'Vejez': 'Vejez',
+    };
+    return abrev[nombre] ?? (nombre.length > 6 ? '${nombre.substring(0, 5)}.' : nombre);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +201,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-              // ── Header ────────────────────────────────────────────────
+              // ── Header ─────────────────────────────────────────────────
               Row(children: [
                 Container(width: 38, height: 38,
                   decoration: BoxDecoration(color: _kVerde, borderRadius: BorderRadius.circular(10)),
@@ -194,7 +227,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ]),
               const SizedBox(height: 16),
 
-              // ── Tarjeta bienvenida ────────────────────────────────────
+              // ── Tarjeta bienvenida + voz ────────────────────────────────
               Container(
                 width: double.infinity, padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -219,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
               const SizedBox(height: 8),
 
-              // ── Botón micrófono REAL ──────────────────────────────────
+              // ── Botón micrófono ──────────────────────────────────────────
               GestureDetector(
                 onTap: _toggleVoz,
                 child: AnimatedContainer(
@@ -242,7 +275,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
 
-              // ── Respuesta de la IA ────────────────────────────────────
+              // ── Respuesta IA ─────────────────────────────────────────────
               if (_respuestaIA.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -260,13 +293,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       const Spacer(),
                       GestureDetector(
                         onTap: () async { await _tts.speak(_respuestaIA); },
-                        child: const Icon(Icons.volume_up_rounded, color: _kVerde, size: 18),
-                      ),
+                        child: const Icon(Icons.volume_up_rounded, color: _kVerde, size: 18)),
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => setState(() => _respuestaIA = ''),
-                        child: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
-                      ),
+                        child: const Icon(Icons.close_rounded, color: Colors.white38, size: 18)),
                     ]),
                     const SizedBox(height: 8),
                     Text(_respuestaIA, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.5)),
@@ -275,7 +306,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
               const SizedBox(height: 20),
 
-              // ── Estadísticas reales ───────────────────────────────────
+              // ── Estadísticas rápidas ─────────────────────────────────────
               Row(children: [
                 Expanded(child: _StatCard(valor: '$_consultasHoy', label: 'Consultas\nhoy', color: _kVerde, icono: Icons.today_rounded)),
                 const SizedBox(width: 10),
@@ -283,9 +314,47 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const SizedBox(width: 10),
                 Expanded(child: _StatCard(valor: '$_totalConsultas', label: 'Total\nconsultas', color: Colors.purple, icono: Icons.assignment_rounded)),
               ]),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // ── Actividad reciente ────────────────────────────────────
+              // ══════════════════════════════════════════════════════════════
+              // SECCIÓN GRÁFICAS
+              // ══════════════════════════════════════════════════════════════
+              const Text('Estadísticas', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+
+              // Tabs de gráfica
+              Container(
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
+                child: Row(children: [
+                  _GraficaTab(label: 'Por módulo',   icono: Icons.bar_chart_rounded,  activo: _graficaTab == 0, onTap: () => setState(() => _graficaTab = 0)),
+                  _GraficaTab(label: '7 días',       icono: Icons.show_chart_rounded,  activo: _graficaTab == 1, onTap: () => setState(() => _graficaTab = 1)),
+                  _GraficaTab(label: 'Riesgo',       icono: Icons.donut_large_rounded, activo: _graficaTab == 2, onTap: () => setState(() => _graficaTab = 2)),
+                ]),
+              ),
+              const SizedBox(height: 12),
+
+              // Contenedor de la gráfica activa
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: _kBorder)),
+                child: _totalConsultas == 0
+                  ? _SinDatos()
+                  : AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: KeyedSubtree(
+                        key: ValueKey(_graficaTab),
+                        child: [
+                          _buildBarrasModulo(),
+                          _buildLineaDias(),
+                          _buildDonaRiesgo(),
+                        ][_graficaTab],
+                      ),
+                    ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Actividad reciente ───────────────────────────────────────
               Row(children: [
                 const Text('Actividad reciente', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 const Spacer(),
@@ -341,7 +410,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               const SizedBox(height: 20),
 
-              // ── Estado del sistema ────────────────────────────────────
+              // ── Estado del sistema ───────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
@@ -363,10 +432,316 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // GRÁFICA 1 — Barras por módulo
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildBarrasModulo() {
+    if (_porModulo.isEmpty) return _SinDatos();
+    final modulos = _porModulo.keys.toList();
+    final maxVal  = _porModulo.values.fold(0, (a, b) => a > b ? a : b).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Consultas por módulo', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 180,
+          child: BarChart(
+            BarChartData(
+              maxY: (maxVal * 1.3).ceilToDouble(),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
+                getDrawingHorizontalLine: (_) => FlLine(color: Colors.white10, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(sideTitles: SideTitles(
+                  showTitles: true, reservedSize: 28,
+                  interval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
+                  getTitlesWidget: (v, _) => Text(v.toInt().toString(),
+                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                )),
+                bottomTitles: AxisTitles(sideTitles: SideTitles(
+                  showTitles: true, reservedSize: 28,
+                  getTitlesWidget: (v, _) {
+                    final i = v.toInt();
+                    if (i < 0 || i >= modulos.length) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(_cortoModulo(modulos[i]),
+                          style: const TextStyle(color: Colors.white54, fontSize: 9)),
+                    );
+                  },
+                )),
+                topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              barGroups: modulos.asMap().entries.map((e) {
+                final color = _kModuloColores[e.key % _kModuloColores.length];
+                return BarChartGroupData(x: e.key, barRods: [
+                  BarChartRodData(
+                    toY: (_porModulo[e.value] ?? 0).toDouble(),
+                    color: color,
+                    width: 18,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                    backDrawRodData: BackgroundBarChartRodData(
+                      show: true, toY: maxVal * 1.3, color: Colors.white.withOpacity(0.04)),
+                  ),
+                ]);
+              }).toList(),
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, _, rod, __) {
+                    final nombre = modulos[group.x];
+                    return BarTooltipItem(
+                      '$nombre\n${rod.toY.toInt()} consultas',
+                      const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Leyenda
+        Wrap(spacing: 10, runSpacing: 6, children: modulos.asMap().entries.map((e) {
+          final color = _kModuloColores[e.key % _kModuloColores.length];
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(width: 4),
+            Text(e.value, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+          ]);
+        }).toList()),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // GRÁFICA 2 — Línea últimos 7 días
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildLineaDias() {
+    if (_porDia.isEmpty) return _SinDatos();
+
+    // Generar los 7 días (puede haber huecos si no hubo consultas)
+    final hoy   = DateTime.now();
+    final dias  = List.generate(7, (i) => DateTime(hoy.year, hoy.month, hoy.day - (6 - i)));
+    final diasStr = dias.map((d) => d.toIso8601String().substring(0, 10)).toList();
+    final mapa  = { for (final r in _porDia) r['dia'] as String: (r['total'] as int?) ?? 0 };
+    final puntos = diasStr.map((d) => (mapa[d] ?? 0).toDouble()).toList();
+    final maxY  = puntos.fold(0.0, (a, b) => a > b ? a : b);
+    final escala = maxY < 3 ? 3.0 : (maxY * 1.3);
+
+    const etiquetasDia = ['L','M','M','J','V','S','D'];
+    final etiquetas = diasStr.map((d) {
+      final dt = DateTime.parse(d);
+      return etiquetasDia[dt.weekday % 7];
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Consultas últimos 7 días', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 180,
+          child: LineChart(
+            LineChartData(
+              minX: 0, maxX: 6,
+              minY: 0, maxY: escala,
+              gridData: FlGridData(
+                show: true, drawVerticalLine: false,
+                horizontalInterval: escala / 3,
+                getDrawingHorizontalLine: (_) => FlLine(color: Colors.white10, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(sideTitles: SideTitles(
+                  showTitles: true, reservedSize: 28,
+                  interval: escala / 3,
+                  getTitlesWidget: (v, _) => Text(v.toInt().toString(),
+                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                )),
+                bottomTitles: AxisTitles(sideTitles: SideTitles(
+                  showTitles: true, reservedSize: 28,
+                  getTitlesWidget: (v, _) {
+                    final i = v.toInt();
+                    if (i < 0 || i > 6) return const SizedBox.shrink();
+                    final es = i < etiquetas.length ? etiquetas[i] : '';
+                    return Padding(padding: const EdgeInsets.only(top: 6),
+                        child: Text(es, style: const TextStyle(color: Colors.white54, fontSize: 10)));
+                  },
+                )),
+                topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
+                    '${s.y.toInt()} consultas', const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  )).toList(),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: List.generate(7, (i) => FlSpot(i.toDouble(), puntos[i])),
+                  isCurved: true, curveSmoothness: 0.35,
+                  color: _kVerde,
+                  barWidth: 2.5,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+                      radius: spot.y > 0 ? 4 : 2,
+                      color: spot.y > 0 ? _kVerde : Colors.white12,
+                      strokeColor: Colors.transparent,
+                    ),
+                  ),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [_kVerde.withOpacity(0.25), _kVerde.withOpacity(0.0)],
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // GRÁFICA 3 — Dona nivel de riesgo
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildDonaRiesgo() {
+    if (_porRiesgo.isEmpty) return _SinDatos();
+
+    const coloresRiesgo = {
+      'estable':  Color(0xFF1D9E75),
+      'alerta':   Color(0xFFEF9F27),
+      'urgente':  Color(0xFFE24B4A),
+    };
+    const nombresRiesgo = {
+      'estable': 'Estable',
+      'alerta':  'Alerta',
+      'urgente': 'Urgente',
+    };
+
+    final niveles = ['estable', 'alerta', 'urgente'];
+    final secciones = niveles
+        .where((n) => (_porRiesgo[n] ?? 0) > 0)
+        .map((n) => PieChartSectionData(
+              value: (_porRiesgo[n] ?? 0).toDouble(),
+              color: coloresRiesgo[n]!,
+              radius: 48,
+              showTitle: false,
+            ))
+        .toList();
+
+    if (secciones.isEmpty) return _SinDatos();
+
+    final total = _porRiesgo.values.fold(0, (a, b) => a + b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Distribución por nivel de riesgo', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 140, height: 140,
+              child: PieChart(PieChartData(
+                sections: secciones,
+                centerSpaceRadius: 40,
+                sectionsSpace: 3,
+                pieTouchData: PieTouchData(enabled: false),
+              )),
+            ),
+            const SizedBox(width: 24),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: niveles.map((n) {
+                final val = _porRiesgo[n] ?? 0;
+                if (val == 0) return const SizedBox.shrink();
+                final pct = total > 0 ? (val / total * 100).round() : 0;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(children: [
+                    Container(width: 10, height: 10, decoration: BoxDecoration(
+                        color: coloresRiesgo[n], borderRadius: BorderRadius.circular(3))),
+                    const SizedBox(width: 8),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(nombresRiesgo[n]!, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text('$val ($pct%)', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                    ]),
+                  ]),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+}
+
+// ── Widgets auxiliares ───────────────────────────────────────────────────────
+
+class _SinDatos extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 32),
+    child: Center(child: Text('Sin datos suficientes aún.\nRegistra consultas para ver las estadísticas.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.white38, fontSize: 13))),
+  );
+}
+
+class _GraficaTab extends StatelessWidget {
+  final String label;
+  final IconData icono;
+  final bool activo;
+  final VoidCallback onTap;
+  const _GraficaTab({required this.label, required this.icono, required this.activo, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: activo ? _kVerde.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(children: [
+          Icon(icono, color: activo ? _kVerde : Colors.white30, size: 18),
+          const SizedBox(height: 3),
+          Text(label, style: TextStyle(
+              color: activo ? _kVerde : Colors.white38,
+              fontSize: 10, fontWeight: activo ? FontWeight.w600 : FontWeight.normal)),
+        ]),
+      ),
+    ),
+  );
 }
 
 class _StatCard extends StatelessWidget {
-  final String valor, label; final Color color; final IconData icono;
+  final String valor, label;
+  final Color color;
+  final IconData icono;
   const _StatCard({required this.valor, required this.label, required this.color, required this.icono});
   @override
   Widget build(BuildContext context) => Container(

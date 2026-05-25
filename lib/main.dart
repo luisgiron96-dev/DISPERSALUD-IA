@@ -9,14 +9,22 @@ import 'screens/modulos/adolescencia/adolescencia_screen.dart';
 import 'screens/modulos/juventud/juventud_screen.dart';
 import 'screens/modulos/adultez/adultez_screen.dart';
 import 'screens/modulos/vejez/vejez_screen.dart';
+import 'services/security_service.dart';
 
-void main() {
+void main() async {
+  // ⚠️ Necesario para llamar código nativo antes de runApp
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar cifrado ANTES de abrir la app
+  // Genera o recupera la clave AES-256 del llavero del dispositivo
+  await SecurityService.instance.init();
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Color(0xFF7ED8D8),
     systemNavigationBarColor: Color(0xFF7ED8D8),
     statusBarIconBrightness: Brightness.dark,
   ));
+
   runApp(const DispersaludApp());
 }
 
@@ -42,8 +50,6 @@ class DispersaludApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // ✅ home apunta al Splash
-      // ✅ routes NO tiene '/' — eso causaba el error
       home: const SplashScreen(),
       routes: {
         '/home':             (context) => const MainScreen(),

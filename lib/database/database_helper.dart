@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../services/security_service.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -20,7 +21,6 @@ class DatabaseHelper {
   }
 
   Future _createDB(Database db, int version) async {
-    // ── Pacientes (campos completos) ─────────────────────────────────
     await db.execute('''
       CREATE TABLE pacientes (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +38,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Consultas ────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE consultas (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +63,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Alertas ──────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE alertas (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,47 +78,50 @@ class DatabaseHelper {
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // Agregar columnas nuevas a pacientes si vienen de v1
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN documento TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN fecha_nac TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN sexo TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN vereda TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN municipio TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN telefono TEXT'); } catch (_) {}
-      // Agregar datos_json a consultas si no existe
       try { await db.execute('ALTER TABLE consultas ADD COLUMN datos_json TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE consultas ADD COLUMN nivel_riesgo TEXT DEFAULT "estable"'); } catch (_) {}
       try { await db.execute('ALTER TABLE consultas ADD COLUMN nombre TEXT'); } catch (_) {}
     }
   }
 
+  SecurityService get _sec => SecurityService.instance;
+
   // ════════════════════════════════════════════════════════════════════
   // PACIENTES
   // ════════════════════════════════════════════════════════════════════
 
   Future<int> insertarPaciente(Map<String, dynamic> data) async {
-    final db = await database;
-    return await db.insert('pacientes', data,
+    final db      = await database;
+    final cifrado = _sec.cifrarPaciente(data);
+    return await db.insert('pacientes', cifrado,
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Map<String, dynamic>>> obtenerPacientes() async {
-    final db = await database;
-    return await db.query('pacientes', orderBy: 'created_at DESC');
+    final db   = await database;
+    final rows = await db.query('pacientes', orderBy: 'created_at DESC');
+    return rows.map(_sec.descifrarPaciente).toList().cast<Map<String, dynamic>>();
   }
 
-  /// Obtener un paciente por ID — usado por HistorialScreen
   Future<Map<String, dynamic>?> obtenerPaciente(int id) async {
-    final db = await database;
+    final db     = await database;
     final result = await db.query('pacientes',
         where: 'id = ?', whereArgs: [id], limit: 1);
-    return result.isNotEmpty ? result.first : null;
+    if (result.isEmpty) return null;
+    return _sec.descifrarPaciente(result.first);
   }
 
   Future<List<Map<String, dynamic>>> buscarPacientes(String nombre) async {
-    final db = await database;
-    return await db.query('pacientes',
+    final db   = await database;
+    final rows = await db.query('pacientes',
         where: 'nombre LIKE ?', whereArgs: ['%$nombre%']);
+    return rows.map(_sec.descifrarPaciente).toList().cast<Map<String, dynamic>>();
   }
 
   Future<int> eliminarPaciente(int id) async {
@@ -130,7 +131,7 @@ class DatabaseHelper {
 
   Future<int> totalPacientes() async {
     final db = await database;
-    final r = await db.rawQuery('SELECT COUNT(*) as total FROM pacientes');
+    final r  = await db.rawQuery('SELECT COUNT(*) as total FROM pacientes');
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
@@ -139,52 +140,53 @@ class DatabaseHelper {
   // ════════════════════════════════════════════════════════════════════
 
   Future<int> insertarConsulta(Map<String, dynamic> data) async {
-    final db = await database;
-    return await db.insert('consultas', data,
+    final db      = await database;
+    final cifrado = _sec.cifrarConsulta(data);
+    return await db.insert('consultas', cifrado,
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Map<String, dynamic>>> obtenerConsultas({String? modulo}) async {
     final db = await database;
+    List<Map<String, dynamic>> rows;
     if (modulo != null) {
-      return await db.query('consultas',
+      rows = await db.query('consultas',
           where: 'modulo = ?', whereArgs: [modulo], orderBy: 'fecha DESC');
+    } else {
+      rows = await db.query('consultas', orderBy: 'fecha DESC');
     }
-    return await db.query('consultas', orderBy: 'fecha DESC');
+    return rows.map(_sec.descifrarConsulta).toList().cast<Map<String, dynamic>>();
   }
 
-  /// Consultas de un paciente específico — usado por HistorialScreen
   Future<List<Map<String, dynamic>>> consultasDePaciente(int pacienteId) async {
-    final db = await database;
-    return await db.query('consultas',
+    final db   = await database;
+    final rows = await db.query('consultas',
         where: 'paciente_id = ?',
         whereArgs: [pacienteId],
         orderBy: 'fecha DESC');
+    return rows.map(_sec.descifrarConsulta).toList().cast<Map<String, dynamic>>();
   }
 
-  /// Alias para compatibilidad
   Future<List<Map<String, dynamic>>> consultasPorPaciente(int pacienteId) =>
       consultasDePaciente(pacienteId);
 
-  /// Consultas de HOY — usado por DashboardScreen
   Future<int> totalConsultasHoy() async {
-    final db = await database;
+    final db  = await database;
     final hoy = DateTime.now().toIso8601String().substring(0, 10);
-    final r = await db.rawQuery(
+    final r   = await db.rawQuery(
         "SELECT COUNT(*) as total FROM consultas WHERE fecha LIKE '$hoy%'");
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
   Future<int> totalConsultas() async {
     final db = await database;
-    final r = await db.rawQuery('SELECT COUNT(*) as total FROM consultas');
+    final r  = await db.rawQuery('SELECT COUNT(*) as total FROM consultas');
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
-  /// Últimas N consultas para el dashboard
   Future<List<Map<String, dynamic>>> consultasRecientes({int limit = 5}) async {
-    final db = await database;
-    return await db.rawQuery('''
+    final db   = await database;
+    final rows = await db.rawQuery('''
       SELECT
         c.id,
         c.modulo,
@@ -197,6 +199,11 @@ class DatabaseHelper {
       ORDER BY c.fecha DESC
       LIMIT $limit
     ''');
+    return rows.map((r) {
+      final m = Map<String, dynamic>.from(r);
+      m['diagnostico'] = _sec.descifrar(m['diagnostico'] as String?);
+      return m;
+    }).toList().cast<Map<String, dynamic>>();
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -227,7 +234,7 @@ class DatabaseHelper {
 
   Future<int> totalAlertasActivas() async {
     final db = await database;
-    final r = await db.rawQuery(
+    final r  = await db.rawQuery(
         'SELECT COUNT(*) as total FROM alertas WHERE resuelta = 0');
     return Sqflite.firstIntValue(r) ?? 0;
   }
@@ -237,7 +244,7 @@ class DatabaseHelper {
   // ════════════════════════════════════════════════════════════════════
 
   Future<Map<String, int>> resumenGeneral() async {
-    final db = await database;
+    final db        = await database;
     final pacientes = Sqflite.firstIntValue(
             await db.rawQuery('SELECT COUNT(*) FROM pacientes')) ?? 0;
     final consultas = Sqflite.firstIntValue(
@@ -245,6 +252,50 @@ class DatabaseHelper {
     final alertas   = Sqflite.firstIntValue(await db
             .rawQuery('SELECT COUNT(*) FROM alertas WHERE resuelta=0')) ?? 0;
     return {'pacientes': pacientes, 'consultas': consultas, 'alertas': alertas};
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // GRÁFICAS
+  // ════════════════════════════════════════════════════════════════════
+
+  Future<Map<String, int>> consultasPorModulo() async {
+    final db   = await database;
+    final rows = await db.rawQuery(
+      'SELECT modulo, COUNT(*) as total FROM consultas GROUP BY modulo ORDER BY total DESC',
+    );
+    final map = <String, int>{};
+    for (final r in rows) {
+      final mod = (r['modulo'] as String? ?? 'Otro').trim();
+      map[mod] = (r['total'] as int?) ?? 0;
+    }
+    return map;
+  }
+
+  Future<List<Map<String, dynamic>>> consultasUltimosDias({int dias = 7}) async {
+    final db   = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        date(fecha) AS dia,
+        COUNT(*) AS total
+      FROM consultas
+      WHERE fecha >= date('now', '-${dias - 1} days')
+      GROUP BY dia
+      ORDER BY dia ASC
+    ''');
+    return rows;
+  }
+
+  Future<Map<String, int>> distribucionRiesgo() async {
+    final db   = await database;
+    final rows = await db.rawQuery(
+      "SELECT COALESCE(LOWER(nivel_riesgo), 'estable') as nivel, COUNT(*) as total FROM consultas GROUP BY nivel",
+    );
+    final map = <String, int>{};
+    for (final r in rows) {
+      final nivel = r['nivel'] as String? ?? 'estable';
+      map[nivel] = (r['total'] as int?) ?? 0;
+    }
+    return map;
   }
 
   Future<void> cerrarDB() async {
