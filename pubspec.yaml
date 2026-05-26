@@ -26,6 +26,8 @@ dependencies:
   fl_chart: ^0.68.0
   shared_preferences: ^2.3.2
   local_auth: ^2.3.0
+  pdf: ^3.10.8
+  printing: ^5.13.1
 
 dev_dependencies:
   flutter_test:
