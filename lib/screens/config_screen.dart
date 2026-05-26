@@ -251,12 +251,33 @@ class _ConfigScreenState extends State<ConfigScreen> {
         backgroundColor: _kCard,
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle, color: _kVerde.withOpacity(0.15),
-                border: Border.all(color: _kVerde.withOpacity(0.3))),
-            child: const Icon(Icons.monitor_heart_outlined, color: _kVerde, size: 40),
-          ),
+  width: 95,
+  height: 95,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    color: _kVerde.withOpacity(0.10),
+    border: Border.all(
+      color: _kVerde.withOpacity(0.25),
+      width: 2,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: _kVerde.withOpacity(0.15),
+        blurRadius: 20,
+        spreadRadius: 2,
+      ),
+    ],
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(14),
+    child: ClipOval(
+      child: Image.asset(
+        'assets/logo_dispersalud.png',
+        fit: BoxFit.cover,
+      ),
+    ),
+  ),
+),
           const SizedBox(height: 16),
           const Text('DISPERSALUD IA',
               style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
