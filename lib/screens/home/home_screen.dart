@@ -69,10 +69,22 @@ class _Header extends StatelessWidget {
             children: [
               Row(children: [
                 Container(
-                  width: 40, height: 40,
-                  decoration: const BoxDecoration(color: kPrimaryLight, shape: BoxShape.circle),
-                  child: const Icon(Icons.monitor_heart_outlined, color: kPrimary, size: 22),
-                ),
+  width: 44,
+  height: 44,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    border: Border.all(
+      color: Colors.white24,
+      width: 1.5,
+    ),
+  ),
+  child: ClipOval(
+    child: Image.asset(
+      'assets/logo_dispersalud.png',
+      fit: BoxFit.cover,
+    ),
+  ),
+),
                 const SizedBox(width: 10),
                 const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('DISPERSALUD IA', style: TextStyle(color: Color(0xFFE1F5EE), fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: 0.3)),

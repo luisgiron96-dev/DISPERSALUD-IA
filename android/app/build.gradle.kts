@@ -19,12 +19,17 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.dispersalud_ia"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-    }
+
+    applicationId = "com.example.dispersalud_ia"
+
+    minSdk = flutter.minSdkVersion
+
+    targetSdk = flutter.targetSdkVersion
+
+    versionCode = flutter.versionCode
+
+    versionName = flutter.versionName
+}
 
     buildTypes {
         release {

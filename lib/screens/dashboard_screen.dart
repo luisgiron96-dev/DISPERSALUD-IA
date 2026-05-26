@@ -203,9 +203,23 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               // ── Header ─────────────────────────────────────────────────
               Row(children: [
-                Container(width: 38, height: 38,
-                  decoration: BoxDecoration(color: _kVerde, borderRadius: BorderRadius.circular(10)),
-                  child: const Center(child: Text('🌿', style: TextStyle(fontSize: 20)))),
+                Container(
+  width: 42,
+  height: 42,
+  decoration: BoxDecoration(
+    color: Colors.white,
+    shape: BoxShape.circle,
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(6),
+    child: ClipOval(
+      child: Image.asset(
+        'assets/logo_dispersalud.png',
+        fit: BoxFit.contain,
+      ),
+    ),
+  ),
+),
                 const SizedBox(width: 10),
                 const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('DISPERSALUD IA', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
