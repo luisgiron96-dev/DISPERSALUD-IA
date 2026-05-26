@@ -135,7 +135,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
           final bottom = MediaQuery.of(context).padding.bottom;
           return SingleChildScrollView(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(24, 24, 24, bottom + 24),
+              padding: EdgeInsets.fromLTRB(24, 24, 24, bottom < 16 ? 48 : bottom + 24),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
@@ -208,7 +208,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
         final bottom = MediaQuery.of(context).padding.bottom;
         return SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(24, 24, 24, bottom + 24),
+            padding: EdgeInsets.fromLTRB(24, 24, 24, bottom < 16 ? 48 : bottom + 24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
@@ -500,7 +500,7 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                  + MediaQuery.of(context).padding.bottom;
     return SingleChildScrollView(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, bottom + 24),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, bottom < 16 ? 48 : bottom + 24),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           // Indicador drag
           Center(

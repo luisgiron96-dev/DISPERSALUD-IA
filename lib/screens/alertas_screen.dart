@@ -113,8 +113,27 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
   Future<void> _cargar() async {
     setState(() => _cargando = true);
+    // Cargar alertas manuales del promotor
     final lista = await DatabaseHelper.instance.obtenerAlertas();
-    setState(() { _alertasSqlite = lista; _cargando = false; });
+    // Generar alertas automáticas desde consultas urgentes
+    final consultasUrgentes = await DatabaseHelper.instance.consultasUrgentesRecientes();
+    for (final c in consultasUrgentes) {
+      // Solo insertar si no existe ya una alerta igual en las últimas 24h
+      final existe = lista.any((a) =>
+        a['paciente'] == c['nombre'] &&
+        a['modulo'] == c['modulo']);
+      if (!existe && (c['nivel_riesgo'] == 'urgente' || c['nivel_riesgo'] == 'alerta')) {
+        await DatabaseHelper.instance.insertarAlerta({
+          'modulo':   c['modulo'] ?? '',
+          'paciente': c['nombre'] ?? 'Paciente',
+          'mensaje':  c['diagnostico'] ?? 'Consulta con nivel de riesgo elevado',
+          'nivel':    c['nivel_riesgo'] ?? 'alerta',
+          'resuelta': 0,
+        });
+      }
+    }
+    final listaFinal = await DatabaseHelper.instance.obtenerAlertas();
+    setState(() { _alertasSqlite = listaFinal; _cargando = false; });
   }
 
   Future<void> _resolverAlerta(int id) async {
@@ -389,9 +408,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
       context: context,
       backgroundColor: _kCard,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 20, right: 20, top: 20),
+      builder: (ctx) => SingleChildScrollView(
+        child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20,
+            MediaQuery.of(ctx).viewInsets.bottom +
+            (MediaQuery.of(ctx).padding.bottom < 16 ? 48 : MediaQuery.of(ctx).padding.bottom + 24)),
         child: StatefulBuilder(builder: (_, setS) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Registrar alerta', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
@@ -466,7 +489,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
             ),
           ),
           const SizedBox(height: 20),
-        ])),
+        ]))),
       ),
     );
   }

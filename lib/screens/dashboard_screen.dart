@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 
 const Color _kBg     = Color(0xFF111111);
@@ -49,6 +50,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   Map<String, int>              _porRiesgo   = {};
   bool _cargando = true;
 
+  // ── Perfil del promotor ─────────────────────────────────────────────────
+  String _nombrePromotor = '';
+  String _veredaPromotor = '';
+  String _municipioPromotor = '';
+
   // ── Gráfica activa (tab) ─────────────────────────────────────────────────
   int _graficaTab = 0; // 0=barras módulo, 1=línea días, 2=dona riesgo
 
@@ -57,7 +63,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _iniciarVoz();
+    _cargarPerfil();
     _cargar();
+  }
+
+  Future<void> _cargarPerfil() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _nombrePromotor   = prefs.getString('promotor_nombre')    ?? '';
+      _veredaPromotor   = prefs.getString('promotor_vereda')    ?? '';
+      _municipioPromotor= prefs.getString('promotor_municipio') ?? '';
+    });
   }
 
   Future<void> _iniciarVoz() async {
@@ -125,7 +141,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _cargar();
+    if (state == AppLifecycleState.resumed) {
+      _cargarPerfil();
+      _cargar();
+    }
   }
 
   @override
@@ -248,9 +267,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                   gradient: const LinearGradient(colors: [Color(0xFF0F6E56), Color(0xFF1D9E75)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(16)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${_saludo()}, Promotor/a 👋', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text(
+                    _nombrePromotor.isNotEmpty
+                        ? '${_saludo()}, $_nombrePromotor 👋'
+                        : '${_saludo()}, Promotor/a 👋',
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
-                  Text('$_totalConsultas consultas registradas en total', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(
+                    _veredaPromotor.isNotEmpty
+                        ? '$_veredaPromotor · $_municipioPromotor'
+                        : '$_totalConsultas consultas registradas en total',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
                   const SizedBox(height: 14),
                   Row(children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 18),

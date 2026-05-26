@@ -306,6 +306,22 @@ class DatabaseHelper {
     return map;
   }
 
+  /// Consultas con nivel urgente o alerta de las últimas 24h — para alertas automáticas
+  Future<List<Map<String, dynamic>>> consultasUrgentesRecientes() async {
+    final db  = await database;
+    final hace24h = DateTime.now().subtract(const Duration(hours: 24)).toIso8601String();
+    return await db.rawQuery('''
+      SELECT
+        c.id, c.modulo, c.fecha, c.diagnostico, c.nivel_riesgo,
+        COALESCE(c.nombre, p.nombre, 'Paciente') AS nombre
+      FROM consultas c
+      LEFT JOIN pacientes p ON c.paciente_id = p.id
+      WHERE c.nivel_riesgo IN ('urgente','alerta')
+        AND c.fecha >= ?
+      ORDER BY c.fecha DESC
+    ''', [hace24h]);
+  }
+
   Future<void> cerrarDB() async {
     final db = await database;
     db.close();
