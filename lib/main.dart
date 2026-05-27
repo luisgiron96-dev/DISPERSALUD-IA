@@ -55,8 +55,9 @@ class DispersaludApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // ── La app arranca en el PIN, no en el Splash ──
-      home: const PinScreen(),
+      home: const SplashScreen(),
       routes: {
+        '/pin':              (context) => const PinScreen(),
         '/home':             (context) => const MainScreen(),
         '/gestacion':        (context) => const GestacionScreen(),
         '/primera-infancia': (context) => const PrimeraInfanciaScreen(),

@@ -49,14 +49,13 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 650));
     _textCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 2200));
-    await _irAlHome();
+    await _irAlPin();
   }
 
-  Future<void> _irAlHome() async {
+  Future<void> _irAlPin() async {
     if (!mounted) return;
     await _fadeCtrl.forward();
-    // ✅ Ahora navega a '/home' en lugar de '/'
-    if (mounted) Navigator.of(context).pushReplacementNamed('/home');
+    if (mounted) Navigator.of(context).pushReplacementNamed('/pin');
   }
 
   @override
@@ -100,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: ScaleTransition(scale: _logoScale, child: child),
                       ),
                       child: GestureDetector(
-                        onTap: _irAlHome,
+                        onTap: _irAlPin,
                         child: Container(
                           width: size.width * 0.58,
                           height: size.width * 0.58,
