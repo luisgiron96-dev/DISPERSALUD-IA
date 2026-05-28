@@ -103,9 +103,9 @@ class PdfService {
 
   // ── Footer de cada página ────────────────────────────────────────────────
   static pw.Widget _footer(pw.Context ctx) {
-    final fecha = DateTime.now();
+    final fecha = DateTime.now().toLocal();
     final fechaStr =
-        '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+        '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}  ${fecha.hour.toString().padLeft(2,'0')}:${fecha.minute.toString().padLeft(2,'0')}';
     return pw.Container(
       padding: const pw.EdgeInsets.only(top: 8),
       decoration: const pw.BoxDecoration(
@@ -228,7 +228,7 @@ class PdfService {
               borderRadius: pw.BorderRadius.circular(6),
             ),
             child: pw.Text(
-              (c['diagnostico'] as String).replaceAll(RegExp(r'[^\x20-\x7E\u00C0-\u024F\n]'), ''),
+              _limpiarTexto(c['diagnostico'] as String? ?? ''),
               style: pw.TextStyle(fontSize: 10, color: _texto),
             ),
           ),
@@ -367,6 +367,31 @@ class PdfService {
     ]));
   }
 
+  /// Elimina emojis y caracteres no soportados por la librería PDF
+  static String _limpiarTexto(String texto) {
+    // Reemplazar emojis comunes del diagnóstico por texto equivalente
+    return texto
+        .replaceAll('⚠️', '[ALERTA]')
+        .replaceAll('🩸', '[SANGRE]')
+        .replaceAll('📋', '[NOTA]')
+        .replaceAll('✅', '[OK]')
+        .replaceAll('🚨', '[URGENTE]')
+        .replaceAll('🌡️', '[FIEBRE]')
+        .replaceAll('🧠', '[MENTAL]')
+        .replaceAll('🚭', '[TABACO]')
+        .replaceAll('⚖️', '[PESO]')
+        .replaceAll('🫀', '[CORAZON]')
+        .replaceAll('💉', '[VACUNA]')
+        .replaceAll('🧒', '[NINO]')
+        .replaceAll('👁️', '[VISION]')
+        .replaceAll('🦷', '[DIENTE]')
+        .replaceAll('😮', '[OXIGENO]')
+        .replaceAll('🧓', '[ADULTO]')
+        // Eliminar cualquier otro emoji o caracter especial no soportado
+        .replaceAll(RegExp(r'[^ -~À-ɏЀ-ӿ\[\]]'), '')
+        .trim();
+  }
+
   static PdfColor _colorNivel(String nivel) {
     switch (nivel.toLowerCase()) {
       case 'urgente': case 'rojo':    return PdfColors.red700;
@@ -378,7 +403,8 @@ class PdfService {
   static String _formatFecha(String? iso) {
     if (iso == null || iso.isEmpty) return '—';
     try {
-      final dt = DateTime.parse(iso);
+      // Convertir a hora local del dispositivo (Colombia UTC-5)
+      final dt = DateTime.parse(iso).toLocal();
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}  ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) { return iso; }
   }

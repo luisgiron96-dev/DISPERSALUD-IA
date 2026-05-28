@@ -4,11 +4,12 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
+import '../core/app_theme.dart';
 
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
-const Color _kVerde  = Color(0xFF1D9E75);
-const Color _kBorder = Color(0xFF2A2A2A);
+// Colores adaptativos — se obtienen con _c(context) en el build
+const Color _kVerde = Color(0xFF1D9E75);
+DispersaludColors _c(BuildContext ctx) =>
+    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
 
 // Colores para cada módulo (orden consistente)
 const List<Color> _kModuloColores = [
@@ -210,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: _c(context).bg,
       body: RefreshIndicator(
         onRefresh: _cargar,
         color: _kVerde,
@@ -251,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       : const Icon(Icons.refresh_rounded, color: Colors.white54, size: 22)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(20), border: Border.all(color: _kBorder)),
+                  decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(20), border: Border.all(color: _c(context).border)),
                   child: Row(children: [
                     Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
                     const SizedBox(width: 5),
@@ -302,9 +303,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   duration: const Duration(milliseconds: 300),
                   width: double.infinity, height: 56,
                   decoration: BoxDecoration(
-                    color: _escuchando ? _kVerde : _kCard,
+                    color: _escuchando ? _kVerde : _c(context).card,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _escuchando ? _kVerde : _kBorder),
+                    border: Border.all(color: _escuchando ? _kVerde : _c(context).border),
                     boxShadow: _escuchando ? [BoxShadow(color: _kVerde.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)] : [],
                   ),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -367,7 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               // Tabs de gráfica
               Container(
-                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
+                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _c(context).border)),
                 child: Row(children: [
                   _GraficaTab(label: 'Por módulo',   icono: Icons.bar_chart_rounded,  activo: _graficaTab == 0, onTap: () => setState(() => _graficaTab = 0)),
                   _GraficaTab(label: '7 días',       icono: Icons.show_chart_rounded,  activo: _graficaTab == 1, onTap: () => setState(() => _graficaTab = 1)),
@@ -380,7 +381,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: _kBorder)),
+                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(16), border: Border.all(color: _c(context).border)),
                 child: _totalConsultas == 0
                   ? _SinDatos()
                   : AnimatedSwitcher(
@@ -413,7 +414,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               else if (_recientes.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
+                  decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
                   child: const Column(children: [
                     Icon(Icons.medical_information_outlined, color: Colors.white24, size: 40),
                     SizedBox(height: 12),
@@ -429,7 +430,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
+                    decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
                     child: Row(children: [
                       CircleAvatar(radius: 20, backgroundColor: color.withOpacity(0.18),
                           child: Text(nombre[0].toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
@@ -456,7 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               // ── Estado del sistema ───────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
+                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
                 child: Row(children: [
                   Container(width: 36, height: 36,
                     decoration: BoxDecoration(color: _kVerde.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
@@ -789,7 +790,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
+    decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
     child: Column(children: [
       Icon(icono, color: color, size: 20),
       const SizedBox(height: 6),
