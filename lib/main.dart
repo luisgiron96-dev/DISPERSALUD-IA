@@ -19,11 +19,7 @@ void main() async {
   await SecurityService.instance.init();
 
   // La barra de estado se adapta al tema del sistema automáticamente
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-  ));
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   runApp(const DispersaludApp());
 }
@@ -47,7 +43,18 @@ class DispersaludApp extends StatelessWidget {
       darkTheme:  AppTheme.dark,
       themeMode:  ThemeMode.system,
       // ── La app arranca en el PIN, no en el Splash ──
-      home: const PinScreen(),
+      home: Builder(builder: (ctx) {
+        final dark = Theme.of(ctx).brightness == Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+          ),
+          child: const PinScreen(),
+        );
+      }),
       routes: {
         '/home':             (context) => const MainScreen(),
         '/gestacion':        (context) => const GestacionScreen(),
