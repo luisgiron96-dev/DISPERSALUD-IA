@@ -4,11 +4,11 @@ import '../../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import '../../../database/database_helper.dart';
 
+DispersaludColors _c(BuildContext ctx) =>
+    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
+
 // ─── Paleta ───────────────────────────────────────────────────────────────
 const Color _kPink   = Color(0xFF8E2C52);
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
-const Color _kBorder = Color(0xFF2A2A2A);
 
 // ─── Rangos clínicos reales (OPS / Ministerio de Salud Colombia) ──────────
 class _Rangos {
@@ -129,7 +129,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
   Future<void> _seleccionarPaciente() async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: _kCard,
+      backgroundColor: _c(context).card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -142,14 +142,14 @@ class _GestacionScreenState extends State<GestacionScreen> {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text('Seleccionar paciente',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: _c(context).textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: _listaPacientes.isEmpty
                 ? const Center(
                     child: Text('No hay pacientes registrados.\nVe a Pacientes y registra uno primero.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white54)))
+                        style: TextStyle(color: _c(context).textHint)))
                 : ListView.builder(
                     controller: ctrl,
                     itemCount: _listaPacientes.length,
@@ -160,10 +160,10 @@ class _GestacionScreenState extends State<GestacionScreen> {
                           backgroundColor: _kPink.withOpacity(0.2),
                           child: Text(
                             (p['nombre'] as String? ?? '?')[0].toUpperCase(),
-                            style: const TextStyle(color: _kPink, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: _kPink, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        title: Text(p['nombre'] ?? '', style: const TextStyle(color: Colors.white)),
+                        title: Text(p['nombre'] ?? '', style: TextStyle(color: Colors.white)),
                         subtitle: Text('${p['vereda'] ?? ''} · ${p['municipio'] ?? ''}',
                             style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 12)),
                         onTap: () {
@@ -412,7 +412,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
 
     if (_pacienteId == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('⚠️ Selecciona un paciente para guardar la consulta'),
+        content: Text('⚠️ Selecciona un paciente para guardar la consulta'),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -494,10 +494,10 @@ class _GestacionScreenState extends State<GestacionScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: _kCard,
+        backgroundColor: _c(context).card,
         title: Text(
           tieneUrgente ? '🚨 Remisión de emergencia' : 'Remitir a ginecobstetricia',
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white),
         ),
         content: Text(
           tieneUrgente
@@ -506,12 +506,12 @@ class _GestacionScreenState extends State<GestacionScreen> {
                 'Se generará nota de remisión en el historial.'
               : '¿Confirmas la remisión de $_pacienteNombre a ginecobstetricia?\n\n'
                 'Se generará nota de remisión en el historial.',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: _c(context).textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancelar', style: TextStyle(color: _c(context).textHint)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -528,13 +528,13 @@ class _GestacionScreenState extends State<GestacionScreen> {
                 });
               }
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: const Text('Remisión registrada en alertas ✓'),
+                content: Text('Remisión registrada en alertas ✓'),
                 backgroundColor: _kPink,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ));
             },
-            child: const Text('Confirmar remisión', style: TextStyle(color: Colors.white)),
+            child: Text('Confirmar remisión', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -560,13 +560,13 @@ class _GestacionScreenState extends State<GestacionScreen> {
         backgroundColor: _kPink,
         foregroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Gestación', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Gestación', style: TextStyle(color: _c(context).textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
           Text('Control prenatal · Protocolos MINSALUD Colombia',
-              style: TextStyle(color: Colors.white70, fontSize: 11)),
+              style: TextStyle(color: _c(context).textSecondary, fontSize: 11)),
         ]),
       ),
       body: SingleChildScrollView(
@@ -579,7 +579,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
             child: Container(
               width: double.infinity, padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: _pacienteId != null ? _kPink.withOpacity(0.15) : _kCard,
+                color: _pacienteId != null ? _kPink.withOpacity(0.15) : _c(context).card,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: _pacienteId != null ? _kPink : Colors.white24),
               ),
@@ -693,10 +693,10 @@ class _GestacionScreenState extends State<GestacionScreen> {
             TextField(
               controller: _obsCtrl,
               maxLines: 3,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Condiciones del domicilio, acceso a servicios, red de apoyo familiar...',
-                hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                hintStyle: TextStyle(color: _c(context).border, fontSize: 13),
                 filled: true, fillColor: Theme.of(context).extension<DispersaludColors>()!.border.withOpacity(0.4),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -719,7 +719,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
               icon: _guardando
                   ? const SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.psychology_outlined, color: Colors.white),
+                  : Icon(Icons.psychology_outlined, color: Colors.white),
               label: Text(_guardando ? 'Guardando...' : 'Analizar y guardar control',
                   style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
@@ -733,11 +733,11 @@ class _GestacionScreenState extends State<GestacionScreen> {
             width: double.infinity, height: 52,
             child: OutlinedButton.icon(
               onPressed: _remitir,
-              icon: const Icon(Icons.local_hospital_outlined, color: Colors.white70),
-              label: const Text('Remitir a ginecobstetricia',
-                  style: TextStyle(color: Colors.white70, fontSize: 15)),
+              icon: Icon(Icons.local_hospital_outlined, color: Colors.white70),
+              label: Text('Remitir a ginecobstetricia',
+                  style: TextStyle(color: _c(context).textSecondary, fontSize: 15)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white24),
+                side: const BorderSide(color: _c(context).border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
@@ -790,7 +790,7 @@ class _TarjetaHallazgo extends StatelessWidget {
           style: TextStyle(color: hallazgo.color, fontSize: 14, fontWeight: FontWeight.bold)),
       const SizedBox(height: 6),
       Text(hallazgo.detalle,
-          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.45)),
+          style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.45)),
     ]),
   );
 }
@@ -804,13 +804,13 @@ class _Seccion extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity, padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: const Color(0xFF1E1E1E),
+      color: _c(context).card,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: Theme.of(context).extension<DispersaludColors>()!.border),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(titulo,
-          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+          style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
       const SizedBox(height: 14),
       ...children,
     ]),
@@ -834,11 +834,11 @@ class _Campo extends StatelessWidget {
               tipo == const TextInputType.numberWithOptions(decimal: true)
           ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
           : null,
-      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+      style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        filled: true, fillColor: const Color(0xFF2A2A2A),
+        filled: true, fillColor: _c(context).border,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
@@ -859,11 +859,11 @@ class _DropdownField extends StatelessWidget {
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(10)),
+          color: _c(context).border, borderRadius: BorderRadius.circular(10)),
       child: DropdownButton<String>(
         value: value, isExpanded: true, underline: const SizedBox(),
         dropdownColor: const Color(0xFF1E1E1E),
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
         items: opciones.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
         onChanged: onChanged,
       ),

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
+DispersaludColors _c(BuildContext ctx) =>
+    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
+
 const Color _kVerde  = Color(0xFF1D9E75);
-const Color _kBorder = Color(0xFF2A2A2A);
 
 // ════════════════════════════════════════════════════════════════════
 // DATOS CAUCA — Municipios y sus veredas
@@ -210,8 +210,8 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
           colorScheme: const ColorScheme.dark(
             primary: _kVerde,
             onPrimary: Colors.white,
-            surface: Color(0xFF1E1E1E),
-            onSurface: Colors.white,
+            surface: _c(context).card,
+            onSurface: _c(context).textPrimary,
           ),
           // dialogBackgroundColor: const Color(0xFF111111),
         ),
@@ -283,17 +283,17 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: _c(context).bg,
       appBar: AppBar(
-        backgroundColor: _kBg, foregroundColor: Colors.white,
+        backgroundColor: _c(context).bg, foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(_esEdicion ? 'Editar paciente' : 'Nuevo paciente',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           Text(
             _esEdicion
                 ? 'Modificar datos · ${widget.pacienteEditar!['nombre'] ?? ''}'
                 : 'Registro local · sin internet',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            style: TextStyle(color: _c(context).textHint, fontSize: 12),
           ),
         ]),
       ),
@@ -361,8 +361,8 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
           // ── Módulo ────────────────────────────────────────────────
           _Card(titulo: '🏥 Módulo de atención', child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Ciclo de vida principal del paciente',
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
+            Text('Ciclo de vida principal del paciente',
+                style: TextStyle(color: _c(context).textHint, fontSize: 12)),
             const SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: _modulos.map((m) {
               final sel = m == _modulo;
@@ -371,7 +371,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: sel ? _kVerde : _kBorder,
+                    color: sel ? _kVerde : _c(context).border,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: sel ? _kVerde : Colors.white24),
                   ),
@@ -400,7 +400,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
                 _guardando
                     ? (_esEdicion ? 'Actualizando...' : 'Guardando...')
                     : (_esEdicion ? 'Guardar cambios' : 'Registrar paciente'),
-                style: const TextStyle(
+                style: TextStyle(
                     color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -430,12 +430,12 @@ class _Card extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: _kCard,
+      color: _c(context).card,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white10),
+      border: Border.all(color: _c(context).border),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(titulo, style: const TextStyle(
+      Text(titulo, style: TextStyle(
           color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
       const SizedBox(height: 14),
       child,
@@ -451,17 +451,17 @@ class _Campo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
     const SizedBox(height: 4),
     TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+        hintStyle: TextStyle(color: _c(context).border, fontSize: 13),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        filled: true, fillColor: const Color(0xFF2A2A2A),
+        filled: true, fillColor: _c(context).border,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none),
@@ -480,14 +480,14 @@ class _FechaCampo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
     const SizedBox(height: 4),
     GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
+          color: _c(context).border,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(children: [
@@ -498,7 +498,7 @@ class _FechaCampo extends StatelessWidget {
                     : Colors.white,
                 fontSize: 14,
               ))),
-          const Icon(Icons.calendar_today_outlined,
+          Icon(Icons.calendar_today_outlined,
               color: _kVerde, size: 16),
         ]),
       ),
@@ -527,7 +527,7 @@ class _DropFieldSearch extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
     const SizedBox(height: 4),
     GestureDetector(
       onTap: enabled && options.isNotEmpty
@@ -559,7 +559,7 @@ class _DropFieldSearch extends StatelessWidget {
   void _abrirSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: _c(context).card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -628,14 +628,14 @@ class _SelectorSheetState extends State<_SelectorSheet> {
           margin: const EdgeInsets.only(top: 10, bottom: 6),
           width: 36, height: 4,
           decoration: BoxDecoration(
-              color: Colors.white24,
+              color: _c(context).border,
               borderRadius: BorderRadius.circular(2)),
         ),
         // Título
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Text(widget.titulo,
-              style: const TextStyle(color: Colors.white,
+              style: TextStyle(color: _c(context).textPrimary,
                   fontSize: 16, fontWeight: FontWeight.bold)),
         ),
         // Buscador
@@ -644,12 +644,12 @@ class _SelectorSheetState extends State<_SelectorSheet> {
           child: TextField(
             controller: _buscarCtrl,
             autofocus: true,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Buscar...',
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
-              filled: true, fillColor: const Color(0xFF2A2A2A),
+              hintStyle: TextStyle(color: _c(context).textHint),
+              prefixIcon: Icon(Icons.search, color: Colors.white38, size: 20),
+              filled: true, fillColor: _c(context).border,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 10),
@@ -677,7 +677,7 @@ class _SelectorSheetState extends State<_SelectorSheet> {
                       fontSize: 14,
                     )),
                 trailing: sel
-                    ? const Icon(Icons.check, color: _kVerde, size: 18)
+                    ? Icon(Icons.check, color: _kVerde, size: 18)
                     : null,
                 onTap: () => widget.onSeleccionar(op),
               );
@@ -702,19 +702,19 @@ class _DropField extends StatelessWidget {
   Widget build(BuildContext context) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
-            style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            style: TextStyle(color: _c(context).textHint, fontSize: 11)),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
+              color: _c(context).border,
               borderRadius: BorderRadius.circular(10)),
           child: DropdownButton<String>(
             value: value,
             isExpanded: true,
             underline: const SizedBox(),
             dropdownColor: Theme.of(context).extension<DispersaludColors>()!.card,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
             items: options
                 .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                 .toList(),
