@@ -105,6 +105,7 @@ class AlertasScreen extends StatefulWidget {
 
 class _AlertasScreenState extends State<AlertasScreen> {
   List<Map<String, dynamic>> _alertasSqlite = [];
+  // ignore: unused_field
   String _filtro = 'todas';
   bool _cargando = true;
 
@@ -202,9 +203,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
             Container(
               width: double.infinity, padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('📍 Municipios en riesgo', style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)),
@@ -212,7 +213,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 Wrap(spacing: 6, runSpacing: 6,
                   children: (evento['municipios_riesgo'] as List<String>).map((m) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                     child: Text(m, style: TextStyle(color: Colors.blue, fontSize: 12)),
                   )).toList(),
                 ),
@@ -248,7 +249,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 ])),
                 if (urgentes > 0) Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.red.withOpacity(0.5))),
+                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.red.withValues(alpha: 0.5))),
                   child: Text('$urgentes urgente${urgentes > 1 ? 's' : ''}', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ]),
@@ -268,7 +269,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: _c(context).card, borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: color.withOpacity(0.5)),
+                      border: Border.all(color: color.withValues(alpha: 0.5)),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
@@ -281,12 +282,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
                         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                             child: Text(_nivelLabel(a['nivel']), style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                           if ((a['casos'] as int) > 0) ...[
                             SizedBox(height: 4),
-                            Text('${a['casos']} casos', style: TextStyle(color: color.withOpacity(0.8), fontSize: 11)),
+                            Text('${a['casos']} casos', style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11)),
                           ],
                         ]),
                       ]),
@@ -334,7 +335,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: _c(context).card, borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: resuelta ? Colors.white12 : color.withOpacity(0.4)),
+                      border: Border.all(color: resuelta ? Colors.white12 : color.withValues(alpha: 0.4)),
                     ),
                     child: Row(children: [
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -346,7 +347,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                         onTap: () => _resolverAlerta(a['id']),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: _kVerde.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                           child: Text('Resolver', style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ) else Icon(Icons.check_circle_outline, color: _c(context).border, size: 20),
@@ -380,7 +381,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       ])),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
                         child: Text(ev['nivel_base'].toString().toUpperCase(), style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                       SizedBox(width: 6),

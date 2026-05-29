@@ -16,12 +16,13 @@ class _MainScreenState extends State<MainScreen> {
   int _tab = 0;
 
   // ← sin const porque los widgets usan Theme.of(context)
+  // sin const — los widgets leen Theme.of(context) internamente
   final List<Widget> _screens = [
-    const DashboardScreen(),
-    const HomeScreen(),
-    const PacientesScreen(),
-    const AlertasScreen(),
-    const ConfigScreen(),
+    DashboardScreen(),
+    HomeScreen(),
+    PacientesScreen(),
+    AlertasScreen(),
+    ConfigScreen(),
   ];
 
   @override

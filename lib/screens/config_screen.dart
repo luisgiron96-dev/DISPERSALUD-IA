@@ -19,6 +19,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   String _departamento    = '';
   bool   _vozActiva       = true;
   bool   _alertasActivas  = true;
+  // ignore: unused_field
   bool   _modoOffline     = true;
 
   @override
@@ -101,9 +102,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.12),
+                color: Colors.orange.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.withOpacity(0.3))),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3))),
             child: Row(children: [
               Icon(Icons.wifi_off, color: Colors.orange, size: 18),
               SizedBox(width: 8),
@@ -155,7 +156,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     ])),
                     Switch(
                       value: _vozActiva,
-                      activeColor: _kVerde,
+                      activeThumbColor: _kVerde,
                       onChanged: (v) async {
                         setS(() {});
                         setState(() => _vozActiva = v);
@@ -255,14 +256,14 @@ class _ConfigScreenState extends State<ConfigScreen> {
   height: 95,
   decoration: BoxDecoration(
     shape: BoxShape.circle,
-    color: _kVerde.withOpacity(0.10),
+    color: _kVerde.withValues(alpha: 0.10),
     border: Border.all(
-      color: _kVerde.withOpacity(0.25),
+      color: _kVerde.withValues(alpha: 0.25),
       width: 2,
     ),
     boxShadow: [
       BoxShadow(
-        color: _kVerde.withOpacity(0.15),
+        color: _kVerde.withValues(alpha: 0.15),
         blurRadius: 20,
         spreadRadius: 2,
       ),
@@ -340,14 +341,14 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: _kVerde.withOpacity(0.12),
+                  color: _kVerde.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _kVerde.withOpacity(0.3)),
+                  border: Border.all(color: _kVerde.withValues(alpha: 0.3)),
                 ),
                 child: Row(children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: _kVerde.withOpacity(0.2),
+                    backgroundColor: _kVerde.withValues(alpha: 0.2),
                     child: Text(
                       _nombrePromotor.isNotEmpty ? _nombrePromotor[0].toUpperCase() : '?',
                       style: TextStyle(color: _kVerde, fontWeight: FontWeight.bold, fontSize: 18),
@@ -392,7 +393,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
             _SeccionLabel(texto: 'Aplicación'),
             _Item(icon: Icons.notifications_outlined, label: 'Alertas y notificaciones',
                 trailing: Switch(
-                  value: _alertasActivas, activeColor: _kVerde,
+                  value: _alertasActivas, activeThumbColor: _kVerde,
                   onChanged: (v) async {
                     setState(() => _alertasActivas = v);
                     await _guardarPreferencia('alertas_activas', v);
@@ -446,7 +447,7 @@ class _Item extends StatelessWidget {
         Container(
           width: 36, height: 36,
           decoration: BoxDecoration(
-              color: _kVerde.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              color: _kVerde.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: _kVerde, size: 20),
         ),
         SizedBox(width: 12),
@@ -472,7 +473,7 @@ class _InfoTile extends StatelessWidget {
     Container(
       width: 36, height: 36,
       decoration: BoxDecoration(
-          color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+          color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
       child: Icon(icon, color: color, size: 20),
     ),
     SizedBox(width: 12),

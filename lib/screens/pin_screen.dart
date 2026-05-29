@@ -32,6 +32,7 @@ class _PinScreenState extends State<PinScreen> {
   String _pinTemporal = '';
   String _error = '';
 
+  // ignore: unused_field
   bool _biometria = false;
 
   @override
@@ -233,7 +234,7 @@ class _PinScreenState extends State<PinScreen> {
   decoration: BoxDecoration(
     shape: BoxShape.circle,
     border: Border.all(
-      color: _kVerde.withOpacity(0.3),
+      color: _kVerde.withValues(alpha: 0.3),
       width: 2,
     ),
   ),
@@ -252,7 +253,7 @@ class _PinScreenState extends State<PinScreen> {
               'DISPERSALUD IA',
               style: TextStyle(
                 color:
-                    Colors.white.withOpacity(0.9),
+                    Colors.white.withValues(alpha: 0.9),
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,

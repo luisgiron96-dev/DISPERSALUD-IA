@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../core/app_theme.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -107,9 +107,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     setState(() { _escuchando = true; _textoVoz = ''; _respuestaIA = ''; });
     await _stt.listen(
-      localeId: 'es_CO',
-      listenFor: const Duration(seconds: 15),
-      pauseFor: const Duration(seconds: 3),
+      listenOptions: SpeechListenOptions(
+        localeId: 'es_CO',
+        listenFor: const Duration(seconds: 15),
+        pauseFor: const Duration(seconds: 3),
+      ),
       onResult: (result) {
         setState(() => _textoVoz = result.recognizedWords);
         if (result.finalResult && result.recognizedWords.isNotEmpty) {
@@ -244,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: _tieneInternet ? const Color(0xFF1D9E75).withOpacity(0.15) : _kCard,
+                      color: _tieneInternet ? const Color(0xFF1D9E75).withValues(alpha: 0.15) : _kCard,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: _tieneInternet ? const Color(0xFF1D9E75) : _kBorder),
                     ),
@@ -308,7 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: _escuchando ? _kVerde : _kCard,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: _escuchando ? _kVerde : _kBorder),
-                    boxShadow: _escuchando ? [BoxShadow(color: _kVerde.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)] : [],
+                    boxShadow: _escuchando ? [BoxShadow(color: _kVerde.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2)] : [],
                   ),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 24),
@@ -327,9 +329,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Container(
                   width: double.infinity, padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: _kVerde.withOpacity(0.12),
+                    color: _kVerde.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _kVerde.withOpacity(0.4)),
+                    border: Border.all(color: _kVerde.withValues(alpha: 0.4)),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
@@ -406,7 +408,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const Spacer(),
                 if (_consultasHoy > 0) Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: _kVerde.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                  decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                   child: Text('$_consultasHoy hoy', style: const TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600))),
               ]),
               const SizedBox(height: 12),
@@ -432,9 +434,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
+                    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.25))),
                     child: Row(children: [
-                      CircleAvatar(radius: 20, backgroundColor: color.withOpacity(0.18),
+                      CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.18),
                           child: Text(nombre[0].toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -443,12 +445,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                         if ((c['diagnostico'] as String? ?? '').isNotEmpty)
                           Padding(padding: const EdgeInsets.only(top: 3),
                             child: Text(c['diagnostico'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: color.withOpacity(0.8), fontSize: 11))),
+                                style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11))),
                       ])),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                         child: Text(_nivelLabel(c['nivel_riesgo']), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))),
                     ]),
                   );
@@ -462,7 +464,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
                 child: Row(children: [
                   Container(width: 36, height: 36,
-                    decoration: BoxDecoration(color: _kVerde.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.cloud_off_rounded, color: _kVerde, size: 20)),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -535,7 +537,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     width: 18,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                     backDrawRodData: BackgroundBarChartRodData(
-                      show: true, toY: maxVal * 1.3, color: Colors.white.withOpacity(0.04)),
+                      show: true, toY: maxVal * 1.3, color: Colors.white.withValues(alpha: 0.04)),
                   ),
                 ]);
               }).toList(),
@@ -650,7 +652,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   belowBarData: BarAreaData(
                     show: true,
                     gradient: LinearGradient(
-                      colors: [_kVerde.withOpacity(0.25), _kVerde.withOpacity(0.0)],
+                      colors: [_kVerde.withValues(alpha: 0.25), _kVerde.withValues(alpha: 0.0)],
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
                     ),
                   ),
@@ -769,7 +771,7 @@ class _GraficaTab extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: activo ? _kVerde.withOpacity(0.15) : Colors.transparent,
+          color: activo ? _kVerde.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(children: [

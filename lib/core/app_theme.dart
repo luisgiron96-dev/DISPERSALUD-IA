@@ -32,7 +32,7 @@ class AppTheme {
           s.contains(WidgetState.selected) ? kVerde : const Color(0xFF888780)),
       trackColor: WidgetStateProperty.resolveWith((s) =>
           s.contains(WidgetState.selected)
-              ? kVerde.withOpacity(0.4)
+              ? kVerde.withValues(alpha: 0.4)
               : const Color(0xFF2A2A2A)),
     ),
     textTheme: const TextTheme(
@@ -67,7 +67,7 @@ class AppTheme {
           s.contains(WidgetState.selected) ? const Color(0xFF0F6E56) : Colors.white),
       trackColor: WidgetStateProperty.resolveWith((s) =>
           s.contains(WidgetState.selected)
-              ? const Color(0xFF0F6E56).withOpacity(0.4)
+              ? const Color(0xFF0F6E56).withValues(alpha: 0.4)
               : const Color(0xFFCCCCCC)),
     ),
     textTheme: const TextTheme(
@@ -142,3 +142,10 @@ class DispersaludColors extends ThemeExtension<DispersaludColors> {
     );
   }
 }
+// ─── Helper global — úsalo en cualquier build(context) ───────────────────────
+// Uso: final dt = DT(context);  →  dt.bg / dt.card / dt.textPrimary ...
+DispersaludColors DT(BuildContext context) =>
+    Theme.of(context).extension<DispersaludColors>() ?? DispersaludColors.dark;
+
+bool isDark(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark;
