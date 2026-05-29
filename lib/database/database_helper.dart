@@ -322,6 +322,43 @@ class DatabaseHelper {
     ''', [hace24h]);
   }
 
+
+  // ════════════════════════════════════════════════════════════════════
+  // SINCRONIZACIÓN OFFLINE → ONLINE
+  // ════════════════════════════════════════════════════════════════════
+
+  Future<List<Map<String, dynamic>>> obtenerConsultasPendientesSync() async {
+    final db = await database;
+    // Retorna las últimas 50 consultas no sincronizadas
+    final rows = await db.rawQuery("""
+      SELECT c.*, p.nombre as nombre_paciente
+      FROM consultas c
+      LEFT JOIN pacientes p ON c.paciente_id = p.id
+      WHERE (c.sincronizado IS NULL OR c.sincronizado = 0)
+      ORDER BY c.fecha DESC
+      LIMIT 50
+    """);
+    return rows.map(_sec.descifrarConsulta).toList().cast<Map<String, dynamic>>();
+  }
+
+  Future<void> marcarConsultaSincronizada(dynamic id) async {
+    final db = await database;
+    try {
+      await db.execute('ALTER TABLE consultas ADD COLUMN sincronizado INTEGER DEFAULT 0');
+    } catch (_) {} // columna ya existe
+    await db.update('consultas', {'sincronizado': 1},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> totalPendientesSync() async {
+    final db = await database;
+    try {
+      final r = await db.rawQuery(
+          'SELECT COUNT(*) as total FROM consultas WHERE sincronizado IS NULL OR sincronizado = 0');
+      return Sqflite.firstIntValue(r) ?? 0;
+    } catch (_) { return 0; }
+  }
+
   Future<void> cerrarDB() async {
     final db = await database;
     db.close();

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../services/connectivity_service.dart';
+import '../services/ia_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
-import '../core/app_theme.dart';
 
-// Colores adaptativos — se obtienen con _c(context) en el build
-const Color _kVerde = Color(0xFF1D9E75);
-DispersaludColors _c(BuildContext ctx) =>
-    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
+const Color _kBg     = Color(0xFF111111);
+const Color _kCard   = Color(0xFF1E1E1E);
+const Color _kVerde  = Color(0xFF1D9E75);
+const Color _kBorder = Color(0xFF2A2A2A);
 
 // Colores para cada módulo (orden consistente)
 const List<Color> _kModuloColores = [
@@ -36,6 +39,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   final FlutterTts        _tts = FlutterTts();
   bool   _sttDisponible  = false;
   bool   _escuchando     = false;
+  bool   _tieneInternet  = false;
+  StreamSubscription<bool>? _connSub;
   String _textoVoz       = '';
   String _respuestaIA    = '';
 
@@ -115,27 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _procesarConsulta(String texto) async {
     setState(() => _escuchando = false);
-    final t = texto.toLowerCase();
-    String respuesta;
-
-    if (t.contains('presión') || t.contains('tension') || t.contains('hipertension')) {
-      respuesta = 'Para evaluar presión arterial, ve al módulo de Adultez o Vejez. Si la presión sistólica es mayor a 140, es hipertensión. Si supera 180, es una emergencia, remite de inmediato.';
-    } else if (t.contains('gestante') || t.contains('embaraz') || t.contains('semanas')) {
-      respuesta = 'Para control prenatal, ve al módulo de Gestación. Registra las semanas de gestación, presión arterial y altura uterina. Recuerda verificar toxoide tetánico y ácido fólico.';
-    } else if (t.contains('niño') || t.contains('bebe') || t.contains('infan')) {
-      respuesta = 'Para atención infantil usa el módulo de Primera Infancia o Infancia. Evalúa peso, talla, hemoglobina y esquema de vacunación.';
-    } else if (t.contains('diabetes') || t.contains('glucemia') || t.contains('azucar')) {
-      respuesta = 'Para evaluar diabetes, ingresa al módulo de Adultez. Glucemia en ayunas mayor a 126 miligramos indica posible diabetes. Mayor a 200 es una emergencia hiperglucémica.';
-    } else if (t.contains('dengue') || t.contains('fiebre') || t.contains('sivigila')) {
-      respuesta = 'Revisa la pestaña de Alertas para ver los eventos SIVIGILA activos en tu zona. Dengue, EDA e IRA son los principales eventos a vigilar.';
-    } else if (t.contains('paciente') || t.contains('registrar') || t.contains('nuevo')) {
-      respuesta = 'Para registrar un nuevo paciente, ve a la pestaña Pacientes y toca el botón Nuevo. Ingresa nombre, vereda y municipio.';
-    } else if (t.contains('hola') || t.contains('buenos') || t.contains('ayuda')) {
-      respuesta = 'Hola, soy DISPERSALUD IA. Puedo ayudarte con consultas de gestación, infancia, adolescencia, adultez, vejez, diabetes, presión arterial y alertas SIVIGILA. ¿Qué necesitas?';
-    } else {
-      respuesta = 'Entendí: $texto. Puedo orientarte sobre gestación, infancia, adolescencia, adultez, vejez, diabetes, presión arterial y alertas de salud pública.';
-    }
-
+    final respuesta = await IaService.instance.consultar(texto);
     setState(() => _respuestaIA = respuesta);
     await _tts.speak(respuesta);
   }
@@ -151,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _connSub?.cancel();
     _stt.stop();
     _tts.stop();
     super.dispose();
@@ -211,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _c(context).bg,
+      backgroundColor: _kBg,
       body: RefreshIndicator(
         onRefresh: _cargar,
         color: _kVerde,
@@ -250,14 +236,29 @@ class _DashboardScreenState extends State<DashboardScreen>
                   icon: _cargando
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2))
                       : const Icon(Icons.refresh_rounded, color: Colors.white54, size: 22)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(20), border: Border.all(color: _c(context).border)),
-                  child: Row(children: [
-                    Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
-                    const SizedBox(width: 5),
-                    const Text('Offline', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                  ])),
+                GestureDetector(
+                  onTap: () async {
+                    await ConnectivityService.instance.verificarAhora();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _tieneInternet ? const Color(0xFF1D9E75).withOpacity(0.15) : _kCard,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _tieneInternet ? const Color(0xFF1D9E75) : _kBorder),
+                    ),
+                    child: Row(children: [
+                      Container(width: 7, height: 7, decoration: BoxDecoration(
+                        color: _tieneInternet ? const Color(0xFF1D9E75) : Colors.orange,
+                        shape: BoxShape.circle)),
+                      const SizedBox(width: 5),
+                      Text(_tieneInternet ? 'Online' : 'Offline',
+                          style: TextStyle(
+                            color: _tieneInternet ? const Color(0xFF1D9E75) : Colors.white70,
+                            fontSize: 11, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ),
               ]),
               const SizedBox(height: 16),
 
@@ -285,7 +286,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Row(children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 18),
                     const SizedBox(width: 6),
-                    Text(_escuchando ? 'Escuchando...' : 'Toca para consulta por voz',
+                    Text(_escuchando ? 'Escuchando...' : _tieneInternet ? 'IA online — respuestas clínicas mejoradas' : 'IA offline — respuestas locales',
                         style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   ]),
                   if (_textoVoz.isNotEmpty) ...[
@@ -303,9 +304,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   duration: const Duration(milliseconds: 300),
                   width: double.infinity, height: 56,
                   decoration: BoxDecoration(
-                    color: _escuchando ? _kVerde : _c(context).card,
+                    color: _escuchando ? _kVerde : _kCard,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _escuchando ? _kVerde : _c(context).border),
+                    border: Border.all(color: _escuchando ? _kVerde : _kBorder),
                     boxShadow: _escuchando ? [BoxShadow(color: _kVerde.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)] : [],
                   ),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -368,7 +369,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               // Tabs de gráfica
               Container(
-                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _c(context).border)),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
                 child: Row(children: [
                   _GraficaTab(label: 'Por módulo',   icono: Icons.bar_chart_rounded,  activo: _graficaTab == 0, onTap: () => setState(() => _graficaTab = 0)),
                   _GraficaTab(label: '7 días',       icono: Icons.show_chart_rounded,  activo: _graficaTab == 1, onTap: () => setState(() => _graficaTab = 1)),
@@ -381,7 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(16), border: Border.all(color: _c(context).border)),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: _kBorder)),
                 child: _totalConsultas == 0
                   ? _SinDatos()
                   : AnimatedSwitcher(
@@ -414,7 +415,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               else if (_recientes.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
+                  decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
                   child: const Column(children: [
                     Icon(Icons.medical_information_outlined, color: Colors.white24, size: 40),
                     SizedBox(height: 12),
@@ -430,7 +431,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
+                    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
                     child: Row(children: [
                       CircleAvatar(radius: 20, backgroundColor: color.withOpacity(0.18),
                           child: Text(nombre[0].toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
@@ -457,15 +458,15 @@ class _DashboardScreenState extends State<DashboardScreen>
               // ── Estado del sistema ───────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
                 child: Row(children: [
                   Container(width: 36, height: 36,
                     decoration: BoxDecoration(color: _kVerde.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.cloud_off_rounded, color: _kVerde, size: 20)),
                   const SizedBox(width: 12),
-                  const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Modo sin conexión activo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text('Datos guardados localmente · listos para sincronizar', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_tieneInternet ? 'Modo online activo — IA mejorada disponible' : 'Modo sin conexión — datos guardados localmente', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(_tieneInternet ? 'Voz con IA de Claude activada · Sincronización disponible' : 'Datos guardados localmente · listos para sincronizar', style: const TextStyle(color: Colors.white54, fontSize: 11)),
                   ])),
                 ]),
               ),
@@ -790,7 +791,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-    decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
+    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
     child: Column(children: [
       Icon(icono, color: color, size: 20),
       const SizedBox(height: 6),

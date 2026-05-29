@@ -15,19 +15,32 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  # Base de datos local
   sqflite: ^2.3.0
   path: ^1.9.0
   path_provider: ^2.1.2
+
+  # Voz
   speech_to_text: ^7.0.0
   flutter_tts: ^3.8.5
+
+  # Estado y preferencias
   provider: ^6.1.2
+  shared_preferences: ^2.3.2
+
+  # Seguridad
   encrypt: ^5.0.3
   flutter_secure_storage: ^9.2.2
-  fl_chart: ^0.68.0
-  shared_preferences: ^2.3.2
   local_auth: ^2.3.0
+
+  # Gráficas y PDF
+  fl_chart: ^0.68.0
   pdf: ^3.10.8
   printing: ^5.13.1
+
+  # ✅ NUEVO — Conectividad y red híbrida
+  connectivity_plus: ^6.0.3
+  http: ^1.2.1
 
 dev_dependencies:
   flutter_test:

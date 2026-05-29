@@ -12,14 +12,18 @@ import 'screens/modulos/juventud/juventud_screen.dart';
 import 'screens/modulos/adultez/adultez_screen.dart';
 import 'screens/modulos/vejez/vejez_screen.dart';
 import 'services/security_service.dart';
-import 'core/app_theme.dart';
+import 'services/connectivity_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SecurityService.instance.init();
+  await ConnectivityService.instance.init(); // ← detecta internet al arrancar
 
-  // La barra de estado se adapta al tema del sistema automáticamente
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Color(0xFF111111),
+    systemNavigationBarColor: Color(0xFF111111),
+    statusBarIconBrightness: Brightness.light,
+  ));
 
   runApp(const DispersaludApp());
 }
@@ -38,24 +42,24 @@ class DispersaludApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('es', 'CO')],
-      // ── Tema adaptativo según el sistema ──────────────────────────────
-      theme:      AppTheme.light,
-      darkTheme:  AppTheme.dark,
-      themeMode:  ThemeMode.system,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF111111),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF1D9E75),
+          surface: Color(0xFF1E1E1E),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF111111),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        useMaterial3: true,
+      ),
       // ── La app arranca en el PIN, no en el Splash ──
-      home: Builder(builder: (ctx) {
-        final dark = Theme.of(ctx).brightness == Brightness.dark;
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-            systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-          ),
-          child: const PinScreen(),
-        );
-      }),
+      home: const SplashScreen(),
       routes: {
+        '/pin':              (context) => const PinScreen(),
         '/home':             (context) => const MainScreen(),
         '/gestacion':        (context) => const GestacionScreen(),
         '/primera-infancia': (context) => const PrimeraInfanciaScreen(),
