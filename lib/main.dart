@@ -13,16 +13,17 @@ import 'screens/modulos/adultez/adultez_screen.dart';
 import 'screens/modulos/vejez/vejez_screen.dart';
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
+import 'core/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SecurityService.instance.init();
-  await ConnectivityService.instance.init(); // ← detecta internet al arrancar
+  await ConnectivityService.instance.init();
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Color(0xFF111111),
-    systemNavigationBarColor: Color(0xFF111111),
-    statusBarIconBrightness: Brightness.light,
+    statusBarColor:           Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    statusBarIconBrightness:  Brightness.light,
   ));
 
   runApp(const DispersaludApp());
@@ -36,27 +37,16 @@ class DispersaludApp extends StatelessWidget {
     return MaterialApp(
       title: 'DISPERSALUD IA',
       debugShowCheckedModeBanner: false,
+      // ── Tema adaptativo — sigue el sistema ──
+      theme:     AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('es', 'CO')],
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF111111),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF1D9E75),
-          surface: Color(0xFF1E1E1E),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF111111),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        useMaterial3: true,
-      ),
-      // ── La app arranca en el PIN, no en el Splash ──
       home: const SplashScreen(),
       routes: {
         '/pin':              (context) => const PinScreen(),

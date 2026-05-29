@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../../core/app_theme.dart';
 import '../../../database/database_helper.dart';
 
 const Color _kColor  = Color(0xFF185FA5);
@@ -56,15 +57,15 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
   Future<void> _seleccionarPaciente() async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: _kCard,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Column(children: [
+      builder: (ctx) {
+        final _dc = Theme.of(ctx).extension<DispersaludColors>()!;
+        return Column(children: [
         const Padding(padding: EdgeInsets.all(16),
           child: Text('Seleccionar paciente', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
         Expanded(
           child: _listaPacientes.isEmpty
-            ? const Center(child: Text('No hay pacientes.\nRegistra uno en la pestaña Pacientes.',
-                  textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)))
+            ? Center(child: Text('No hay pacientes.\nRegistra uno en la pestaña Pacientes.',
+                  textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint)))
             : ListView.builder(
                 itemCount: _listaPacientes.length,
                 itemBuilder: (_, i) {
@@ -77,7 +78,7 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
                     ),
                     title: Text(p['nombre'] ?? '', style: const TextStyle(color: Colors.white)),
                     subtitle: Text('${p['vereda'] ?? ''} · ${p['municipio'] ?? ''}',
-                        style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                        style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 12)),
                     onTap: () {
                       setState(() { _pacienteId = p['id']; _pacienteNombre = p['nombre']; });
                       Navigator.pop(context);
@@ -172,7 +173,7 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: Theme.of(context).extension<DispersaludColors>()!.bg,
       appBar: AppBar(
         backgroundColor: _kColor, foregroundColor: Colors.white,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18), onPressed: () => Navigator.pop(context)),
@@ -261,7 +262,7 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.psychology_outlined, color: Colors.white),
               label: Text(_guardando ? 'Guardando...' : 'Analizar y guardar',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(backgroundColor: _kColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             ),
@@ -289,9 +290,9 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity, padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+    decoration: BoxDecoration(color: Theme.of(context).extension<DispersaludColors>()!.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).extension<DispersaludColors>()!.border)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(titulo, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      Text(titulo, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
       const SizedBox(height: 14), child,
     ]),
   );
@@ -301,13 +302,13 @@ class _Campo extends StatelessWidget {
   const _Campo({required this.label, required this.controller});
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Text(label, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 11)),
     const SizedBox(height: 4),
     TextField(controller: controller,
-      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+      style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
       decoration: InputDecoration(isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        filled: true, fillColor: _kBorder,
+        filled: true, fillColor: Theme.of(context).extension<DispersaludColors>()!.border.withOpacity(0.4),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
     ),
   ]);
@@ -320,9 +321,9 @@ class _CheckItem extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 10),
     child: GestureDetector(onTap: () => onChanged(!activo), child: Row(children: [
       Icon(activo ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-          color: activo ? color : Colors.white24, size: 20),
+          color: activo ? color : Theme.of(context).extension<DispersaludColors>()!.border, size: 20),
       const SizedBox(width: 10),
-      Expanded(child: Text(texto, style: TextStyle(color: activo ? Colors.white : Colors.white38, fontSize: 13))),
+      Expanded(child: Text(texto, style: TextStyle(color: activo ? Theme.of(context).extension<DispersaludColors>()!.textPrimary : Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 13))),
     ])),
   );
 }

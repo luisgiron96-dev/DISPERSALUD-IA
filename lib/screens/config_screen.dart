@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
 const Color _kVerde  = Color(0xFF1D9E75);
-const Color _kBorder = Color(0xFF2A2A2A);
+DispersaludColors _c(BuildContext ctx) =>
+    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
 
 class ConfigScreen extends StatefulWidget {
-  const ConfigScreen({super.key});
+  ConfigScreen({super.key});
   @override
   State<ConfigScreen> createState() => _ConfigScreenState();
 }
@@ -51,8 +51,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: _kCard,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _PerfilSheet(
         nombre:       _nombrePromotor,
@@ -72,7 +72,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: const Text('Perfil actualizado correctamente ✓'),
+              content: Text('Perfil actualizado correctamente ✓'),
               backgroundColor: _kVerde,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -87,24 +87,24 @@ class _ConfigScreenState extends State<ConfigScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: _kCard,
-        title: const Text('Sincronizar datos', style: TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text('Sincronizar datos', style: TextStyle(color: _c(context).textPrimary)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.cloud_upload_outlined, color: _kVerde, size: 48),
-          const SizedBox(height: 14),
-          const Text(
+          Icon(Icons.cloud_upload_outlined, color: _kVerde, size: 48),
+          SizedBox(height: 14),
+          Text(
             'Los datos se sincronizan automáticamente cuando hay conexión a internet.\n\nActualmente estás en modo offline — todos los registros están guardados localmente.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+            style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.orange.withOpacity(0.3))),
-            child: const Row(children: [
+            child: Row(children: [
               Icon(Icons.wifi_off, color: Colors.orange, size: 18),
               SizedBox(width: 8),
               Expanded(child: Text('Sin conexión a internet',
@@ -115,7 +115,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar', style: TextStyle(color: _kVerde)),
+            child: Text('Cerrar', style: TextStyle(color: _kVerde)),
           ),
         ],
       ),
@@ -125,10 +125,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
   void _abrirVoz() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: _kCard,
+      backgroundColor: Theme.of(context).cardColor,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => StatefulBuilder(
         builder: (ctx, setS) {
@@ -138,20 +138,20 @@ class _ConfigScreenState extends State<ConfigScreen> {
               padding: EdgeInsets.fromLTRB(24, 24, 24, bottom < 16 ? 48 : bottom + 24),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
-                const Text('Configurar voz',
-                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
+                    decoration: BoxDecoration(color: _c(context).border, borderRadius: BorderRadius.circular(2)))),
+                Text('Configurar voz',
+                    style: TextStyle(color: _c(context).textPrimary, fontSize: 17, fontWeight: FontWeight.bold)),
+                SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: _c(context).bg, borderRadius: BorderRadius.circular(14)),
                   child: Row(children: [
-                    const Icon(Icons.mic_rounded, color: _kVerde, size: 22),
-                    const SizedBox(width: 12),
-                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Consulta por voz', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                    Icon(Icons.mic_rounded, color: _kVerde, size: 22),
+                    SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Consulta por voz', style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
                       Text('Activar reconocimiento de voz en el dashboard',
-                          style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          style: TextStyle(color: _c(context).textHint, fontSize: 12)),
                     ])),
                     Switch(
                       value: _vozActiva,
@@ -164,28 +164,28 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     ),
                   ]),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: _c(context).bg, borderRadius: BorderRadius.circular(14)),
                   child: Row(children: [
-                    const Icon(Icons.record_voice_over_outlined, color: _kVerde, size: 22),
-                    const SizedBox(width: 12),
-                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Idioma', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-                      Text('Español colombiano', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    Icon(Icons.record_voice_over_outlined, color: _kVerde, size: 22),
+                    SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Idioma', style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+                      Text('Español colombiano', style: TextStyle(color: _c(context).textHint, fontSize: 12)),
                     ])),
-                    const Icon(Icons.check_circle, color: _kVerde, size: 20),
+                    Icon(Icons.check_circle, color: _kVerde, size: 20),
                   ]),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity, height: 48,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(backgroundColor: _kVerde,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text('Guardar', style: TextStyle(color: _c(context).textPrimary, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ]),
@@ -199,10 +199,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
   void _abrirSeguridad() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: _kCard,
+      backgroundColor: Theme.of(context).cardColor,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) {
         final bottom = MediaQuery.of(context).padding.bottom;
@@ -211,30 +211,30 @@ class _ConfigScreenState extends State<ConfigScreen> {
             padding: EdgeInsets.fromLTRB(24, 24, 24, bottom < 16 ? 48 : bottom + 24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
-              const Text('Seguridad y privacidad',
-                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
+                  decoration: BoxDecoration(color: _c(context).border, borderRadius: BorderRadius.circular(2)))),
+              Text('Seguridad y privacidad',
+                  style: TextStyle(color: _c(context).textPrimary, fontSize: 17, fontWeight: FontWeight.bold)),
+              SizedBox(height: 20),
               _InfoTile(icon: Icons.lock_outline, color: Colors.green,
                   titulo: 'Cifrado AES-256 activo',
                   desc: 'Documentos, teléfonos y diagnósticos cifrados en el dispositivo'),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               _InfoTile(icon: Icons.phone_android_outlined, color: _kVerde,
                   titulo: 'Datos solo en tu celular',
                   desc: 'Sin envío a servidores externos. Cumple Ley 1581 de protección de datos'),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               _InfoTile(icon: Icons.sync_outlined, color: Colors.blue,
                   titulo: 'Sincronización cifrada',
                   desc: 'Cuando haya internet, los datos se envían con TLS 1.3'),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               SizedBox(
                 width: double.infinity, height: 48,
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white24),
+                      side: BorderSide(color: _c(context).border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Cerrar', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                  child: Text('Cerrar', style: TextStyle(color: _c(context).textSecondary, fontWeight: FontWeight.bold)),
                 ),
               ),
             ]),
@@ -248,7 +248,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: _kCard,
+        backgroundColor: Theme.of(context).cardColor,
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
   width: 95,
@@ -278,38 +278,38 @@ class _ConfigScreenState extends State<ConfigScreen> {
     ),
   ),
 ),
-          const SizedBox(height: 16),
-          const Text('DISPERSALUD IA',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text('Versión 1.0.0',
-              style: TextStyle(color: Colors.white54, fontSize: 13)),
-          const SizedBox(height: 14),
-          const Text(
+          SizedBox(height: 16),
+          Text('DISPERSALUD IA',
+              style: TextStyle(color: _c(context).textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 4),
+          Text('Versión 1.0.0',
+              style: TextStyle(color: _c(context).textHint, fontSize: 13)),
+          SizedBox(height: 14),
+          Text(
             'Sistema de Asistencia en Salud para zonas rurales dispersas de Colombia.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+            style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _InfoTile(icon: Icons.wifi_off, color: Colors.orange,
               titulo: 'Funciona sin internet',
               desc: 'Todos los módulos operan 100% offline'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _InfoTile(icon: Icons.health_and_safety_outlined, color: _kVerde,
               titulo: '7 módulos de ciclo vital',
               desc: 'Gestación · Infancia · Adolescencia · Adultez · Vejez'),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _InfoTile(icon: Icons.shield_outlined, color: Colors.blue,
               titulo: 'Ley 1581 — Habeas Data',
               desc: 'Datos cifrados y protegidos en el dispositivo'),
-          const SizedBox(height: 16),
-          const Text('© 2025 DISPERSALUD IA · Colombia',
-              style: TextStyle(color: Colors.white38, fontSize: 11)),
+          SizedBox(height: 16),
+          Text('© 2025 DISPERSALUD IA · Colombia',
+              style: TextStyle(color: _c(context).textHint, fontSize: 11)),
         ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar', style: TextStyle(color: _kVerde)),
+            child: Text('Cerrar', style: TextStyle(color: _kVerde)),
           ),
         ],
       ),
@@ -319,19 +319,19 @@ class _ConfigScreenState extends State<ConfigScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: _c(context).bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
             // Header
-            const Text('Configuración',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            const Text('Personaliza tu experiencia DISPERSALUD IA',
-                style: TextStyle(color: Colors.white54, fontSize: 13)),
-            const SizedBox(height: 20),
+            Text('Configuración',
+                style: TextStyle(color: _c(context).textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text('Personaliza tu experiencia DISPERSALUD IA',
+                style: TextStyle(color: _c(context).textHint, fontSize: 13)),
+            SizedBox(height: 20),
 
             // Perfil del promotor
             if (_nombrePromotor.isNotEmpty)
@@ -350,18 +350,18 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     backgroundColor: _kVerde.withOpacity(0.2),
                     child: Text(
                       _nombrePromotor.isNotEmpty ? _nombrePromotor[0].toUpperCase() : '?',
-                      style: const TextStyle(color: _kVerde, fontWeight: FontWeight.bold, fontSize: 18),
+                      style: TextStyle(color: _kVerde, fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_nombrePromotor,
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                        style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
                     if (_vereda.isNotEmpty || _municipio.isNotEmpty)
                       Text('$_vereda · $_municipio${_departamento.isNotEmpty ? ', $_departamento' : ''}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                          style: TextStyle(color: _c(context).textHint, fontSize: 12)),
                   ])),
-                  const Icon(Icons.verified_outlined, color: _kVerde, size: 20),
+                  Icon(Icons.verified_outlined, color: _kVerde, size: 20),
                 ]),
               ),
 
@@ -370,23 +370,23 @@ class _ConfigScreenState extends State<ConfigScreen> {
             _Item(icon: Icons.person_outline, label: 'Perfil del promotor',
                 desc: _nombrePromotor.isNotEmpty ? _nombrePromotor : 'Sin configurar',
                 onTap: _abrirPerfil),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Sección sistema
             _SeccionLabel(texto: 'Sistema'),
             _Item(icon: Icons.sync_outlined,   label: 'Sincronizar datos',
                 desc: 'Offline · 0 registros pendientes', onTap: _abrirSincronizar),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             _Item(icon: Icons.mic_outlined,    label: 'Configurar voz',
                 desc: _vozActiva ? 'Activada · Español colombiano' : 'Desactivada',
                 onTap: _abrirVoz),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Sección privacidad
             _SeccionLabel(texto: 'Privacidad'),
             _Item(icon: Icons.lock_outline,    label: 'Seguridad y privacidad',
                 desc: 'AES-256 · Ley 1581', onTap: _abrirSeguridad),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Sección app
             _SeccionLabel(texto: 'Aplicación'),
@@ -398,11 +398,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     await _guardarPreferencia('alertas_activas', v);
                   },
                 )),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             _Item(icon: Icons.info_outline, label: 'Acerca de DISPERSALUD IA',
                 desc: 'Versión 1.0.0', onTap: _abrirAcercaDe),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
           ]),
         ),
       ),
@@ -419,7 +419,7 @@ class _SeccionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(texto.toUpperCase(),
-        style: const TextStyle(color: Colors.white38, fontSize: 11,
+        style: TextStyle(color: _c(context).textHint, fontSize: 11,
             fontWeight: FontWeight.w500, letterSpacing: 0.8)),
   );
 }
@@ -439,8 +439,8 @@ class _Item extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: _kCard, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kBorder),
+        color: _c(context).card, borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _c(context).border),
       ),
       child: Row(children: [
         Container(
@@ -449,13 +449,13 @@ class _Item extends StatelessWidget {
               color: _kVerde.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: _kVerde, size: 20),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
           if (desc != null)
-            Text(desc!, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            Text(desc!, style: TextStyle(color: _c(context).textHint, fontSize: 12)),
         ])),
-        trailing ?? const Icon(Icons.chevron_right, color: Colors.white24, size: 20),
+        trailing ?? Icon(Icons.chevron_right, color: _c(context).border, size: 20),
       ]),
     ),
   );
@@ -475,10 +475,10 @@ class _InfoTile extends StatelessWidget {
           color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
       child: Icon(icon, color: color, size: 20),
     ),
-    const SizedBox(width: 12),
+    SizedBox(width: 12),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(titulo, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
-      Text(desc, style: const TextStyle(color: Colors.white54, fontSize: 11, height: 1.3)),
+      Text(titulo, style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+      Text(desc, style: TextStyle(color: _c(context).textHint, fontSize: 11, height: 1.3)),
     ])),
   ]);
 }
@@ -529,24 +529,24 @@ class _PerfilSheetState extends State<_PerfilSheet> {
               width: 40, height: 4,
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: _c(context).border,
                   borderRadius: BorderRadius.circular(2)),
             ),
           ),
-          const Text('Perfil del promotor',
-              style: TextStyle(color: Colors.white, fontSize: 17,
+          Text('Perfil del promotor',
+              style: TextStyle(color: _c(context).textPrimary, fontSize: 17,
                   fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           _Campo(label: 'Nombre completo', controller: _nombreCtrl),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _Campo(label: 'Vereda', controller: _veredaCtrl),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(children: [
             Expanded(child: _Campo(label: 'Municipio',    controller: _municipioCtrl)),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(child: _Campo(label: 'Departamento', controller: _deptoCtrl)),
           ]),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           // Botones con altura fija para que no se corten
           Row(children: [
             Expanded(
@@ -555,15 +555,15 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white24),
+                      side: BorderSide(color: _c(context).border),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Cancelar',
-                      style: TextStyle(color: Colors.white70)),
+                  child: Text('Cancelar',
+                      style: TextStyle(color: _c(context).textSecondary)),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: SizedBox(
                 height: 48,
@@ -581,8 +581,8 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                       backgroundColor: _kVerde,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Guardar',
-                      style: TextStyle(color: Colors.white,
+                  child: Text('Guardar',
+                      style: TextStyle(color: _c(context).textPrimary,
                           fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -602,15 +602,15 @@ class _Campo extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
-      const SizedBox(height: 4),
+      Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+      SizedBox(height: 4),
       TextField(
         controller: controller,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
         decoration: InputDecoration(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          filled: true, fillColor: const Color(0xFF2A2A2A),
+          filled: true, fillColor: _c(context).border,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
         ),

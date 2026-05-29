@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import '../../../database/database_helper.dart';
 
@@ -164,7 +165,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
                         ),
                         title: Text(p['nombre'] ?? '', style: const TextStyle(color: Colors.white)),
                         subtitle: Text('${p['vereda'] ?? ''} · ${p['municipio'] ?? ''}',
-                            style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                            style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 12)),
                         onTap: () {
                           setState(() {
                             _pacienteId     = p['id'] as int?;
@@ -554,7 +555,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: Theme.of(context).extension<DispersaludColors>()!.bg,
       appBar: AppBar(
         backgroundColor: _kPink,
         foregroundColor: Colors.white,
@@ -696,7 +697,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
               decoration: InputDecoration(
                 hintText: 'Condiciones del domicilio, acceso a servicios, red de apoyo familiar...',
                 hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
-                filled: true, fillColor: _kBorder,
+                filled: true, fillColor: Theme.of(context).extension<DispersaludColors>()!.border.withOpacity(0.4),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               ),
@@ -720,7 +721,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.psychology_outlined, color: Colors.white),
               label: Text(_guardando ? 'Guardando...' : 'Analizar y guardar control',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kPink,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -805,7 +806,7 @@ class _Seccion extends StatelessWidget {
     decoration: BoxDecoration(
       color: const Color(0xFF1E1E1E),
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white10),
+      border: Border.all(color: Theme.of(context).extension<DispersaludColors>()!.border),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(titulo,
@@ -824,7 +825,7 @@ class _Campo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Text(label, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 11)),
     const SizedBox(height: 4),
     TextField(
       controller: ctrl,
@@ -853,7 +854,7 @@ class _DropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Text(label, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 11)),
     const SizedBox(height: 4),
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -885,11 +886,11 @@ class _Check extends StatelessWidget {
       child: Row(children: [
         Icon(
           activo ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-          color: activo ? color : Colors.white24, size: 20,
+          color: activo ? color : Theme.of(context).extension<DispersaludColors>()!.border, size: 20,
         ),
         const SizedBox(width: 10),
         Expanded(child: Text(texto,
-            style: TextStyle(color: activo ? Colors.white : Colors.white38, fontSize: 13))),
+            style: TextStyle(color: activo ? Theme.of(context).extension<DispersaludColors>()!.textPrimary : Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 13))),
       ]),
     ),
   );

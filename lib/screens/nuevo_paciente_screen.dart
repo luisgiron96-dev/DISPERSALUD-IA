@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 
 const Color _kBg     = Color(0xFF111111);
@@ -212,7 +213,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
             surface: Color(0xFF1E1E1E),
             onSurface: Colors.white,
           ),
-          dialogBackgroundColor: const Color(0xFF111111),
+          // dialogBackgroundColor: const Color(0xFF111111),
         ),
         child: child!,
       ),
@@ -423,7 +424,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
 class _Card extends StatelessWidget {
   final String titulo;
   final Widget child;
-  const _Card({required this.titulo, required this.child});
+  _Card({required this.titulo, required this.child});
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
@@ -446,7 +447,7 @@ class _Campo extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final String? hint;
-  const _Campo({required this.label, required this.controller, this.hint});
+  _Campo({required this.label, required this.controller, this.hint});
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -474,7 +475,7 @@ class _FechaCampo extends StatelessWidget {
   final String label;
   final String texto;
   final VoidCallback onTap;
-  const _FechaCampo(
+  _FechaCampo(
       {required this.label, required this.texto, required this.onTap});
   @override
   Widget build(BuildContext context) => Column(
@@ -514,7 +515,7 @@ class _DropFieldSearch extends StatelessWidget {
   final ValueChanged<String?> onChanged;
   final bool enabled;
 
-  const _DropFieldSearch({
+  _DropFieldSearch({
     required this.label,
     required this.hint,
     required this.value,
@@ -692,7 +693,7 @@ class _DropField extends StatelessWidget {
   final String label, value;
   final List<String> options;
   final ValueChanged<String?> onChanged;
-  const _DropField(
+  _DropField(
       {required this.label,
       required this.value,
       required this.options,
@@ -712,7 +713,7 @@ class _DropField extends StatelessWidget {
             value: value,
             isExpanded: true,
             underline: const SizedBox(),
-            dropdownColor: _kCard,
+            dropdownColor: Theme.of(context).extension<DispersaludColors>()!.card,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             items: options
                 .map((o) => DropdownMenuItem(value: o, child: Text(o)))

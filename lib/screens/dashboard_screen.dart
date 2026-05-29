@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
@@ -227,14 +228,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   ),
 ),
                 const SizedBox(width: 10),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('DISPERSALUD IA', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   Text('Salud rural · sin internet', style: TextStyle(color: Colors.white54, fontSize: 11)),
                 ])),
                 IconButton(
                   onPressed: _cargar,
                   icon: _cargando
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2))
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2))
                       : const Icon(Icons.refresh_rounded, color: Colors.white54, size: 22)),
                 GestureDetector(
                   onTap: () async {
@@ -758,7 +759,7 @@ class _GraficaTab extends StatelessWidget {
   final IconData icono;
   final bool activo;
   final VoidCallback onTap;
-  const _GraficaTab({required this.label, required this.icono, required this.activo, required this.onTap});
+  _GraficaTab({required this.label, required this.icono, required this.activo, required this.onTap});
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -787,7 +788,7 @@ class _StatCard extends StatelessWidget {
   final String valor, label;
   final Color color;
   final IconData icono;
-  const _StatCard({required this.valor, required this.label, required this.color, required this.icono});
+  _StatCard({required this.valor, required this.label, required this.color, required this.icono});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),

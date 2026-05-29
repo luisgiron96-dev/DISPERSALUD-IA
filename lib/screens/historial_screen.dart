@@ -1,17 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import '../services/pdf_service.dart';
 
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
 const Color _kVerde  = Color(0xFF1D9E75);
-const Color _kBorder = Color(0xFF2A2A2A);
+DispersaludColors _c(BuildContext ctx) =>
+    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
 
 class HistorialScreen extends StatefulWidget {
   final int    pacienteId;
   final String nombre;
-  const HistorialScreen({super.key, required this.pacienteId, required this.nombre});
+  HistorialScreen({super.key, required this.pacienteId, required this.nombre});
   @override
   State<HistorialScreen> createState() => _HistorialScreenState();
 }
@@ -73,21 +73,21 @@ class _HistorialScreenState extends State<HistorialScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: _c(context).bg,
       appBar: AppBar(
-        backgroundColor: _kBg, foregroundColor: Colors.white,
+        backgroundColor: _c(context).bg, foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.nombre,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-          const Text('Historial clínico',
-              style: TextStyle(color: Colors.white54, fontSize: 12)),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          Text('Historial clínico',
+              style: TextStyle(color: _c(context).textHint, fontSize: 12)),
         ]),
         // ── Botón exportar PDF ────────────────────────────────────────
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _exportando
-                ? const Padding(
+                ? Padding(
                     padding: EdgeInsets.all(14),
                     child: SizedBox(
                       width: 20, height: 20,
@@ -107,7 +107,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                         border: Border.all(
                             color: _kVerde.withOpacity(0.4)),
                       ),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.picture_as_pdf_outlined,
                             color: _kVerde, size: 16),
                         SizedBox(width: 4),
@@ -123,7 +123,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
         ],
       ),
       body: _cargando
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(color: Color(0xFF1D9E75)))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -136,19 +136,19 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     padding: const EdgeInsets.all(16),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: _kCard,
+                      color: _c(context).card,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
+                      border: Border.all(color: _c(context).border),
                     ),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('👤 Datos del paciente',
+                      Text('👤 Datos del paciente',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 15,
                               fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       _InfoRow(label: 'Documento',
                           value: _paciente!['documento'] ?? '—'),
                       _InfoRow(label: 'Fecha nac.',
@@ -168,12 +168,12 @@ class _HistorialScreenState extends State<HistorialScreen> {
 
                 // ── Consultas ───────────────────────────────────────────
                 Row(children: [
-                  const Text('Consultas registradas',
+                  Text('Consultas registradas',
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold)),
-                  const Spacer(),
+                  Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
@@ -182,21 +182,21 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text('${_consultas.length} total',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: Color(0xFF1D9E75),
                             fontSize: 12,
                             fontWeight: FontWeight.w600)),
                   ),
                 ]),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 if (_consultas.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                        color: _kCard,
+                        color: _c(context).card,
                         borderRadius: BorderRadius.circular(14)),
-                    child: const Center(
+                    child: Center(
                         child: Text('Sin consultas registradas aún.',
                             style: TextStyle(
                                 color: Colors.white38, fontSize: 14))),
@@ -212,7 +212,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: _kCard,
+                        color: _c(context).card,
                         borderRadius: BorderRadius.circular(14),
                         border:
                             Border.all(color: color.withOpacity(0.4)),
@@ -234,13 +234,13 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600)),
                           ),
-                          const Spacer(),
+                          Spacer(),
                           Text(_formatFecha(c['fecha']),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: Colors.white38, fontSize: 11)),
                         ]),
                         if ((c['diagnostico'] ?? '').isNotEmpty) ...[
-                          const SizedBox(height: 10),
+                          SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -255,7 +255,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                           ),
                         ],
                         if (datos.isNotEmpty) ...[
-                          const SizedBox(height: 10),
+                          SizedBox(height: 10),
                           ...datos.entries.take(5).map((e) =>
                               _InfoRow(
                                   label: e.key,
@@ -264,7 +264,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       ]),
                     );
                   }),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
               ]),
             ),
     );
@@ -282,10 +282,10 @@ class _InfoRow extends StatelessWidget {
           width: 100,
           child: Text(label,
               style:
-                  const TextStyle(color: Colors.white38, fontSize: 12))),
+                  TextStyle(color: _c(context).textHint, fontSize: 12))),
       Expanded(
           child: Text(value,
-              style: const TextStyle(
+              style: TextStyle(
                   color: Colors.white70, fontSize: 13))),
     ]),
   );

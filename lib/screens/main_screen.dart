@@ -4,11 +4,7 @@ import 'dashboard_screen.dart';
 import 'pacientes_screen.dart';
 import 'alertas_screen.dart';
 import 'config_screen.dart';
-
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
-const Color _kVerde  = Color(0xFF1D9E75);
-const Color _kBorder = Color(0xFF2A2A2A);
+import '../core/app_theme.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,23 +15,28 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _tab = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),   // Inicio
-    HomeScreen(),        // Módulos
-    PacientesScreen(),   // Pacientes ← nuevo con SQLite
-    AlertasScreen(),     // Alertas
-    ConfigScreen(),      // Config
+  // ← sin const porque los widgets usan Theme.of(context)
+  final List<Widget> _screens = [
+    const DashboardScreen(),
+    const HomeScreen(),
+    const PacientesScreen(),
+    const AlertasScreen(),
+    const ConfigScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final t     = Theme.of(context);
+    final dc    = t.extension<DispersaludColors>()!;
+    final verde = t.colorScheme.primary;
+
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: dc.bg,
       body: IndexedStack(index: _tab, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: _kCard,
-          border: Border(top: BorderSide(color: _kBorder, width: 1)),
+          color: dc.card,
+          border: Border(top: BorderSide(color: dc.border, width: 1)),
         ),
         child: BottomNavigationBar(
           currentIndex: _tab,
@@ -43,9 +44,9 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: _kVerde,
-          unselectedItemColor: Colors.white30,
-          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          selectedItemColor:    verde,
+          unselectedItemColor:  dc.textHint,
+          selectedLabelStyle:   const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined),          activeIcon: Icon(Icons.home_rounded),          label: 'Inicio'),

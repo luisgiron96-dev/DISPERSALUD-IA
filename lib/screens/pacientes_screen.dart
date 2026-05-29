@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import 'nuevo_paciente_screen.dart';
 import 'historial_screen.dart';
 
-const Color _kBg     = Color(0xFF111111);
-const Color _kCard   = Color(0xFF1E1E1E);
 const Color _kVerde  = Color(0xFF1D9E75);
-const Color _kBorder = Color(0xFF2A2A2A);
+DispersaludColors _c(BuildContext ctx) =>
+    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
 
 class PacientesScreen extends StatefulWidget {
-  const PacientesScreen({super.key});
+  PacientesScreen({super.key});
   @override
   State<PacientesScreen> createState() => _PacientesScreenState();
 }
@@ -41,17 +41,17 @@ class _PacientesScreenState extends State<PacientesScreen> {
     final conf = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: _kCard,
-        title: const Text('Eliminar paciente', style: TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text('Eliminar paciente', style: TextStyle(color: _c(context).textPrimary)),
         content: Text('¿Eliminar a $nombre y todo su historial?',
-            style: const TextStyle(color: Colors.white70)),
+            style: TextStyle(color: _c(context).textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
+              child: Text('Cancelar', style: TextStyle(color: _c(context).textHint))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            child: Text('Eliminar', style: TextStyle(color: _c(context).textPrimary)),
           ),
         ],
       ),
@@ -70,13 +70,13 @@ class _PacientesScreenState extends State<PacientesScreen> {
 
   Color _colorModulo(String modulo) {
     switch (modulo) {
-      case 'Gestación':        return const Color(0xFF993556);
-      case 'Primera infancia': return const Color(0xFF854F0B);
-      case 'Infancia':         return const Color(0xFF185FA5);
-      case 'Adolescencia':     return const Color(0xFF534AB7);
-      case 'Juventud':         return const Color(0xFF3B6D11);
-      case 'Adultez':          return const Color(0xFF0F6E56);
-      case 'Vejez':            return const Color(0xFF5F5E5A);
+      case 'Gestación':        return Color(0xFF993556);
+      case 'Primera infancia': return Color(0xFF854F0B);
+      case 'Infancia':         return Color(0xFF185FA5);
+      case 'Adolescencia':     return Color(0xFF534AB7);
+      case 'Juventud':         return Color(0xFF3B6D11);
+      case 'Adultez':          return Color(0xFF0F6E56);
+      case 'Vejez':            return Color(0xFF5F5E5A);
       default:                 return _kVerde;
     }
   }
@@ -87,25 +87,25 @@ class _PacientesScreenState extends State<PacientesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: _c(context).bg,
       body: SafeArea(
         child: Column(children: [
           // ── Header ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Row(children: [
-              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Pacientes', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                Text('Registros locales · sin internet', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Pacientes', style: TextStyle(color: _c(context).textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                Text('Registros locales · sin internet', style: TextStyle(color: _c(context).textHint, fontSize: 12)),
               ])),
               ElevatedButton.icon(
                 onPressed: () async {
                   await Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const NuevoPacienteScreen()));
+                      MaterialPageRoute(builder: (_) => NuevoPacienteScreen()));
                   _cargar();
                 },
-                icon: const Icon(Icons.person_add_outlined, color: Colors.white, size: 18),
-                label: const Text('Nuevo', style: TextStyle(color: Colors.white, fontSize: 13)),
+                icon: Icon(Icons.person_add_outlined, color: Colors.white, size: 18),
+                label: Text('Nuevo', style: TextStyle(color: _c(context).textPrimary, fontSize: 13)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kVerde,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -121,12 +121,12 @@ class _PacientesScreenState extends State<PacientesScreen> {
             child: TextField(
               controller: _searchCtrl,
               onChanged: _buscar,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre, vereda o municipio...',
-                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
-                filled: true, fillColor: _kCard,
+                hintStyle: TextStyle(color: _c(context).textHint, fontSize: 13),
+                prefixIcon: Icon(Icons.search, color: Colors.white38, size: 20),
+                filled: true, fillColor: _c(context).card,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 border: OutlineInputBorder(
@@ -134,33 +134,33 @@ class _PacientesScreenState extends State<PacientesScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
 
           // ── Lista ─────────────────────────────────────────────────────
           Expanded(
             child: _cargando
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF1D9E75)))
+                ? Center(child: CircularProgressIndicator(color: Color(0xFF1D9E75)))
                 : _pacientes.isEmpty
                     ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.people_outline, color: Colors.white24, size: 56),
-                        const SizedBox(height: 12),
-                        const Text('No hay pacientes registrados',
-                            style: TextStyle(color: Colors.white38, fontSize: 15)),
-                        const SizedBox(height: 8),
+                        Icon(Icons.people_outline, color: _c(context).border, size: 56),
+                        SizedBox(height: 12),
+                        Text('No hay pacientes registrados',
+                            style: TextStyle(color: _c(context).textHint, fontSize: 15)),
+                        SizedBox(height: 8),
                         TextButton(
                           onPressed: () async {
                             await Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const NuevoPacienteScreen()));
+                                MaterialPageRoute(builder: (_) => NuevoPacienteScreen()));
                             _cargar();
                           },
-                          child: const Text('Registrar primer paciente →',
+                          child: Text('Registrar primer paciente →',
                               style: TextStyle(color: Color(0xFF1D9E75))),
                         ),
                       ]))
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _pacientes.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        separatorBuilder: (_, __) => SizedBox(height: 8),
                         itemBuilder: (_, i) {
                           final p = _pacientes[i];
                           final color = _colorModulo(p['modulo'] ?? '');
@@ -173,7 +173,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
                               decoration: BoxDecoration(
                                   color: Colors.red.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(14)),
-                              child: const Icon(Icons.delete_outline, color: Colors.red),
+                              child: Icon(Icons.delete_outline, color: Colors.red),
                             ),
                             confirmDismiss: (_) async {
                               await _eliminar(p['id'], p['nombre']);
@@ -189,9 +189,9 @@ class _PacientesScreenState extends State<PacientesScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: _kCard,
+                                  color: _c(context).card,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: Colors.white10),
+                                  border: Border.all(color: _c(context).border),
                                 ),
                                 child: Row(children: [
                                   CircleAvatar(
@@ -201,15 +201,15 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                         style: TextStyle(color: color,
                                             fontWeight: FontWeight.bold, fontSize: 14)),
                                   ),
-                                  const SizedBox(width: 12),
+                                  SizedBox(width: 12),
                                   Expanded(child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     Text(p['nombre'] ?? '',
-                                        style: const TextStyle(color: Colors.white,
+                                        style: TextStyle(color: _c(context).textPrimary,
                                             fontSize: 14, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 2),
+                                    SizedBox(height: 2),
                                     Text('${p['vereda'] ?? ''} · ${p['municipio'] ?? ''}',
-                                        style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                        style: TextStyle(color: _c(context).textHint, fontSize: 12)),
                                   ])),
                                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                                     Container(
@@ -221,7 +221,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                           style: TextStyle(color: color,
                                               fontSize: 10, fontWeight: FontWeight.w600)),
                                     ),
-                                    const SizedBox(height: 4),
+                                    SizedBox(height: 4),
                                     Row(mainAxisSize: MainAxisSize.min, children: [
                                       GestureDetector(
                                         onTap: () async {
@@ -229,12 +229,12 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                               builder: (_) => NuevoPacienteScreen(pacienteEditar: p)));
                                           _cargar();
                                         },
-                                        child: const Icon(Icons.edit_outlined,
+                                        child: Icon(Icons.edit_outlined,
                                             color: Colors.white38, size: 18),
                                       ),
-                                      const SizedBox(width: 8),
-                                      const Icon(Icons.chevron_right,
-                                          color: Colors.white24, size: 18),
+                                      SizedBox(width: 8),
+                                      Icon(Icons.chevron_right,
+                                          color: _c(context).border, size: 18),
                                     ]),
                                   ]),
                                 ]),
