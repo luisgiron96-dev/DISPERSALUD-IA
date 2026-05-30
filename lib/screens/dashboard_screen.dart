@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
@@ -230,7 +229,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     ),
   ),
 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('DISPERSALUD IA', style: TextStyle(color: _c(context).textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                   Text('Salud rural · sin internet', style: TextStyle(color: _c(context).textHint, fontSize: 11)),
@@ -255,16 +254,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Container(width: 7, height: 7, decoration: BoxDecoration(
                         color: _tieneInternet ? const Color(0xFF1D9E75) : Colors.orange,
                         shape: BoxShape.circle)),
-                      const SizedBox(width: 5),
+                      SizedBox(width: 5),
                       Text(_tieneInternet ? 'Online' : 'Offline',
                           style: TextStyle(
-                            color: _tieneInternet ? const Color(0xFF1D9E75) : Colors.white70,
+                            color: _tieneInternet ? const Color(0xFF1D9E75) : _c(context).textSecondary,
                             fontSize: 11, fontWeight: FontWeight.w600)),
                     ]),
                   ),
                 ),
               ]),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // ── Tarjeta bienvenida + voz ────────────────────────────────
               Container(
@@ -279,27 +278,27 @@ class _DashboardScreenState extends State<DashboardScreen>
                         : '${_saludo()}, Promotor/a 👋',
                     style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     _veredaPromotor.isNotEmpty
                         ? '$_veredaPromotor · $_municipioPromotor'
                         : '$_totalConsultas consultas registradas en total',
                     style: TextStyle(color: _c(context).textSecondary, fontSize: 12),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   Row(children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 18),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(_escuchando ? 'Escuchando...' : _tieneInternet ? 'IA online — respuestas clínicas mejoradas' : 'IA offline — respuestas locales',
                         style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                   ]),
                   if (_textoVoz.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text('"$_textoVoz"', style: TextStyle(color: _c(context).textHint, fontSize: 11, fontStyle: FontStyle.italic)),
                   ],
                 ]),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               // ── Botón micrófono ──────────────────────────────────────────
               GestureDetector(
@@ -315,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 24),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Text(
                       _escuchando ? 'Escuchando... toca para detener' : 'Consulta por voz con IA',
                       style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
@@ -326,7 +325,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               // ── Respuesta IA ─────────────────────────────────────────────
               if (_respuestaIA.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Container(
                   width: double.infinity, padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -337,39 +336,39 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
                       Icon(Icons.psychology_outlined, color: _kVerde, size: 16),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Text('Respuesta DISPERSALUD IA', style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600)),
                       const Spacer(),
                       GestureDetector(
                         onTap: () async { await _tts.speak(_respuestaIA); },
                         child: Icon(Icons.volume_up_rounded, color: _kVerde, size: 18)),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => setState(() => _respuestaIA = ''),
                         child: Icon(Icons.close_rounded, color: Colors.white38, size: 18)),
                     ]),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(_respuestaIA, style: TextStyle(color: _c(context).textPrimary, fontSize: 13, height: 1.5)),
                   ]),
                 ),
               ],
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // ── Estadísticas rápidas ─────────────────────────────────────
               Row(children: [
                 Expanded(child: _StatCard(valor: '$_consultasHoy', label: 'Consultas\nhoy', color: _kVerde, icono: Icons.today_rounded)),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(child: _StatCard(valor: '$_totalPacientes', label: 'Pacientes\nregistrados', color: const Color(0xFF185FA5), icono: Icons.people_rounded)),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(child: _StatCard(valor: '$_totalConsultas', label: 'Total\nconsultas', color: Colors.purple, icono: Icons.assignment_rounded)),
               ]),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // ══════════════════════════════════════════════════════════════
               // SECCIÓN GRÁFICAS
               // ══════════════════════════════════════════════════════════════
               Text('Estadísticas', style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
 
               // Tabs de gráfica
               Container(
@@ -380,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   _GraficaTab(label: 'Riesgo',       icono: Icons.donut_large_rounded, activo: _graficaTab == 2, onTap: () => setState(() => _graficaTab = 2)),
                 ]),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
 
               // Contenedor de la gráfica activa
               Container(
@@ -401,7 +400,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // ── Actividad reciente ───────────────────────────────────────
               Row(children: [
@@ -412,15 +411,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                   child: Text('$_consultasHoy hoy', style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600))),
               ]),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
 
               if (_cargando)
-                const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _kVerde)))
+                Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _kVerde)))
               else if (_recientes.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
-                  child: const Column(children: [
+                  child: Column(children: [
                     Icon(Icons.medical_information_outlined, color: _c(context).border, size: 40),
                     SizedBox(height: 12),
                     Text('Sin consultas registradas aún.', style: TextStyle(color: _c(context).textHint, fontSize: 14, fontWeight: FontWeight.w600)),
@@ -439,7 +438,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: Row(children: [
                       CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.18),
                           child: Text(nombre[0].toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(nombre, style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
                         Text('${c['modulo'] ?? ''} · ${_tiempoRelativo(c['fecha'])}', style: TextStyle(color: _c(context).textHint, fontSize: 12)),
@@ -448,7 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             child: Text(c['diagnostico'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11))),
                       ])),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
@@ -457,7 +456,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   );
                 }),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // ── Estado del sistema ───────────────────────────────────────
               Container(
@@ -467,14 +466,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Container(width: 36, height: 36,
                     decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                     child: Icon(Icons.cloud_off_rounded, color: _kVerde, size: 20)),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_tieneInternet ? 'Modo online activo — IA mejorada disponible' : 'Modo sin conexión — datos guardados localmente', style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                     Text(_tieneInternet ? 'Voz con IA de Claude activada · Sincronización disponible' : 'Datos guardados localmente · listos para sincronizar', style: TextStyle(color: _c(context).textHint, fontSize: 11)),
                   ])),
                 ]),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
             ]),
           ),
         ),
@@ -494,7 +493,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Consultas por módulo', style: TextStyle(color: _c(context).textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         SizedBox(
           height: 180,
           child: BarChart(
@@ -556,17 +555,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         // Leyenda
         Wrap(spacing: 10, runSpacing: 6, children: modulos.asMap().entries.map((e) {
           final color = _kModuloColores[e.key % _kModuloColores.length];
           return Row(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             Text(e.value, style: TextStyle(color: _c(context).textHint, fontSize: 10)),
           ]);
         }).toList()),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
       ],
     );
   }
@@ -596,7 +595,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Consultas últimos 7 días', style: TextStyle(color: _c(context).textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         SizedBox(
           height: 180,
           child: LineChart(
@@ -662,7 +661,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
       ],
     );
   }
@@ -703,7 +702,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Distribución por nivel de riesgo', style: TextStyle(color: _c(context).textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -716,7 +715,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 pieTouchData: PieTouchData(enabled: false),
               )),
             ),
-            const SizedBox(width: 24),
+            SizedBox(width: 24),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: niveles.map((n) {
@@ -728,7 +727,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Row(children: [
                     Container(width: 10, height: 10, decoration: BoxDecoration(
                         color: coloresRiesgo[n], borderRadius: BorderRadius.circular(3))),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(nombresRiesgo[n]!, style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                       Text('$val ($pct%)', style: TextStyle(color: _c(context).textHint, fontSize: 11)),
@@ -739,7 +738,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
       ],
     );
   }
@@ -749,7 +748,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
 class _SinDatos extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.symmetric(vertical: 32),
     child: Center(child: Text('Sin datos suficientes aún.\nRegistra consultas para ver las estadísticas.',
         textAlign: TextAlign.center,
@@ -777,7 +776,7 @@ class _GraficaTab extends StatelessWidget {
         ),
         child: Column(children: [
           Icon(icono, color: activo ? _kVerde : Colors.white30, size: 18),
-          const SizedBox(height: 3),
+          SizedBox(height: 3),
           Text(label, style: TextStyle(
               color: activo ? _kVerde : Colors.white38,
               fontSize: 10, fontWeight: activo ? FontWeight.w600 : FontWeight.normal)),
@@ -798,9 +797,9 @@ class _StatCard extends StatelessWidget {
     decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
     child: Column(children: [
       Icon(icono, color: color, size: 20),
-      const SizedBox(height: 6),
+      SizedBox(height: 6),
       Text(valor, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 4),
+      SizedBox(height: 4),
       Text(label, textAlign: TextAlign.center, style: TextStyle(color: _c(context).textHint, fontSize: 10)),
     ]),
   );

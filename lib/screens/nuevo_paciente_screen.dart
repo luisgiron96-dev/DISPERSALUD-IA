@@ -207,7 +207,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
       confirmText: 'Aceptar',
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
+          colorScheme: ColorScheme.dark(
             primary: _kVerde,
             onPrimary: Colors.white,
             surface: _c(context).card,
@@ -304,17 +304,17 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
           // ── Datos personales ───────────────────────────────────────
           _Card(titulo: '👤 Datos personales', child: Column(children: [
             _Campo(label: 'Nombre completo *', controller: _nombreCtrl),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(children: [
               Expanded(child: _Campo(label: 'N.° documento', controller: _docCtrl)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: _FechaCampo(
                 label: 'Fecha de nacimiento',
                 texto: _fechaTexto,
                 onTap: _seleccionarFecha,
               )),
             ]),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             _DropField(
               label: 'Sexo biológico',
               value: _sexo,
@@ -322,7 +322,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
               onChanged: (v) => setState(() => _sexo = v!),
             ),
           ])),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Ubicación ─────────────────────────────────────────────
           _Card(titulo: '📍 Ubicación — Cauca', child: Column(children: [
@@ -337,7 +337,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
                 _vereda = null; // resetea vereda al cambiar municipio
               }),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             // Vereda — deshabilitada hasta seleccionar municipio
             _DropFieldSearch(
               label: 'Vereda',
@@ -349,21 +349,21 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
               enabled: _municipio != null,
               onChanged: (v) => setState(() => _vereda = v),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             _Campo(
               label: 'Teléfono / celular',
               controller: _telefonoCtrl,
               hint: 'Opcional',
             ),
           ])),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Módulo ────────────────────────────────────────────────
           _Card(titulo: '🏥 Módulo de atención', child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Ciclo de vida principal del paciente',
                 style: TextStyle(color: _c(context).textHint, fontSize: 12)),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: _modulos.map((m) {
               final sel = m == _modulo;
               return GestureDetector(
@@ -371,12 +371,12 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: sel ? _kVerde : _c(context).border,
+                    color: sel ? _kVerde : _c(context).card,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: sel ? _kVerde : Colors.white24),
+                    border: Border.all(color: sel ? _kVerde : _c(context).border),
                   ),
                   child: Text(m, style: TextStyle(
-                    color: sel ? Colors.white : Colors.white60,
+                    color: sel ? Colors.white : _c(context).textSecondary,
                     fontSize: 13,
                     fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
                   )),
@@ -384,14 +384,14 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
               );
             }).toList()),
           ])),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           // ── Botón guardar ─────────────────────────────────────────
           SizedBox(width: double.infinity, height: 52,
             child: ElevatedButton.icon(
               onPressed: _guardando ? null : _guardar,
               icon: _guardando
-                  ? const SizedBox(width: 18, height: 18,
+                  ? SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
                   : Icon(_esEdicion ? Icons.edit_outlined : Icons.save_outlined,
@@ -410,7 +410,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
         ]),
       ),
     );
@@ -436,8 +436,8 @@ class _Card extends StatelessWidget {
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(titulo, style: TextStyle(
-          color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 14),
+          color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+      SizedBox(height: 14),
       child,
     ]),
   );
@@ -452,7 +452,7 @@ class _Campo extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
-    const SizedBox(height: 4),
+    SizedBox(height: 4),
     TextField(
       controller: controller,
       style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
@@ -481,7 +481,7 @@ class _FechaCampo extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
-    const SizedBox(height: 4),
+    SizedBox(height: 4),
     GestureDetector(
       onTap: onTap,
       child: Container(
@@ -494,8 +494,8 @@ class _FechaCampo extends StatelessWidget {
           Expanded(child: Text(texto,
               style: TextStyle(
                 color: texto == 'Seleccionar fecha'
-                    ? Colors.white24
-                    : Colors.white,
+                    ? _c(context).textHint
+                    : _c(context).textPrimary,
                 fontSize: 14,
               ))),
           Icon(Icons.calendar_today_outlined,
@@ -528,7 +528,7 @@ class _DropFieldSearch extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: TextStyle(color: _c(context).textHint, fontSize: 11)),
-    const SizedBox(height: 4),
+    SizedBox(height: 4),
     GestureDetector(
       onTap: enabled && options.isNotEmpty
           ? () => _abrirSelector(context)
@@ -537,20 +537,20 @@ class _DropFieldSearch extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: enabled
-              ? const Color(0xFF2A2A2A)
-              : const Color(0xFF1A1A1A),
+              ? _c(context).border
+              : _c(context).bg,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(children: [
           Expanded(child: Text(
             value ?? hint,
             style: TextStyle(
-              color: value != null ? Colors.white : Colors.white24,
+              color: value != null ? _c(context).textPrimary : _c(context).textHint,
               fontSize: 14,
             ),
           )),
           Icon(Icons.arrow_drop_down,
-              color: enabled ? _kVerde : Colors.white24, size: 20),
+              color: enabled ? _kVerde : _c(context).textHint, size: 20),
         ]),
       ),
     ),
@@ -648,7 +648,7 @@ class _SelectorSheetState extends State<_SelectorSheet> {
             decoration: InputDecoration(
               hintText: 'Buscar...',
               hintStyle: TextStyle(color: _c(context).textHint),
-              prefixIcon: Icon(Icons.search, color: Colors.white38, size: 20),
+              prefixIcon: Icon(Icons.search, color: _c(context).textHint, size: 20),
               filled: true, fillColor: _c(context).border,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
@@ -671,7 +671,7 @@ class _SelectorSheetState extends State<_SelectorSheet> {
                 dense: true,
                 title: Text(op,
                     style: TextStyle(
-                      color: sel ? _kVerde : Colors.white,
+                      color: sel ? _kVerde : _c(context).textPrimary,
                       fontWeight:
                           sel ? FontWeight.w600 : FontWeight.normal,
                       fontSize: 14,
@@ -703,7 +703,7 @@ class _DropField extends StatelessWidget {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
             style: TextStyle(color: _c(context).textHint, fontSize: 11)),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
@@ -712,7 +712,7 @@ class _DropField extends StatelessWidget {
           child: DropdownButton<String>(
             value: value,
             isExpanded: true,
-            underline: const SizedBox(),
+            underline: SizedBox(),
             dropdownColor: Theme.of(context).extension<DispersaludColors>()!.card,
             style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
             items: options

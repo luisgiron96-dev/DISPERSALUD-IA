@@ -85,6 +85,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
 
   // ── Estado clínico ───────────────────────────────────────────────────────
   String _paridad       = 'Primigesta';
+  String _eps            = 'No asegurada / Vinculado';
   String _imcPre        = 'normal';
   bool   _toxoide       = false;
   bool   _acidoFolico   = false;
@@ -139,14 +140,14 @@ class _GestacionScreenState extends State<GestacionScreen> {
         minChildSize: 0.4,
         expand: false,
         builder: (_, ctrl) => Column(children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(16),
             child: Text('Seleccionar paciente',
                 style: TextStyle(color: _c(context).textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: _listaPacientes.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text('No hay pacientes registrados.\nVe a Pacientes y registra uno primero.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: _c(context).textHint)))
@@ -157,7 +158,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
                       final p = _listaPacientes[i];
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: _kPink.withOpacity(0.2),
+                          backgroundColor: _kPink.withValues(alpha: 0.2),
                           child: Text(
                             (p['nombre'] as String? ?? '?')[0].toUpperCase(),
                             style: TextStyle(color: _kPink, fontWeight: FontWeight.bold),
@@ -434,6 +435,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
       'semanas':         _semanasCtrl.text.trim(),
       'edad_materna':    _edadCtrl.text.trim(),
       'paridad':         _paridad,
+        'eps':             _eps,
       'pa_sistolica':    _sistolicaCtrl.text.trim(),
       'pa_diastolica':   _diastolicaCtrl.text.trim(),
       'peso_actual':     _pesoCtrl.text.trim(),
@@ -563,7 +565,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Gestación', style: TextStyle(color: _c(context).textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
           Text('Control prenatal · Protocolos MINSALUD Colombia',
               style: TextStyle(color: _c(context).textSecondary, fontSize: 11)),
@@ -579,14 +581,14 @@ class _GestacionScreenState extends State<GestacionScreen> {
             child: Container(
               width: double.infinity, padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: _pacienteId != null ? _kPink.withOpacity(0.15) : _c(context).card,
+                color: _pacienteId != null ? _kPink.withValues(alpha: 0.15) : _c(context).card,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: _pacienteId != null ? _kPink : Colors.white24),
               ),
               child: Row(children: [
                 Icon(_pacienteId != null ? Icons.person_rounded : Icons.person_add_outlined,
                     color: _pacienteId != null ? _kPink : Colors.white38, size: 22),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_pacienteId != null ? 'Paciente seleccionada' : 'Seleccionar paciente',
                       style: TextStyle(color: _pacienteId != null ? _kPink : Colors.white54, fontSize: 11)),
@@ -599,55 +601,60 @@ class _GestacionScreenState extends State<GestacionScreen> {
               ]),
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Datos de la gestante ─────────────────────────────────────
           _Seccion(titulo: '👤 Datos de la gestante', children: [
             Row(children: [
               Expanded(child: _Campo(label: 'Semanas de gestación', ctrl: _semanasCtrl, tipo: TextInputType.number)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: _Campo(label: 'Edad materna (años)', ctrl: _edadCtrl, tipo: TextInputType.number)),
             ]),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             _DropdownField(
               label: 'Paridad',
               value: _paridad,
               opciones: const ['Primigesta', 'Multigesta (2-4 partos)', 'Gran multigesta (≥5 partos)'],
               onChanged: (v) => setState(() => _paridad = v!),
             ),
+            SizedBox(height: 12),
+            _EPSField(
+              value: _eps,
+              onChanged: (v) => setState(() => _eps = v!),
+            ),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Signos vitales ───────────────────────────────────────────
           _Seccion(titulo: '❤️ Signos vitales', children: [
             Row(children: [
               Expanded(child: _Campo(label: 'PA sistólica (mmHg)', ctrl: _sistolicaCtrl, tipo: TextInputType.number)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: _Campo(label: 'PA diastólica (mmHg)', ctrl: _diastolicaCtrl, tipo: TextInputType.number)),
             ]),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(children: [
               Expanded(child: _Campo(label: 'FCF (lpm)', ctrl: _fcfCtrl, tipo: TextInputType.number)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: _Campo(label: 'Hemoglobina (g/dL)', ctrl: _hbCtrl, tipo: const TextInputType.numberWithOptions(decimal: true))),
             ]),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Medidas antropométricas ──────────────────────────────────
           _Seccion(titulo: '📏 Medidas antropométricas', children: [
             Row(children: [
               Expanded(child: _Campo(label: 'Peso actual (kg)', ctrl: _pesoCtrl, tipo: const TextInputType.numberWithOptions(decimal: true))),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: _Campo(label: 'Peso pregestacional (kg)', ctrl: _pesoInicialCtrl, tipo: const TextInputType.numberWithOptions(decimal: true))),
             ]),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(children: [
               Expanded(child: _Campo(label: 'Talla (cm)', ctrl: _tallaCtrl, tipo: TextInputType.number)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: _Campo(label: 'Altura uterina (cm)', ctrl: _auCtrl, tipo: const TextInputType.numberWithOptions(decimal: true))),
             ]),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             _DropdownField(
               label: 'IMC pregestacional',
               value: _imcPre,
@@ -655,7 +662,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
               onChanged: (v) => setState(() => _imcPre = v!),
             ),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Signos de alarma ─────────────────────────────────────────
           _Seccion(titulo: '🚨 Signos de alarma', children: [
@@ -666,7 +673,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
             _Check(texto: 'Sangrado vaginal activo', activo: _sangrado, color: Colors.red, onChanged: (v) => setState(() => _sangrado = v)),
             _Check(texto: 'Movimientos fetales presentes (≥semana 28)', activo: _movFetal, color: Colors.green, onChanged: (v) => setState(() => _movFetal = v)),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Suplementación ───────────────────────────────────────────
           _Seccion(titulo: '💊 Suplementación', children: [
@@ -675,7 +682,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
             _Check(texto: 'Calcio 1000 mg/día', activo: _calcio, color: Colors.green, onChanged: (v) => setState(() => _calcio = v)),
             _Check(texto: 'Toxoide tetánico/diftérico (Td) — 2 dosis', activo: _toxoide, color: Colors.green, onChanged: (v) => setState(() => _toxoide = v)),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Exámenes paraclínicos ────────────────────────────────────
           _Seccion(titulo: '🔬 Paraclínicos realizados', children: [
@@ -686,7 +693,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
             _Check(texto: 'VIH', activo: _hiv, color: Colors.green, onChanged: (v) => setState(() => _hiv = v)),
             _Check(texto: 'Uroanálisis / urocultivo', activo: _orina, color: Colors.green, onChanged: (v) => setState(() => _orina = v)),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Observaciones ────────────────────────────────────────────
           _Seccion(titulo: '📝 Observaciones del promotor', children: [
@@ -697,18 +704,18 @@ class _GestacionScreenState extends State<GestacionScreen> {
               decoration: InputDecoration(
                 hintText: 'Condiciones del domicilio, acceso a servicios, red de apoyo familiar...',
                 hintStyle: TextStyle(color: _c(context).border, fontSize: 13),
-                filled: true, fillColor: Theme.of(context).extension<DispersaludColors>()!.border.withOpacity(0.4),
+                filled: true, fillColor: Theme.of(context).extension<DispersaludColors>()!.border.withValues(alpha: 0.4),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               ),
             ),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
           // ── Resultados ───────────────────────────────────────────────
           if (_hallazgos.isNotEmpty) ...[
             ..._hallazgos.map((h) => _TarjetaHallazgo(hallazgo: h)),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
           ],
 
           // ── Botones ──────────────────────────────────────────────────
@@ -717,7 +724,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
             child: ElevatedButton.icon(
               onPressed: _guardando ? null : _analizarYGuardar,
               icon: _guardando
-                  ? const SizedBox(width: 18, height: 18,
+                  ? SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : Icon(Icons.psychology_outlined, color: Colors.white),
               label: Text(_guardando ? 'Guardando...' : 'Analizar y guardar control',
@@ -728,7 +735,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           SizedBox(
             width: double.infinity, height: 52,
             child: OutlinedButton.icon(
@@ -737,12 +744,12 @@ class _GestacionScreenState extends State<GestacionScreen> {
               label: Text('Remitir a ginecobstetricia',
                   style: TextStyle(color: _c(context).textSecondary, fontSize: 15)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _c(context).border),
+                side: BorderSide(color: _c(context).border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: 28),
         ]),
       ),
     );
@@ -781,14 +788,14 @@ class _TarjetaHallazgo extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: hallazgo.color.withOpacity(0.10),
+      color: hallazgo.color.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: hallazgo.color.withOpacity(0.5)),
+      border: Border.all(color: hallazgo.color.withValues(alpha: 0.5)),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(hallazgo.titulo,
           style: TextStyle(color: hallazgo.color, fontSize: 14, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 6),
+      SizedBox(height: 6),
       Text(hallazgo.detalle,
           style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.45)),
     ]),
@@ -811,7 +818,7 @@ class _Seccion extends StatelessWidget {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(titulo,
           style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 14),
+      SizedBox(height: 14),
       ...children,
     ]),
   );
@@ -826,7 +833,7 @@ class _Campo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 11)),
-    const SizedBox(height: 4),
+    SizedBox(height: 4),
     TextField(
       controller: ctrl,
       keyboardType: tipo,
@@ -855,14 +862,14 @@ class _DropdownField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 11)),
-    const SizedBox(height: 4),
+    SizedBox(height: 4),
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
           color: _c(context).border, borderRadius: BorderRadius.circular(10)),
       child: DropdownButton<String>(
-        value: value, isExpanded: true, underline: const SizedBox(),
-        dropdownColor: const Color(0xFF1E1E1E),
+        value: value, isExpanded: true, underline: SizedBox(),
+        dropdownColor: _c(context).card,
         style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
         items: opciones.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
         onChanged: onChanged,
@@ -888,10 +895,88 @@ class _Check extends StatelessWidget {
           activo ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
           color: activo ? color : Theme.of(context).extension<DispersaludColors>()!.border, size: 20,
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Expanded(child: Text(texto,
             style: TextStyle(color: activo ? Theme.of(context).extension<DispersaludColors>()!.textPrimary : Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 13))),
       ]),
     ),
+  );
+}
+
+// ── Widget EPS — lista completa de EPS Colombia ──────────────────────────────
+class _EPSField extends StatelessWidget {
+  final String value;
+  final ValueChanged<String?> onChanged;
+  const _EPSField({required this.value, required this.onChanged});
+
+  static const List<String> _eps = [
+    'No asegurada / Vinculado',
+    // ── Régimen Contributivo ──
+    'Sura EPS',
+    'Sanitas EPS',
+    'Nueva EPS',
+    'Compensar EPS',
+    'Famisanar EPS',
+    'Salud Total EPS',
+    'Medimás EPS',
+    'Aliansalud EPS',
+    'Comfenalco Valle EPS',
+    'Mutual Ser EPS',
+    'Coosalud EPS',
+    // ── Régimen Subsidiado ──
+    'Coosalud EPS-S',
+    'Mutual Ser EPS-S',
+    'Asmet Salud EPS-S',
+    'Emssanar EPS-S',
+    'Comparta EPS-S',
+    'Comfacor EPS-S',
+    'Ecoopsos EPS-S',
+    'Dusakawi EPS-S (indígena)',
+    'Anas Wayuu EPS-S (indígena)',
+    'Mallamas EPS-S (indígena)',
+    'Pijaos Salud EPS-S (indígena)',
+    // ── Regímenes especiales ──
+    'SISBÉN (pendiente afiliación)',
+    'Fuerzas Militares / Policía',
+    'Ecopetrol',
+    'Magisterio (FOMAG)',
+    'Otro / No sabe',
+  ];
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('EPS de vinculación',
+          style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+      SizedBox(height: 4),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+            color: _c(context).border,
+            borderRadius: BorderRadius.circular(10)),
+        child: DropdownButton<String>(
+          value: _eps.contains(value) ? value : _eps.first,
+          isExpanded: true,
+          underline: SizedBox(),
+          dropdownColor: _c(context).card,
+          icon: Icon(Icons.arrow_drop_down, color: const Color(0xFF8E2C52)),
+          style: TextStyle(color: _c(context).textPrimary, fontSize: 14),
+          items: _eps.map((e) => DropdownMenuItem(
+            value: e,
+            child: Text(e,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _c(context).textPrimary,
+                fontWeight: e == 'No asegurada / Vinculado'
+                    ? FontWeight.normal
+                    : FontWeight.normal,
+              ),
+            ),
+          )).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    ],
   );
 }
