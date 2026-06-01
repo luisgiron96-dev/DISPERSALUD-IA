@@ -3,178 +3,156 @@ import 'package:http/http.dart' as http;
 import 'connectivity_service.dart';
 
 // ─── Servicio de IA Híbrido ───────────────────────────────────────────────
-// Con internet  → usa Claude API (Anthropic) para respuestas clínicas reales
-// Sin internet  → usa lógica local de palabras clave (ya funciona hoy)
+// Con internet  → Groq API (Llama 3.1) — gratuito, sin vencimiento
+// Sin internet  → Motor local de reglas clínicas — 100% offline
 class IaService {
   static final IaService instance = IaService._();
   IaService._();
 
-  static const _apiUrl = 'https://api.anthropic.com/v1/messages';
+  static const _groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  static const _groqApiKey = 'GROQ_API_KEY';
+  static const _groqModel  = 'llama-3.1-8b-instant';
 
-  // Prompt de sistema clínico — contexto real para Colombia rural
-  static const _sistemaClinical = '''
-Eres DISPERSALUD IA, un asistente de salud para promotores rurales en Colombia.
-Trabajas en zonas dispersas del departamento del Cauca.
-Respondes preguntas clínicas breves, claras y prácticas.
-Tus respuestas deben:
-- Ser en español colombiano, simples, sin jerga médica compleja
-- Incluir signos de alarma concretos cuando aplique
-- Mencionar cuándo remitir al médico o a urgencias
-- Basarte en protocolos del Ministerio de Salud de Colombia, OPS y OMS
-- Ser máximo de 3-4 oraciones (el promotor está atendiendo al paciente)
-Si detectas una emergencia, empieza con: EMERGENCIA:
-Si no sabes algo con certeza, dilo y recomienda consultar al médico.
-No diagnostiques enfermedades específicas — orienta y triaja.
+  static const _sistemaPrompt = '''
+Eres DISPERSALUD IA, asistente de salud para promotores rurales en el Cauca, Colombia.
+Tu rol es orientar al promotor en campo — no reemplazas al médico.
+
+REGLAS ESTRICTAS:
+- Responde SIEMPRE en español colombiano, claro y sencillo
+- Máximo 3-4 oraciones por respuesta — el promotor está con el paciente
+- Si hay riesgo de vida, empieza con: EMERGENCIA:
+- Basa tus respuestas en protocolos del Ministerio de Salud de Colombia
+- Menciona cuándo remitir al médico o a urgencias
+- No diagnostiques enfermedades específicas — orienta y triaja
+- Si no sabes algo con certeza, dilo y recomienda consultar al médico
+
+CONTEXTO:
+- Zona rural dispersa del Cauca, Colombia
+- Enfermedades prevalentes: dengue, malaria, EDA, IRA, desnutrición
+- Población vulnerable: gestantes, menores de 5 años, adultos mayores
+- Alertas activas: dengue en Santander de Quilichao, malaria en López de Micay
 ''';
 
-  // ── Consulta híbrida ──────────────────────────────────────────────────
-  Future<String> consultar(String pregunta, {String? apiKey}) async {
-    if (ConnectivityService.instance.tieneInternet && apiKey != null && apiKey.isNotEmpty) {
+  // ── Consulta híbrida — detecta internet automáticamente ──────────────
+  Future<String> consultar(String pregunta) async {
+    if (ConnectivityService.instance.tieneInternet) {
       try {
-        return await _consultarClaude(pregunta, apiKey);
-      } catch (e) {
-        // Si falla la API, cae a lógica local
+        return await _consultarGroq(pregunta);
+      } catch (_) {
         return _consultarLocal(pregunta);
       }
-    } else {
-      return _consultarLocal(pregunta);
     }
+    return _consultarLocal(pregunta);
   }
 
-  // ── Con internet: Claude API ──────────────────────────────────────────
-  Future<String> _consultarClaude(String pregunta, String apiKey) async {
+  // ── Con internet: Groq API ────────────────────────────────────────────
+  Future<String> _consultarGroq(String pregunta) async {
     final response = await http.post(
-      Uri.parse(_apiUrl),
+      Uri.parse(_groqApiUrl),
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer $_groqApiKey',
       },
       body: jsonEncode({
-        'model': 'claude-haiku-4-5-20251001',
-        'max_tokens': 300,
-        'system': _sistemaClinical,
+        'model':       _groqModel,
+        'max_tokens':  300,
+        'temperature': 0.3,
         'messages': [
-          {'role': 'user', 'content': pregunta}
+          {'role': 'system', 'content': _sistemaPrompt},
+          {'role': 'user',   'content': pregunta},
         ],
       }),
-    ).timeout(const Duration(seconds: 15));
+    ).timeout(const Duration(seconds: 12));
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final texto = (data['content'] as List?)
-              ?.whereType<Map>()
-              .firstWhere((b) => b['type'] == 'text', orElse: () => {})['text']
-          as String? ?? '';
-      return texto.isNotEmpty ? texto : _consultarLocal(pregunta);
-    } else {
-      return _consultarLocal(pregunta);
+      final data  = jsonDecode(response.body);
+      final texto = data['choices']?[0]?['message']?['content'] as String? ?? '';
+      return texto.isNotEmpty ? texto.trim() : _consultarLocal(pregunta);
     }
+    return _consultarLocal(pregunta);
   }
 
-  // ── Sin internet: lógica local de palabras clave ───────────────────────
+  // ── Sin internet: motor local de reglas clínicas ──────────────────────
   String _consultarLocal(String pregunta) {
-    final t = pregunta.toLowerCase();
+    final t = pregunta.toLowerCase()
+        .replaceAll('á','a').replaceAll('é','e')
+        .replaceAll('í','i').replaceAll('ó','o')
+        .replaceAll('ú','u');
 
-    // Emergencias — prioridad máxima
-    if (t.contains('convuls') || t.contains('convulsión')) {
-      return 'EMERGENCIA: Convulsión activa. Posición lateral de seguridad, no introducir objetos en boca. '
-          'Remisión URGENTE. Si es gestante, sospechar eclampsia.';
-    }
-    if (t.contains('dificultad') && t.contains('respir') || t.contains('ahogando')) {
-      return 'EMERGENCIA: Dificultad respiratoria. Mantener vías aéreas abiertas, posición semisentada. '
-          'Remisión inmediata. Si SpO2 < 92%, es urgencia.';
-    }
-    if (t.contains('sangrado') && (t.contains('embar') || t.contains('gestante'))) {
-      return 'EMERGENCIA: Sangrado en gestante. No administrar oxitocina. '
-          'Remisión urgente a ginecobstetricia. No dejar sola a la paciente.';
-    }
-    if (t.contains('infarto') || t.contains('dolor.*pecho') || t.contains('pecho.*dolor')) {
-      return 'EMERGENCIA: Posible infarto. Reposo absoluto, aspirina 300mg si no es alérgico. '
-          'Remisión inmediata a urgencias.';
+    // EMERGENCIAS
+    if (_c(t, ['convuls'])) return 'EMERGENCIA: Convulsión activa. Posición lateral de seguridad, no introducir objetos en boca. Remisión URGENTE. Si es gestante, sospechar eclampsia.';
+    if (_c(t, ['ahogando']) || (_c(t, ['dificultad']) && _c(t, ['respir']))) return 'EMERGENCIA: Dificultad respiratoria. Mantener vías aéreas abiertas, posición semisentada. Si SpO2 < 92%: remisión inmediata.';
+    if (_c(t, ['sangrado']) && _c(t, ['embar','gestante','semana'])) return 'EMERGENCIA: Sangrado en gestante. No administrar oxitocina. Remisión urgente a ginecobstetricia. No dejar sola a la paciente.';
+    if (_c(t, ['infarto','dolor de pecho'])) return 'EMERGENCIA: Posible infarto. Reposo absoluto, aspirina 300mg si no es alérgico. Remisión inmediata a urgencias.';
+    if (_c(t, ['suicid','autolesion','quitarme la vida'])) return 'EMERGENCIA: Riesgo de autolesión. No dejar solo al paciente, activar ruta de salud mental. Llamar a la línea 106.';
+
+    // GESTACIÓN
+    if (_c(t, ['gestante','embaraz','semana','prenatal','parto','trimestre','toxoide','altura uterina','fcf'])) {
+      if (_c(t, ['presion','140','150','160','preeclampsia'])) return 'EMERGENCIA: Presión elevada en gestante — sospechar preeclampsia. Posición decúbito lateral izquierdo. Remisión inmediata a ginecobstetricia.';
+      return 'Usa el módulo Gestación para el control prenatal. Registra PA, peso, altura uterina y FCF. Señales de alarma: PA ≥ 140/90, cefalea intensa, visión borrosa — remisión urgente.';
     }
 
-    // Gestación
-    if (t.contains('gestante') || t.contains('embaraz') || t.contains('semanas') || t.contains('prenatal')) {
-      return 'Para control prenatal ve al módulo Gestación. '
-          'Registra PA, FCF, altura uterina y hemoglobina. '
-          'Señales de alarma: PA ≥ 140/90, cefalea intensa, visión borrosa — remisión urgente.';
+    // PRESIÓN
+    if (_c(t, ['presion','tension','hipertens','mmhg'])) {
+      if (_c(t, ['180','190','200','crisis'])) return 'EMERGENCIA: Crisis hipertensiva (PA ≥ 180). Reposo, sin medicamentos sin orden médica. Remisión urgente.';
+      if (_c(t, ['140','150','160','170'])) return 'PA entre 140-179 = hipertensión. Registra en módulo Adultez. Dieta sin sal y cita médica prioritaria. Si hay cefalea intensa o visión borrosa: remisión inmediata.';
+      return 'PA normal < 120/80 mmHg. Recomienda: sin sal, ejercicio moderado y control mensual.';
     }
 
-    // Hipertensión
-    if (t.contains('presión') || t.contains('hipertens') || t.contains('tension')) {
-      return 'PA ≥ 140/90 mmHg = hipertensión. PA ≥ 160/110 = crisis — remisión urgente. '
-          'Refuerza tratamiento, dieta sin sal, actividad física. '
-          'Usa el módulo Adultez para registrar.';
+    // DIABETES
+    if (_c(t, ['diabetes','glucemia','azucar','glucosa','insulina'])) {
+      if (_c(t, ['200','250','300'])) return 'EMERGENCIA: Glucemia > 200 mg/dL — hiperglucemia severa. Remisión urgente sin administrar insulina.';
+      if (_c(t, ['bajo','desmayo','temblor','60','70'])) return 'Posible hipoglucemia. Si está consciente: azúcar o jugo inmediatamente. Si está inconsciente: EMERGENCIA — remisión urgente.';
+      return 'Glucemia en ayunas ≥ 126 mg/dL en dos tomas = posible diabetes. Registra en módulo Adultez. Orienta: sin azúcar, ejercicio diario, control médico.';
     }
 
-    // Diabetes
-    if (t.contains('diabetes') || t.contains('glucemia') || t.contains('azúcar') || t.contains('glucosa')) {
-      return 'Glucemia en ayunas ≥ 126 mg/dL = posible diabetes, confirmar con segunda muestra. '
-          'Glucemia ≥ 200 mg/dL = emergencia hipoglucémica. '
-          'Registra en módulo Adultez e inicia cambios en estilo de vida.';
+    // NIÑOS
+    if (_c(t, ['bebe','nino','menor','infan','lactante','recien nacido'])) {
+      if (_c(t, ['desnutr','peso bajo'])) return 'Evalúa peso/talla en módulo Primera Infancia. Si P/T < -3 DE o edema en pies: EMERGENCIA — desnutrición severa, hospitalización. Notifica al ICBF.';
+      if (_c(t, ['vacuna','esquema'])) return 'Al nacer: BCG y Hep B. A los 2 meses: Pentavalente, Polio, Neumococo. A los 12 meses: Triple viral. Registra en el módulo correspondiente.';
+      return 'Usa módulo Primera Infancia (0-5 años) o Infancia (6-11 años). Evalúa: peso, talla, hemoglobina y vacunación.';
     }
 
-    // Niños
-    if (t.contains('niño') || t.contains('bebé') || t.contains('infant') || t.contains('menor')) {
-      return 'Para niños menores de 5 años usa módulo Primera Infancia. '
-          'De 6 a 11 años, módulo Infancia. '
-          'Evalúa peso, talla, hemoglobina y vacunación. AIEPI: evalúa respiración, hidratación y conciencia.';
+    // DENGUE / FIEBRE
+    if (_c(t, ['dengue','fiebre','sarpullido','mosquito','zika'])) {
+      if (_c(t, ['sangrado','vomito','dolor abdominal'])) return 'EMERGENCIA: Signos de dengue grave. Hospitalización urgente. Notifica en SIVIGILA. Alerta activa en Santander de Quilichao.';
+      return 'Sospecha dengue: reposo, hidratación, paracetamol — NO aspirina. Revisión en 24h. Si sangrado o vómito persistente: remisión urgente.';
     }
 
-    // Dengue / vectores
-    if (t.contains('dengue') || t.contains('fiebre') || t.contains('zika') || t.contains('mosquito')) {
-      return 'Fiebre + dolor articular + sarpullido = sospecha dengue. '
-          'Hidratación oral, NO aspirina. Señal de alarma: sangrado, vómito persistente, dolor abdominal intenso. '
-          'Notificar en módulo Alertas SIVIGILA.';
+    // MALARIA
+    if (_c(t, ['malaria','paludismo','gota gruesa'])) return 'Fiebre intermitente con escalofríos: sospechar malaria. Realiza gota gruesa. Alerta activa en López de Micay. Notifica en SIVIGILA.';
+
+    // IRA
+    if (_c(t, ['tos','bronquitis','neumonia','gripa','respiratorio'])) {
+      if (_c(t, ['tiraje','cianosis','no respira'])) return 'EMERGENCIA: Dificultad respiratoria. Posición sentada y transporte urgente.';
+      return 'IRA: paracetamol y líquidos. Señales de alarma: tiraje, cianosis o saturación < 94% — remisión inmediata.';
     }
 
-    // Vacunación
-    if (t.contains('vacun') || t.contains('pai') || t.contains('inmuniz')) {
-      return 'El PAI Colombia incluye: BCG al nacer, Pentavalente a los 2-4-6 meses, '
-          'Triple viral 12 meses, DPT refuerzo 18 meses y 5 años. '
-          'Verifica el carné y completa el esquema.';
+    // EDA
+    if (_c(t, ['diarrea','eda','vomito','deshidrat'])) {
+      if (_c(t, ['nino','bebe','menor'])) return 'EDA en menor: inicia sales de rehidratación oral. Ojos hundidos o letargo: EMERGENCIA — remisión urgente.';
+      return 'Diarrea aguda: sales de rehidratación oral, dieta blanda, agua hervida. Si hay fiebre o sangre: evaluación médica urgente.';
     }
 
-    // Salud mental
-    if (t.contains('depresión') || t.contains('ansied') || t.contains('suicid') || t.contains('autolesion')) {
-      return 'Si hay ideas de hacerse daño: EMERGENCIA — activar ruta de salud mental, '
-          'no dejar solo al paciente, notificar familia. '
-          'Escala PHQ-9 para tamizaje de depresión. Registra en módulo correspondiente.';
+    // TUBERCULOSIS
+    if (_c(t, ['tuberculosis','tbc','tos cronica'])) return 'Tos > 15 días = sintomático respiratorio. Solicitar baciloscopia. Tratamiento DOTS supervisado. Notificar en SIVIGILA.';
+
+    // VIOLENCIA
+    if (_c(t, ['violencia','maltrato','abuso','vif'])) return 'EMERGENCIA de salud pública. Activa ruta de atención integral, notifica a comisaría de familia e ICBF. Registra en alertas SIVIGILA.';
+
+    // ADULTO MAYOR
+    if (_c(t, ['anciano','adulto mayor','vejez','mayor de 60'])) {
+      if (_c(t, ['caida','fractura'])) return 'Caída en adulto mayor: si hay dolor intenso en cadera o no puede caminar: EMERGENCIA — posible fractura. Registra en módulo Vejez.';
+      return 'Usa módulo Vejez. Evalúa: PA, glucemia, movilidad, cognición y medicamentos. Verifica signos de maltrato.';
     }
 
-    // TBC
-    if (t.contains('tuberculosis') || t.contains('tbc') || t.contains('tos.*15') || t.contains('tos crónica')) {
-      return 'Tos por más de 15 días = sintomático respiratorio. '
-          'Solicitar baciloscopia seriada. Tratamiento DOTS supervisado. '
-          'Notificar en SIVIGILA. Aislar hasta resultado.';
-    }
+    // SALUDO
+    if (_c(t, ['hola','buenos','ayuda','que puedes'])) return 'Hola, soy DISPERSALUD IA. Puedo orientarte en gestación, infancia, diabetes, hipertensión, dengue, malaria, TBC y alertas SIVIGILA. ¿Qué situación tienes ahora mismo?';
 
-    // Nutrición
-    if (t.contains('desnutrición') || t.contains('peso bajo') || t.contains('bajo peso')) {
-      return 'Desnutrición aguda severa (P/T < -3 DE o edema) = EMERGENCIA, hospitalización. '
-          'Moderada: suplementación nutricional y seguimiento quincenal. '
-          'Activar programas ICBF en niños.';
-    }
-
-    // Adulto mayor
-    if (t.contains('anciano') || t.contains('adulto mayor') || t.contains('abuelo') || t.contains('vejez')) {
-      return 'Para pacientes mayores de 60 años usa módulo Vejez. '
-          'Evalúa funcionalidad (Barthel), cognición, riesgo de caídas y polifarmacia. '
-          'Signos de maltrato → activar ruta ICBF / Comisaría de Familia.';
-    }
-
-    // Ayuda general
-    if (t.contains('hola') || t.contains('ayuda') || t.contains('buenos')) {
-      return 'Hola, soy DISPERSALUD IA. Puedo orientarte sobre gestación, niños, '
-          'diabetes, hipertensión, dengue, tuberculosis, salud mental y alertas SIVIGILA. '
-          '¿Sobre qué paciente necesitas ayuda?';
-    }
-
-    // Respuesta genérica
-    return 'Entendí: "$pregunta". '
-        'Puedo orientarte en gestación, primera infancia, infancia, adolescencia, '
-        'adultez, vejez, diabetes, hipertensión y alertas de salud pública. '
-        'Describe el síntoma principal del paciente.';
+    // GENERAL
+    return 'Entendí: "$pregunta". Para orientarte mejor describe los síntomas específicos, la edad del paciente y desde cuándo los presenta. Ante cualquier riesgo de vida, la remisión inmediata es siempre la mejor decisión.';
   }
+
+  bool _c(String texto, List<String> palabras) =>
+      palabras.any((p) => texto.contains(p));
 }

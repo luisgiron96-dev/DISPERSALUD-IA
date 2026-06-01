@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import '../core/app_theme.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:speech_to_text/speech_to_text.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 
-DispersaludColors _c(BuildContext ctx) =>
-    Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
-
+const Color _kBg     = Color(0xFF111111);
+const Color _kCard   = Color(0xFF1E1E1E);
 const Color _kVerde  = Color(0xFF1D9E75);
+const Color _kBorder = Color(0xFF2A2A2A);
 
 // Colores para cada módulo (orden consistente)
 const List<Color> _kModuloColores = [
@@ -72,6 +71,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     _iniciarVoz();
     _cargarPerfil();
     _cargar();
+    _iniciarConectividad();
+  }
+
+  Future<void> _iniciarConectividad() async {
+    // Estado inicial
+    final internet = await ConnectivityService.instance.verificarAhora();
+    if (mounted) setState(() => _tieneInternet = internet);
+    // Suscribirse a cambios en tiempo real
+    _connSub = ConnectivityService.instance.cambios.listen((tieneInternet) {
+      if (mounted) setState(() => _tieneInternet = tieneInternet);
+    });
   }
 
   Future<void> _cargarPerfil() async {
@@ -107,11 +117,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     setState(() { _escuchando = true; _textoVoz = ''; _respuestaIA = ''; });
     await _stt.listen(
-      listenOptions: SpeechListenOptions(
-        localeId: 'es_CO',
-        listenFor: const Duration(seconds: 15),
-        pauseFor: const Duration(seconds: 3),
-      ),
+      localeId: 'es_CO',
+      listenFor: const Duration(seconds: 15),
+      pauseFor: const Duration(seconds: 3),
       onResult: (result) {
         setState(() => _textoVoz = result.recognizedWords);
         if (result.finalResult && result.recognizedWords.isNotEmpty) {
@@ -200,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _c(context).bg,
+      backgroundColor: _kBg,
       body: RefreshIndicator(
         onRefresh: _cargar,
         color: _kVerde,
@@ -229,16 +237,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     ),
   ),
 ),
-                SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('DISPERSALUD IA', style: TextStyle(color: _c(context).textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('Salud rural · sin internet', style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                const SizedBox(width: 10),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('DISPERSALUD IA', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Salud rural · sin internet', style: TextStyle(color: Colors.white54, fontSize: 11)),
                 ])),
                 IconButton(
                   onPressed: _cargar,
                   icon: _cargando
-                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2))
-                      : Icon(Icons.refresh_rounded, color: Colors.white54, size: 22)),
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2))
+                      : const Icon(Icons.refresh_rounded, color: Colors.white54, size: 22)),
                 GestureDetector(
                   onTap: () async {
                     await ConnectivityService.instance.verificarAhora();
@@ -246,24 +254,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: _tieneInternet ? const Color(0xFF1D9E75).withValues(alpha: 0.15) : _c(context).card,
+                      color: _tieneInternet ? const Color(0xFF1D9E75).withOpacity(0.15) : _kCard,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _tieneInternet ? const Color(0xFF1D9E75) : _c(context).border),
+                      border: Border.all(color: _tieneInternet ? const Color(0xFF1D9E75) : _kBorder),
                     ),
                     child: Row(children: [
                       Container(width: 7, height: 7, decoration: BoxDecoration(
                         color: _tieneInternet ? const Color(0xFF1D9E75) : Colors.orange,
                         shape: BoxShape.circle)),
-                      SizedBox(width: 5),
+                      const SizedBox(width: 5),
                       Text(_tieneInternet ? 'Online' : 'Offline',
                           style: TextStyle(
-                            color: _tieneInternet ? const Color(0xFF1D9E75) : _c(context).textSecondary,
+                            color: _tieneInternet ? const Color(0xFF1D9E75) : Colors.white70,
                             fontSize: 11, fontWeight: FontWeight.w600)),
                     ]),
                   ),
                 ),
               ]),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               // ── Tarjeta bienvenida + voz ────────────────────────────────
               Container(
@@ -276,29 +284,29 @@ class _DashboardScreenState extends State<DashboardScreen>
                     _nombrePromotor.isNotEmpty
                         ? '${_saludo()}, $_nombrePromotor 👋'
                         : '${_saludo()}, Promotor/a 👋',
-                    style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     _veredaPromotor.isNotEmpty
                         ? '$_veredaPromotor · $_municipioPromotor'
                         : '$_totalConsultas consultas registradas en total',
-                    style: TextStyle(color: _c(context).textSecondary, fontSize: 12),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
-                  SizedBox(height: 14),
+                  const SizedBox(height: 14),
                   Row(children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 18),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text(_escuchando ? 'Escuchando...' : _tieneInternet ? 'IA online — respuestas clínicas mejoradas' : 'IA offline — respuestas locales',
-                        style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   ]),
                   if (_textoVoz.isNotEmpty) ...[
-                    SizedBox(height: 6),
-                    Text('"$_textoVoz"', style: TextStyle(color: _c(context).textHint, fontSize: 11, fontStyle: FontStyle.italic)),
+                    const SizedBox(height: 6),
+                    Text('"$_textoVoz"', style: const TextStyle(color: Colors.white60, fontSize: 11, fontStyle: FontStyle.italic)),
                   ],
                 ]),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
 
               // ── Botón micrófono ──────────────────────────────────────────
               GestureDetector(
@@ -307,17 +315,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                   duration: const Duration(milliseconds: 300),
                   width: double.infinity, height: 56,
                   decoration: BoxDecoration(
-                    color: _escuchando ? _kVerde : _c(context).card,
+                    color: _escuchando ? _kVerde : _kCard,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _escuchando ? _kVerde : _c(context).border),
-                    boxShadow: _escuchando ? [BoxShadow(color: _kVerde.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2)] : [],
+                    border: Border.all(color: _escuchando ? _kVerde : _kBorder),
+                    boxShadow: _escuchando ? [BoxShadow(color: _kVerde.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)] : [],
                   ),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 24),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Text(
                       _escuchando ? 'Escuchando... toca para detener' : 'Consulta por voz con IA',
-                      style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ]),
                 ),
@@ -325,67 +333,67 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               // ── Respuesta IA ─────────────────────────────────────────────
               if (_respuestaIA.isNotEmpty) ...[
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Container(
                   width: double.infinity, padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: _kVerde.withValues(alpha: 0.12),
+                    color: _kVerde.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _kVerde.withValues(alpha: 0.4)),
+                    border: Border.all(color: _kVerde.withOpacity(0.4)),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Icon(Icons.psychology_outlined, color: _kVerde, size: 16),
-                      SizedBox(width: 6),
-                      Text('Respuesta DISPERSALUD IA', style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600)),
+                      const Icon(Icons.psychology_outlined, color: _kVerde, size: 16),
+                      const SizedBox(width: 6),
+                      const Text('Respuesta DISPERSALUD IA', style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600)),
                       const Spacer(),
                       GestureDetector(
                         onTap: () async { await _tts.speak(_respuestaIA); },
-                        child: Icon(Icons.volume_up_rounded, color: _kVerde, size: 18)),
-                      SizedBox(width: 8),
+                        child: const Icon(Icons.volume_up_rounded, color: _kVerde, size: 18)),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => setState(() => _respuestaIA = ''),
-                        child: Icon(Icons.close_rounded, color: Colors.white38, size: 18)),
+                        child: const Icon(Icons.close_rounded, color: Colors.white38, size: 18)),
                     ]),
-                    SizedBox(height: 8),
-                    Text(_respuestaIA, style: TextStyle(color: _c(context).textPrimary, fontSize: 13, height: 1.5)),
+                    const SizedBox(height: 8),
+                    Text(_respuestaIA, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.5)),
                   ]),
                 ),
               ],
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               // ── Estadísticas rápidas ─────────────────────────────────────
               Row(children: [
                 Expanded(child: _StatCard(valor: '$_consultasHoy', label: 'Consultas\nhoy', color: _kVerde, icono: Icons.today_rounded)),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(child: _StatCard(valor: '$_totalPacientes', label: 'Pacientes\nregistrados', color: const Color(0xFF185FA5), icono: Icons.people_rounded)),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(child: _StatCard(valor: '$_totalConsultas', label: 'Total\nconsultas', color: Colors.purple, icono: Icons.assignment_rounded)),
               ]),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // ══════════════════════════════════════════════════════════════
               // SECCIÓN GRÁFICAS
               // ══════════════════════════════════════════════════════════════
-              Text('Estadísticas', style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-              SizedBox(height: 12),
+              const Text('Estadísticas', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
 
               // Tabs de gráfica
               Container(
-                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _c(context).border)),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
                 child: Row(children: [
                   _GraficaTab(label: 'Por módulo',   icono: Icons.bar_chart_rounded,  activo: _graficaTab == 0, onTap: () => setState(() => _graficaTab = 0)),
                   _GraficaTab(label: '7 días',       icono: Icons.show_chart_rounded,  activo: _graficaTab == 1, onTap: () => setState(() => _graficaTab = 1)),
                   _GraficaTab(label: 'Riesgo',       icono: Icons.donut_large_rounded, activo: _graficaTab == 2, onTap: () => setState(() => _graficaTab = 2)),
                 ]),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
 
               // Contenedor de la gráfica activa
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(16), border: Border.all(color: _c(context).border)),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: _kBorder)),
                 child: _totalConsultas == 0
                   ? _SinDatos()
                   : AnimatedSwitcher(
@@ -400,32 +408,32 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // ── Actividad reciente ───────────────────────────────────────
               Row(children: [
-                Text('Actividad reciente', style: TextStyle(color: _c(context).textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+                const Text('Actividad reciente', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 if (_consultasHoy > 0) Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
-                  child: Text('$_consultasHoy hoy', style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600))),
+                  decoration: BoxDecoration(color: _kVerde.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                  child: Text('$_consultasHoy hoy', style: const TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600))),
               ]),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
 
               if (_cargando)
-                Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _kVerde)))
+                const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _kVerde)))
               else if (_recientes.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
-                  child: Column(children: [
-                    Icon(Icons.medical_information_outlined, color: _c(context).border, size: 40),
+                  decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
+                  child: const Column(children: [
+                    Icon(Icons.medical_information_outlined, color: Colors.white24, size: 40),
                     SizedBox(height: 12),
-                    Text('Sin consultas registradas aún.', style: TextStyle(color: _c(context).textHint, fontSize: 14, fontWeight: FontWeight.w600)),
+                    Text('Sin consultas registradas aún.', style: TextStyle(color: Colors.white54, fontSize: 14, fontWeight: FontWeight.w600)),
                     SizedBox(height: 4),
                     Text('Ve a Módulos, selecciona un paciente\ny realiza tu primera consulta.',
-                        textAlign: TextAlign.center, style: TextStyle(color: _c(context).textHint, fontSize: 12)),
+                        textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 12)),
                   ]))
               else
                 ..._recientes.map((c) {
@@ -434,46 +442,46 @@ class _DashboardScreenState extends State<DashboardScreen>
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.25))),
+                    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
                     child: Row(children: [
-                      CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.18),
+                      CircleAvatar(radius: 20, backgroundColor: color.withOpacity(0.18),
                           child: Text(nombre[0].toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(nombre, style: TextStyle(color: _c(context).textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                        Text('${c['modulo'] ?? ''} · ${_tiempoRelativo(c['fecha'])}', style: TextStyle(color: _c(context).textHint, fontSize: 12)),
+                        Text(nombre, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text('${c['modulo'] ?? ''} · ${_tiempoRelativo(c['fecha'])}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
                         if ((c['diagnostico'] as String? ?? '').isNotEmpty)
                           Padding(padding: const EdgeInsets.only(top: 3),
                             child: Text(c['diagnostico'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11))),
+                                style: TextStyle(color: color.withOpacity(0.8), fontSize: 11))),
                       ])),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
                         child: Text(_nivelLabel(c['nivel_riesgo']), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))),
                     ]),
                   );
                 }),
 
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               // ── Estado del sistema ───────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
+                decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: _kBorder)),
                 child: Row(children: [
                   Container(width: 36, height: 36,
-                    decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                    child: Icon(Icons.cloud_off_rounded, color: _kVerde, size: 20)),
-                  SizedBox(width: 12),
+                    decoration: BoxDecoration(color: _kVerde.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.cloud_off_rounded, color: _kVerde, size: 20)),
+                  const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(_tieneInternet ? 'Modo online activo — IA mejorada disponible' : 'Modo sin conexión — datos guardados localmente', style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(_tieneInternet ? 'Voz con IA de Claude activada · Sincronización disponible' : 'Datos guardados localmente · listos para sincronizar', style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                    Text(_tieneInternet ? 'Modo online activo — IA mejorada disponible' : 'Modo sin conexión — datos guardados localmente', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(_tieneInternet ? 'Voz con IA de Claude activada · Sincronización disponible' : 'Datos guardados localmente · listos para sincronizar', style: const TextStyle(color: Colors.white54, fontSize: 11)),
                   ])),
                 ]),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
             ]),
           ),
         ),
@@ -492,8 +500,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Consultas por módulo', style: TextStyle(color: _c(context).textSecondary, fontSize: 12)),
-        SizedBox(height: 16),
+        const Text('Consultas por módulo', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 16),
         SizedBox(
           height: 180,
           child: BarChart(
@@ -503,7 +511,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 show: true,
                 drawVerticalLine: false,
                 horizontalInterval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
-                getDrawingHorizontalLine: (_) => FlLine(color: _c(context).border, strokeWidth: 1),
+                getDrawingHorizontalLine: (_) => FlLine(color: Colors.white10, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
@@ -511,7 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   showTitles: true, reservedSize: 28,
                   interval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
                   getTitlesWidget: (v, _) => Text(v.toInt().toString(),
-                      style: TextStyle(color: _c(context).textHint, fontSize: 10)),
+                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
                 )),
                 bottomTitles: AxisTitles(sideTitles: SideTitles(
                   showTitles: true, reservedSize: 28,
@@ -521,7 +529,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(_cortoModulo(modulos[i]),
-                          style: TextStyle(color: _c(context).textHint, fontSize: 9)),
+                          style: const TextStyle(color: Colors.white54, fontSize: 9)),
                     );
                   },
                 )),
@@ -537,7 +545,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     width: 18,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                     backDrawRodData: BackgroundBarChartRodData(
-                      show: true, toY: maxVal * 1.3, color: Colors.white.withValues(alpha: 0.04)),
+                      show: true, toY: maxVal * 1.3, color: Colors.white.withOpacity(0.04)),
                   ),
                 ]);
               }).toList(),
@@ -547,7 +555,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     final nombre = modulos[group.x];
                     return BarTooltipItem(
                       '$nombre\n${rod.toY.toInt()} consultas',
-                      TextStyle(color: _c(context).textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                      const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                     );
                   },
                 ),
@@ -555,17 +563,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         // Leyenda
         Wrap(spacing: 10, runSpacing: 6, children: modulos.asMap().entries.map((e) {
           final color = _kModuloColores[e.key % _kModuloColores.length];
           return Row(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-            SizedBox(width: 4),
-            Text(e.value, style: TextStyle(color: _c(context).textHint, fontSize: 10)),
+            const SizedBox(width: 4),
+            Text(e.value, style: const TextStyle(color: Colors.white54, fontSize: 10)),
           ]);
         }).toList()),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -594,8 +602,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Consultas últimos 7 días', style: TextStyle(color: _c(context).textSecondary, fontSize: 12)),
-        SizedBox(height: 16),
+        const Text('Consultas últimos 7 días', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 16),
         SizedBox(
           height: 180,
           child: LineChart(
@@ -605,7 +613,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               gridData: FlGridData(
                 show: true, drawVerticalLine: false,
                 horizontalInterval: escala / 3,
-                getDrawingHorizontalLine: (_) => FlLine(color: _c(context).border, strokeWidth: 1),
+                getDrawingHorizontalLine: (_) => FlLine(color: Colors.white10, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
@@ -613,7 +621,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   showTitles: true, reservedSize: 28,
                   interval: escala / 3,
                   getTitlesWidget: (v, _) => Text(v.toInt().toString(),
-                      style: TextStyle(color: _c(context).textHint, fontSize: 10)),
+                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
                 )),
                 bottomTitles: AxisTitles(sideTitles: SideTitles(
                   showTitles: true, reservedSize: 28,
@@ -622,7 +630,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     if (i < 0 || i > 6) return const SizedBox.shrink();
                     final es = i < etiquetas.length ? etiquetas[i] : '';
                     return Padding(padding: const EdgeInsets.only(top: 6),
-                        child: Text(es, style: TextStyle(color: _c(context).textHint, fontSize: 10)));
+                        child: Text(es, style: const TextStyle(color: Colors.white54, fontSize: 10)));
                   },
                 )),
                 topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -631,7 +639,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               lineTouchData: LineTouchData(
                 touchTooltipData: LineTouchTooltipData(
                   getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
-                    '${s.y.toInt()} consultas', TextStyle(color: _c(context).textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                    '${s.y.toInt()} consultas', const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                   )).toList(),
                 ),
               ),
@@ -652,7 +660,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   belowBarData: BarAreaData(
                     show: true,
                     gradient: LinearGradient(
-                      colors: [_kVerde.withValues(alpha: 0.25), _kVerde.withValues(alpha: 0.0)],
+                      colors: [_kVerde.withOpacity(0.25), _kVerde.withOpacity(0.0)],
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
                     ),
                   ),
@@ -661,7 +669,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -701,8 +709,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Distribución por nivel de riesgo', style: TextStyle(color: _c(context).textSecondary, fontSize: 12)),
-        SizedBox(height: 16),
+        const Text('Distribución por nivel de riesgo', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -715,7 +723,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 pieTouchData: PieTouchData(enabled: false),
               )),
             ),
-            SizedBox(width: 24),
+            const SizedBox(width: 24),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: niveles.map((n) {
@@ -727,10 +735,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Row(children: [
                     Container(width: 10, height: 10, decoration: BoxDecoration(
                         color: coloresRiesgo[n], borderRadius: BorderRadius.circular(3))),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(nombresRiesgo[n]!, style: TextStyle(color: _c(context).textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                      Text('$val ($pct%)', style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                      Text(nombresRiesgo[n]!, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text('$val ($pct%)', style: const TextStyle(color: Colors.white54, fontSize: 11)),
                     ]),
                   ]),
                 );
@@ -738,7 +746,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ],
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -748,11 +756,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
 class _SinDatos extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.symmetric(vertical: 32),
     child: Center(child: Text('Sin datos suficientes aún.\nRegistra consultas para ver las estadísticas.',
         textAlign: TextAlign.center,
-        style: TextStyle(color: _c(context).textHint, fontSize: 13))),
+        style: TextStyle(color: Colors.white38, fontSize: 13))),
   );
 }
 
@@ -761,7 +769,7 @@ class _GraficaTab extends StatelessWidget {
   final IconData icono;
   final bool activo;
   final VoidCallback onTap;
-  _GraficaTab({required this.label, required this.icono, required this.activo, required this.onTap});
+  const _GraficaTab({required this.label, required this.icono, required this.activo, required this.onTap});
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -771,12 +779,12 @@ class _GraficaTab extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: activo ? _kVerde.withValues(alpha: 0.15) : Colors.transparent,
+          color: activo ? _kVerde.withOpacity(0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(children: [
           Icon(icono, color: activo ? _kVerde : Colors.white30, size: 18),
-          SizedBox(height: 3),
+          const SizedBox(height: 3),
           Text(label, style: TextStyle(
               color: activo ? _kVerde : Colors.white38,
               fontSize: 10, fontWeight: activo ? FontWeight.w600 : FontWeight.normal)),
@@ -790,17 +798,17 @@ class _StatCard extends StatelessWidget {
   final String valor, label;
   final Color color;
   final IconData icono;
-  _StatCard({required this.valor, required this.label, required this.color, required this.icono});
+  const _StatCard({required this.valor, required this.label, required this.color, required this.icono});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-    decoration: BoxDecoration(color: _c(context).card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _c(context).border)),
+    decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
     child: Column(children: [
       Icon(icono, color: color, size: 20),
-      SizedBox(height: 6),
+      const SizedBox(height: 6),
       Text(valor, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)),
-      SizedBox(height: 4),
-      Text(label, textAlign: TextAlign.center, style: TextStyle(color: _c(context).textHint, fontSize: 10)),
+      const SizedBox(height: 4),
+      Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 10)),
     ]),
   );
 }
