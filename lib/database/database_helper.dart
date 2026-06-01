@@ -15,26 +15,28 @@ class DatabaseHelper {
 
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 2,
+    final path   = join(dbPath, filePath);
+    return await openDatabase(path, version: 3,
         onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE pacientes (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre      TEXT NOT NULL,
-        documento   TEXT,
-        fecha_nac   TEXT,
-        sexo        TEXT,
-        edad        TEXT,
-        vereda      TEXT,
-        municipio   TEXT,
-        telefono    TEXT,
-        modulo      TEXT,
-        acudiente   TEXT,
-        created_at  TEXT DEFAULT (datetime('now','localtime'))
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre       TEXT NOT NULL,
+        documento    TEXT,
+        fecha_nac    TEXT,
+        sexo         TEXT,
+        edad         TEXT,
+        departamento TEXT,
+        municipio    TEXT,
+        vereda       TEXT,
+        telefono     TEXT,
+        eps          TEXT,
+        modulo       TEXT,
+        acudiente    TEXT,
+        created_at   TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
 
@@ -59,6 +61,7 @@ class DatabaseHelper {
         observaciones TEXT,
         datos_json    TEXT,
         datos_extra   TEXT,
+        sincronizado  INTEGER DEFAULT 0,
         FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
       )
     ''');
@@ -87,6 +90,11 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE consultas ADD COLUMN datos_json TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE consultas ADD COLUMN nivel_riesgo TEXT DEFAULT "estable"'); } catch (_) {}
       try { await db.execute('ALTER TABLE consultas ADD COLUMN nombre TEXT'); } catch (_) {}
+    }
+    if (oldVersion < 3) {
+      try { await db.execute('ALTER TABLE pacientes ADD COLUMN departamento TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE pacientes ADD COLUMN eps TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE consultas ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
     }
   }
 
@@ -129,7 +137,6 @@ class DatabaseHelper {
     return await db.delete('pacientes', where: 'id = ?', whereArgs: [id]);
   }
 
-
   Future<int> actualizarPaciente(int id, Map<String, dynamic> data) async {
     final db      = await database;
     final cifrado = _sec.cifrarPaciente(data);
@@ -169,9 +176,7 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> consultasDePaciente(int pacienteId) async {
     final db   = await database;
     final rows = await db.query('consultas',
-        where: 'paciente_id = ?',
-        whereArgs: [pacienteId],
-        orderBy: 'fecha DESC');
+        where: 'paciente_id = ?', whereArgs: [pacienteId], orderBy: 'fecha DESC');
     return rows.map(_sec.descifrarConsulta).toList().cast<Map<String, dynamic>>();
   }
 
@@ -195,17 +200,28 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> consultasRecientes({int limit = 5}) async {
     final db   = await database;
     final rows = await db.rawQuery('''
-      SELECT
-        c.id,
-        c.modulo,
-        c.fecha,
-        c.diagnostico,
-        c.nivel_riesgo,
-        COALESCE(c.nombre, p.nombre, 'Sin nombre') AS nombre
+      SELECT c.id, c.modulo, c.fecha, c.diagnostico, c.nivel_riesgo,
+             COALESCE(c.nombre, p.nombre, 'Sin nombre') AS nombre
       FROM consultas c
       LEFT JOIN pacientes p ON c.paciente_id = p.id
-      ORDER BY c.fecha DESC
-      LIMIT $limit
+      ORDER BY c.fecha DESC LIMIT $limit
+    ''');
+    return rows.map((r) {
+      final m = Map<String, dynamic>.from(r);
+      m['diagnostico'] = _sec.descifrar(m['diagnostico'] as String?);
+      return m;
+    }).toList().cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> consultasUrgentesRecientes() async {
+    final db   = await database;
+    final rows = await db.rawQuery('''
+      SELECT c.id, c.modulo, c.fecha, c.diagnostico, c.nivel_riesgo,
+             COALESCE(c.nombre, p.nombre, 'Sin nombre') AS nombre
+      FROM consultas c
+      LEFT JOIN pacientes p ON c.paciente_id = p.id
+      WHERE c.nivel_riesgo IN ('urgente','alerta')
+      ORDER BY c.fecha DESC LIMIT 10
     ''');
     return rows.map((r) {
       final m = Map<String, dynamic>.from(r);
@@ -224,8 +240,7 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Map<String, dynamic>>> obtenerAlertas(
-      {bool soloActivas = true}) async {
+  Future<List<Map<String, dynamic>>> obtenerAlertas({bool soloActivas = true}) async {
     final db = await database;
     if (soloActivas) {
       return await db.query('alertas',
@@ -248,7 +263,7 @@ class DatabaseHelper {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // RESUMEN GENERAL
+  // RESUMEN Y GRÁFICAS
   // ════════════════════════════════════════════════════════════════════
 
   Future<Map<String, int>> resumenGeneral() async {
@@ -257,24 +272,18 @@ class DatabaseHelper {
             await db.rawQuery('SELECT COUNT(*) FROM pacientes')) ?? 0;
     final consultas = Sqflite.firstIntValue(
             await db.rawQuery('SELECT COUNT(*) FROM consultas')) ?? 0;
-    final alertas   = Sqflite.firstIntValue(await db
-            .rawQuery('SELECT COUNT(*) FROM alertas WHERE resuelta=0')) ?? 0;
+    final alertas   = Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM alertas WHERE resuelta=0')) ?? 0;
     return {'pacientes': pacientes, 'consultas': consultas, 'alertas': alertas};
   }
-
-  // ════════════════════════════════════════════════════════════════════
-  // GRÁFICAS
-  // ════════════════════════════════════════════════════════════════════
 
   Future<Map<String, int>> consultasPorModulo() async {
     final db   = await database;
     final rows = await db.rawQuery(
-      'SELECT modulo, COUNT(*) as total FROM consultas GROUP BY modulo ORDER BY total DESC',
-    );
+        'SELECT modulo, COUNT(*) as total FROM consultas GROUP BY modulo ORDER BY total DESC');
     final map = <String, int>{};
     for (final r in rows) {
-      final mod = (r['modulo'] as String? ?? 'Otro').trim();
-      map[mod] = (r['total'] as int?) ?? 0;
+      map[(r['modulo'] as String? ?? 'Otro').trim()] = (r['total'] as int?) ?? 0;
     }
     return map;
   }
@@ -282,13 +291,9 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> consultasUltimosDias({int dias = 7}) async {
     final db   = await database;
     final rows = await db.rawQuery('''
-      SELECT
-        date(fecha) AS dia,
-        COUNT(*) AS total
-      FROM consultas
+      SELECT date(fecha) AS dia, COUNT(*) AS total FROM consultas
       WHERE fecha >= date('now', '-${dias - 1} days')
-      GROUP BY dia
-      ORDER BY dia ASC
+      GROUP BY dia ORDER BY dia ASC
     ''');
     return rows;
   }
@@ -296,32 +301,13 @@ class DatabaseHelper {
   Future<Map<String, int>> distribucionRiesgo() async {
     final db   = await database;
     final rows = await db.rawQuery(
-      "SELECT COALESCE(LOWER(nivel_riesgo), 'estable') as nivel, COUNT(*) as total FROM consultas GROUP BY nivel",
-    );
+        "SELECT COALESCE(LOWER(nivel_riesgo),'estable') as nivel, COUNT(*) as total FROM consultas GROUP BY nivel");
     final map = <String, int>{};
     for (final r in rows) {
-      final nivel = r['nivel'] as String? ?? 'estable';
-      map[nivel] = (r['total'] as int?) ?? 0;
+      map[r['nivel'] as String? ?? 'estable'] = (r['total'] as int?) ?? 0;
     }
     return map;
   }
-
-  /// Consultas con nivel urgente o alerta de las últimas 24h — para alertas automáticas
-  Future<List<Map<String, dynamic>>> consultasUrgentesRecientes() async {
-    final db  = await database;
-    final hace24h = DateTime.now().subtract(const Duration(hours: 24)).toIso8601String();
-    return await db.rawQuery('''
-      SELECT
-        c.id, c.modulo, c.fecha, c.diagnostico, c.nivel_riesgo,
-        COALESCE(c.nombre, p.nombre, 'Paciente') AS nombre
-      FROM consultas c
-      LEFT JOIN pacientes p ON c.paciente_id = p.id
-      WHERE c.nivel_riesgo IN ('urgente','alerta')
-        AND c.fecha >= ?
-      ORDER BY c.fecha DESC
-    ''', [hace24h]);
-  }
-
 
   // ════════════════════════════════════════════════════════════════════
   // SINCRONIZACIÓN OFFLINE → ONLINE
@@ -329,35 +315,46 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> obtenerConsultasPendientesSync() async {
     final db = await database;
-    // Retorna las últimas 50 consultas no sincronizadas
-    final rows = await db.rawQuery("""
-      SELECT c.*, p.nombre as nombre_paciente
-      FROM consultas c
-      LEFT JOIN pacientes p ON c.paciente_id = p.id
-      WHERE (c.sincronizado IS NULL OR c.sincronizado = 0)
-      ORDER BY c.fecha DESC
-      LIMIT 50
-    """);
-    return rows.map(_sec.descifrarConsulta).toList().cast<Map<String, dynamic>>();
+    try {
+      final rows = await db.rawQuery('''
+        SELECT c.*, p.nombre as nombre_paciente
+        FROM consultas c
+        LEFT JOIN pacientes p ON c.paciente_id = p.id
+        WHERE (c.sincronizado IS NULL OR c.sincronizado = 0)
+        ORDER BY c.fecha DESC
+        LIMIT 50
+      ''');
+      return rows.map(_sec.descifrarConsulta).toList().cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> marcarConsultaSincronizada(dynamic id) async {
     final db = await database;
-    try {
-      await db.execute('ALTER TABLE consultas ADD COLUMN sincronizado INTEGER DEFAULT 0');
-    } catch (_) {} // columna ya existe
-    await db.update('consultas', {'sincronizado': 1},
-        where: 'id = ?', whereArgs: [id]);
+    await db.update(
+      'consultas',
+      {'sincronizado': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<int> totalPendientesSync() async {
     final db = await database;
     try {
       final r = await db.rawQuery(
-          'SELECT COUNT(*) as total FROM consultas WHERE sincronizado IS NULL OR sincronizado = 0');
+          'SELECT COUNT(*) as total FROM consultas '
+          'WHERE sincronizado IS NULL OR sincronizado = 0');
       return Sqflite.firstIntValue(r) ?? 0;
-    } catch (_) { return 0; }
+    } catch (_) {
+      return 0;
+    }
   }
+
+  // ════════════════════════════════════════════════════════════════════
+  // CIERRE
+  // ════════════════════════════════════════════════════════════════════
 
   Future<void> cerrarDB() async {
     final db = await database;

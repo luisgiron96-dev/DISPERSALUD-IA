@@ -16,7 +16,7 @@ class ConnectivityService {
   bool _inicializado   = false;
 
   // URL de verificación real — usa el DNS de Google (muy rápido y confiable)
-  static const _checkUrl = 'https://dns.google/resolve?name=google.com&type=A';
+  static const _checkUrl = 'https://www.gstatic.com/generate_204';
 
   Stream<bool> get cambios => _controller.stream;
   bool  get tieneInternet  => _tieneInternet;
