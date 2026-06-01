@@ -340,6 +340,32 @@ class DatabaseHelper {
     );
   }
 
+  /// Devuelve para cada módulo cuántas consultas tienen nivel_riesgo
+  /// 'urgente' o 'alerta' (alertas) y cuántas están sin sincronizar (pendientes).
+  /// Resultado: { 'Gestación': {'alertas': 3, 'pendientes': 1}, ... }
+  Future<Map<String, Map<String, int>>> estadosPorModulo() async {
+    final db = await database;
+
+    // Alertas por módulo (nivel urgente o alerta)
+    final rowsAlertas = await db.rawQuery('''
+      SELECT modulo,
+             SUM(CASE WHEN LOWER(nivel_riesgo) IN ('urgente','alerta') THEN 1 ELSE 0 END) AS alertas,
+             SUM(CASE WHEN sincronizado IS NULL OR sincronizado = 0    THEN 1 ELSE 0 END) AS pendientes
+      FROM consultas
+      GROUP BY modulo
+    ''');
+
+    final map = <String, Map<String, int>>{};
+    for (final r in rowsAlertas) {
+      final modulo     = (r['modulo'] as String? ?? 'Otro').trim();
+      map[modulo] = {
+        'alertas':    (r['alertas']    as int?) ?? 0,
+        'pendientes': (r['pendientes'] as int?) ?? 0,
+      };
+    }
+    return map;
+  }
+
   Future<int> totalPendientesSync() async {
     final db = await database;
     try {
