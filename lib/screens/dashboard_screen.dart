@@ -3,24 +3,21 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 import '../core/app_theme.dart';
 
 const Color _kVerde = Color(0xFF1D9E75);
+const Color _kDark  = Color(0xFF0F6E56);
 
 const List<Color> _kModuloColores = [
-  Color(0xFF1D9E75),
-  Color(0xFF185FA5),
-  Color(0xFF993556),
-  Color(0xFF854F0B),
-  Color(0xFF534AB7),
-  Color(0xFF3B6D11),
-  Color(0xFF5F5E5A),
+  Color(0xFF1D9E75), Color(0xFF185FA5), Color(0xFF993556),
+  Color(0xFF854F0B), Color(0xFF534AB7), Color(0xFF3B6D11), Color(0xFF5F5E5A),
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   @override
@@ -30,49 +27,43 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
 
-  // ── Voz ─────────────────────────────────────────────────────────────────
-  final stt.SpeechToText _stt = stt.SpeechToText();
-  final FlutterTts        _tts = FlutterTts();
-  bool   _sttDisponible  = false;
-  bool   _escuchando     = false;
-  bool   _tieneInternet  = false;
+  // Conectividad
+  bool _tieneInternet = false;
   StreamSubscription<bool>? _connSub;
-  String _textoVoz       = '';
-  String _respuestaIA    = '';
 
-  // ── Datos SQLite ─────────────────────────────────────────────────────────
-  int    _consultasHoy   = 0;
-  int    _totalPacientes = 0;
-  int    _totalConsultas = 0;
-  List<Map<String, dynamic>> _recientes = [];
-
-  // ── Datos para gráficas ──────────────────────────────────────────────────
-  Map<String, int>           _porModulo = {};
-  List<Map<String, dynamic>> _porDia    = [];
-  Map<String, int>           _porRiesgo = {};
+  // Datos
+  int    _consultasHoy       = 0;
+  int    _consultasAyer      = 0;
+  int    _totalPacientes     = 0;
+  int    _totalConsultas     = 0;
+  int    _alertasPendientes  = 0;
+  String _nivelRiesgo        = 'Estable';
+  List<Map<String, dynamic>> _alertasRecientes = [];
+  Map<String, int>           _porModulo        = {};
+  List<Map<String, dynamic>> _porDia           = [];
+  Map<String, int>           _porRiesgo        = {};
   bool _cargando = true;
 
-  // ── Perfil del promotor ─────────────────────────────────────────────────
-  String _nombrePromotor    = '';
-  String _veredaPromotor    = '';
-  String _municipioPromotor = '';
+  // Perfil
+  String _nombre    = '';
+  String _vereda    = '';
+  String _municipio = '';
 
-  // ── Gráfica activa (tab) ─────────────────────────────────────────────────
+  // Tab gráfica: 0=módulo 1=7días 2=30días 3=riesgo
   int _graficaTab = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _iniciarVoz();
     _cargarPerfil();
     _cargar();
-    _iniciarConectividad();
+    _initConectividad();
   }
 
-  Future<void> _iniciarConectividad() async {
-    final internet = await ConnectivityService.instance.verificarAhora();
-    if (mounted) setState(() => _tieneInternet = internet);
+  Future<void> _initConectividad() async {
+    final v = await ConnectivityService.instance.verificarAhora();
+    if (mounted) setState(() => _tieneInternet = v);
     _connSub = ConnectivityService.instance.cambios.listen((v) {
       if (mounted) setState(() => _tieneInternet = v);
     });
@@ -82,53 +73,52 @@ class _DashboardScreenState extends State<DashboardScreen>
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _nombrePromotor    = prefs.getString('promotor_nombre')    ?? '';
-      _veredaPromotor    = prefs.getString('promotor_vereda')    ?? '';
-      _municipioPromotor = prefs.getString('promotor_municipio') ?? '';
+      _nombre    = prefs.getString('promotor_nombre')    ?? '';
+      _vereda    = prefs.getString('promotor_vereda')    ?? '';
+      _municipio = prefs.getString('promotor_municipio') ?? '';
     });
   }
 
-  Future<void> _iniciarVoz() async {
-    _sttDisponible = await _stt.initialize(
-      onError: (e) => setState(() { _escuchando = false; _textoVoz = 'Error de micrófono: ${e.errorMsg}'; }),
-      onStatus: (s) { if (s == 'done' || s == 'notListening') setState(() => _escuchando = false); },
-    );
-    await _tts.setLanguage('es-CO');
-    await _tts.setSpeechRate(0.45);
-    await _tts.setVolume(1.0);
-    await _tts.setPitch(1.0);
-    if (mounted) setState(() {});
-  }
+  Future<void> _cargar() async {
+    if (!mounted) return;
+    setState(() => _cargando = true);
 
-  Future<void> _toggleVoz() async {
-    if (!_sttDisponible) {
-      setState(() => _textoVoz = 'Micrófono no disponible en este dispositivo.');
-      return;
-    }
-    if (_escuchando) {
-      await _stt.stop();
-      setState(() => _escuchando = false);
-      return;
-    }
-    setState(() { _escuchando = true; _textoVoz = ''; _respuestaIA = ''; });
-    await _stt.listen(
-      localeId: 'es_CO',
-      listenFor: const Duration(seconds: 15),
-      pauseFor: const Duration(seconds: 3),
-      onResult: (result) {
-        setState(() => _textoVoz = result.recognizedWords);
-        if (result.finalResult && result.recognizedWords.isNotEmpty) {
-          _procesarConsulta(result.recognizedWords);
-        }
-      },
-    );
-  }
+    final hoy       = await DatabaseHelper.instance.totalConsultasHoy();
+    final total     = await DatabaseHelper.instance.totalPacientes();
+    final totalCon  = await DatabaseHelper.instance.totalConsultas();
+    final alertas   = await DatabaseHelper.instance.totalAlertasActivas();
+    final urgentes  = await DatabaseHelper.instance.consultasUrgentesRecientes();
+    final porModulo = await DatabaseHelper.instance.consultasPorModulo();
+    final porDia    = await DatabaseHelper.instance.consultasUltimosDias(dias: 7);
+    final porRiesgo = await DatabaseHelper.instance.distribucionRiesgo();
 
-  Future<void> _procesarConsulta(String texto) async {
-    setState(() => _escuchando = false);
-    final respuesta = await IaService.instance.consultar(texto);
-    setState(() => _respuestaIA = respuesta);
-    await _tts.speak(respuesta);
+    // Consultas de ayer desde porDia
+    final ayerStr = DateTime.now()
+        .subtract(const Duration(days: 1))
+        .toIso8601String()
+        .substring(0, 10);
+    final ayer = porDia
+        .firstWhere((r) => r['dia'] == ayerStr, orElse: () => {'total': 0})['total'] as int? ?? 0;
+
+    // Nivel de riesgo general
+    String nivel = 'Estable';
+    if ((porRiesgo['urgente'] ?? 0) > 0) nivel = 'Alto';
+    else if ((porRiesgo['alerta'] ?? 0) > 0) nivel = 'Medio';
+
+    if (!mounted) return;
+    setState(() {
+      _consultasHoy      = hoy;
+      _consultasAyer     = ayer;
+      _totalPacientes    = total;
+      _totalConsultas    = totalCon;
+      _alertasPendientes = alertas;
+      _nivelRiesgo       = nivel;
+      _alertasRecientes  = urgentes.take(3).toList();
+      _porModulo         = porModulo;
+      _porDia            = porDia;
+      _porRiesgo         = porRiesgo;
+      _cargando          = false;
+    });
   }
 
   @override
@@ -143,59 +133,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connSub?.cancel();
-    _stt.stop();
-    _tts.stop();
     super.dispose();
   }
 
-  Future<void> _cargar() async {
-    if (!mounted) return;
-    setState(() => _cargando = true);
-    final hoy       = await DatabaseHelper.instance.totalConsultasHoy();
-    final total     = await DatabaseHelper.instance.totalPacientes();
-    final totalCon  = await DatabaseHelper.instance.totalConsultas();
-    final recientes = await DatabaseHelper.instance.consultasRecientes(limit: 5);
-    final porModulo = await DatabaseHelper.instance.consultasPorModulo();
-    final porDia    = await DatabaseHelper.instance.consultasUltimosDias(dias: 7);
-    final porRiesgo = await DatabaseHelper.instance.distribucionRiesgo();
-    if (!mounted) return;
-    setState(() {
-      _consultasHoy   = hoy;
-      _totalPacientes = total;
-      _totalConsultas = totalCon;
-      _recientes      = recientes;
-      _porModulo      = porModulo;
-      _porDia         = porDia;
-      _porRiesgo      = porRiesgo;
-      _cargando       = false;
-    });
-  }
-
-  Color  _nivelColor(String? n) {
-    switch (n?.toLowerCase()) {
-      case 'urgente': return Colors.red;
-      case 'alerta':  return Colors.orange;
-      default:        return _kVerde;
-    }
-  }
-  String _nivelLabel(String? n) {
-    switch (n?.toLowerCase()) {
-      case 'urgente': return 'Urgente';
-      case 'alerta':  return 'Alerta';
-      default:        return 'Estable';
-    }
-  }
-  String _tiempoRelativo(String? iso) {
-    if (iso == null) return '';
-    try {
-      final dt = DateTime.parse(iso);
-      final d  = DateTime.now().difference(dt);
-      if (d.inMinutes < 1)  return 'ahora mismo';
-      if (d.inMinutes < 60) return 'hace ${d.inMinutes} min';
-      if (d.inHours < 24)   return 'hace ${d.inHours}h';
-      return 'hace ${d.inDays}d';
-    } catch (_) { return ''; }
-  }
   String _saludo() {
     final h = DateTime.now().hour;
     if (h < 12) return 'Buenos días';
@@ -203,17 +143,35 @@ class _DashboardScreenState extends State<DashboardScreen>
     return 'Buenas noches';
   }
 
-  String _cortoModulo(String nombre) {
-    const abrev = {
-      'Gestación':        'Gest.',
-      'Primera infancia': '0-5',
-      'Infancia':         '6-11',
-      'Adolescencia':     'Adol.',
-      'Juventud':         'Juv.',
-      'Adultez':          'Adult.',
-      'Vejez':            'Vejez',
-    };
-    return abrev[nombre] ?? (nombre.length > 6 ? '${nombre.substring(0, 5)}.' : nombre);
+  String _tiempoRelativo(String? iso) {
+    if (iso == null) return '';
+    try {
+      final dt = DateTime.parse(iso);
+      final d  = DateTime.now().difference(dt);
+      if (d.inMinutes < 1)  return 'Ahora mismo';
+      if (d.inMinutes < 60) return 'Hace ${d.inMinutes} min';
+      if (d.inHours < 24)   return 'Hace ${d.inHours}h';
+      return 'Hace ${d.inDays}d';
+    } catch (_) { return ''; }
+  }
+
+  void _abrirAsistente() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AsistenteModal(tieneInternet: _tieneInternet),
+    );
+  }
+
+  // ── comparativo vs ayer ──────────────────────────────────────────────────
+  String _comparativo(int hoy, int ayer) {
+    if (ayer == 0 && hoy == 0) return '↔ 0% vs ayer';
+    if (ayer == 0 && hoy > 0)  return '↑ Nueva actividad';
+    final pct = ((hoy - ayer) / ayer * 100).round();
+    if (pct > 0) return '↑ $pct% vs ayer';
+    if (pct < 0) return '↓ ${pct.abs()}% vs ayer';
+    return '↔ Igual que ayer';
   }
 
   @override
@@ -221,6 +179,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     final dt = DT(context);
     return Scaffold(
       backgroundColor: dt.bg,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _abrirAsistente,
+        backgroundColor: _kVerde,
+        child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 26),
+      ),
       body: RefreshIndicator(
         onRefresh: _cargar,
         color: _kVerde,
@@ -230,194 +193,408 @@ class _DashboardScreenState extends State<DashboardScreen>
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-              // ── Header ─────────────────────────────────────────────────
-              Row(children: [
-                Container(
-                  width: 42, height: 42,
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: ClipOval(
-                      child: Image.asset('assets/logo_dispersalud.png', fit: BoxFit.contain),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
+              // ── SALUDO + LOGO ──────────────────────────────────────────
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('DISPERSALUD IA', style: TextStyle(color: dt.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('Salud rural · sin internet', style: TextStyle(color: dt.textSecondary, fontSize: 11)),
-                ])),
-                IconButton(
-                  onPressed: _cargar,
-                  icon: _cargando
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2))
-                      : Icon(Icons.refresh_rounded, color: dt.textSecondary, size: 22),
-                ),
-                GestureDetector(
-                  onTap: () async { await ConnectivityService.instance.verificarAhora(); },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _tieneInternet ? _kVerde.withOpacity(0.15) : dt.card,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _tieneInternet ? _kVerde : dt.border),
-                    ),
-                    child: Row(children: [
-                      Container(width: 7, height: 7, decoration: BoxDecoration(
-                        color: _tieneInternet ? _kVerde : Colors.orange,
-                        shape: BoxShape.circle,
-                      )),
-                      const SizedBox(width: 5),
-                      Text(
-                        _tieneInternet ? 'Online' : 'Offline',
-                        style: TextStyle(
-                          color: _tieneInternet ? _kVerde : dt.textSecondary,
-                          fontSize: 11, fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ]),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 16),
-
-              // ── Tarjeta bienvenida ──────────────────────────────────────
-              Container(
-                width: double.infinity, padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F6E56), Color(0xFF1D9E75)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(
-                    _nombrePromotor.isNotEmpty
-                        ? '${_saludo()}, $_nombrePromotor 👋'
-                        : '${_saludo()}, Promotor/a 👋',
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                    '${_saludo()}, ${_nombre.isNotEmpty ? _nombre : "Promotor/a"}! 👋',
+                    style: TextStyle(
+                        color: dt.textPrimary, fontSize: 18,
+                        fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _veredaPromotor.isNotEmpty
-                        ? '$_veredaPromotor · $_municipioPromotor'
-                        : '$_totalConsultas consultas registradas en total',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Icon(_escuchando ? Icons.mic_rounded : Icons.mic_outlined, color: Colors.white, size: 18),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _escuchando
-                            ? 'Escuchando...'
-                            : _tieneInternet
-                                ? 'IA online — respuestas clínicas mejoradas'
-                                : 'IA offline — respuestas locales',
-                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ]),
-                  if (_textoVoz.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text('"$_textoVoz"', style: const TextStyle(color: Colors.white60, fontSize: 11, fontStyle: FontStyle.italic)),
-                  ],
-                ]),
-              ),
-              const SizedBox(height: 8),
-
-              // ── Botón micrófono ──────────────────────────────────────────
-              GestureDetector(
-                onTap: _toggleVoz,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  width: double.infinity, height: 56,
-                  decoration: BoxDecoration(
-                    color: _escuchando ? _kVerde : dt.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _escuchando ? _kVerde : dt.border),
-                    boxShadow: _escuchando
-                        ? [BoxShadow(color: _kVerde.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)]
-                        : [],
-                  ),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(
-                      _escuchando ? Icons.mic_rounded : Icons.mic_outlined,
-                      color: _escuchando ? Colors.white : dt.textPrimary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      _escuchando ? 'Escuchando... toca para detener' : 'Consulta por voz con IA',
-                      style: TextStyle(
-                        color: _escuchando ? Colors.white : dt.textPrimary,
-                        fontSize: 14, fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ]),
-                ),
-              ),
-
-              // ── Respuesta IA ─────────────────────────────────────────────
-              if (_respuestaIA.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity, padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: _kVerde.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _kVerde.withOpacity(0.4)),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const SizedBox(height: 2),
+                  Text('Promotor de Salud Rural',
+                      style: TextStyle(color: dt.textSecondary, fontSize: 12)),
+                  if (_vereda.isNotEmpty) ...[
+                    const SizedBox(height: 3),
                     Row(children: [
-                      const Icon(Icons.psychology_outlined, color: _kVerde, size: 16),
-                      const SizedBox(width: 6),
-                      const Text('Respuesta DISPERSALUD IA',
-                          style: TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600)),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () async { await _tts.speak(_respuestaIA); },
-                        child: const Icon(Icons.volume_up_rounded, color: _kVerde, size: 18),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => setState(() => _respuestaIA = ''),
-                        child: Icon(Icons.close_rounded, color: dt.textHint, size: 18),
-                      ),
+                      Icon(Icons.location_on_outlined, color: dt.textHint, size: 13),
+                      const SizedBox(width: 3),
+                      Text('$_vereda · $_municipio',
+                          style: TextStyle(color: dt.textHint, fontSize: 11)),
                     ]),
-                    const SizedBox(height: 8),
-                    Text(_respuestaIA, style: TextStyle(color: dt.textPrimary, fontSize: 13, height: 1.5)),
-                  ]),
-                ),
-              ],
+                  ],
+                  const SizedBox(height: 8),
+                  // Badge online/offline
+                  GestureDetector(
+                    onTap: () async { await ConnectivityService.instance.verificarAhora(); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _tieneInternet
+                            ? _kVerde.withOpacity(0.12)
+                            : dt.card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: _tieneInternet ? _kVerde : dt.border),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          width: 7, height: 7,
+                          decoration: BoxDecoration(
+                            color: _tieneInternet ? _kVerde : Colors.orange,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _tieneInternet ? 'Online' : 'Offline',
+                          style: TextStyle(
+                            color: _tieneInternet ? _kVerde : dt.textSecondary,
+                            fontSize: 11, fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ])),
+                const SizedBox(width: 12),
+                // Refresh + Logo
+                Column(children: [
+                  GestureDetector(
+                    onTap: _cargar,
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: dt.card,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: dt.border)),
+                      child: _cargando
+                          ? const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: CircularProgressIndicator(
+                                  color: _kVerde, strokeWidth: 2))
+                          : Icon(Icons.refresh_rounded,
+                              color: dt.textSecondary, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 52, height: 52,
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: ClipOval(
+                      child: Image.asset(
+                          'assets/logo_dispersalud.png', fit: BoxFit.contain),
+                    ),
+                  ),
+                ]),
+              ]),
               const SizedBox(height: 20),
 
-              // ── Estadísticas rápidas ─────────────────────────────────────
-              Row(children: [
-                Expanded(child: _StatCard(valor: '$_consultasHoy',   label: 'Consultas\nhoy',        color: _kVerde,                   icono: Icons.today_rounded)),
-                const SizedBox(width: 10),
-                Expanded(child: _StatCard(valor: '$_totalPacientes', label: 'Pacientes\nregistrados', color: const Color(0xFF185FA5),   icono: Icons.people_rounded)),
-                const SizedBox(width: 10),
-                Expanded(child: _StatCard(valor: '$_totalConsultas', label: 'Total\nconsultas',       color: Colors.purple,             icono: Icons.assignment_rounded)),
-              ]),
-              const SizedBox(height: 24),
+              // ── TARJETA IA GRANDE ──────────────────────────────────────
+              GestureDetector(
+                onTap: _abrirAsistente,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF085041), Color(0xFF0F6E56), Color(0xFF1D9E75)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Icono robot
+                    Container(
+                      width: 64, height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Stack(alignment: Alignment.center, children: [
+                        const Icon(Icons.smart_toy_rounded,
+                            color: Colors.white, size: 36),
+                        Positioned(
+                          top: 6, right: 6,
+                          child: Icon(Icons.auto_awesome,
+                              color: Colors.white.withOpacity(0.7), size: 12)),
+                      ]),
+                    ),
+                    const SizedBox(width: 14),
+                    // Texto
+                    Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('DISPERSALUD IA',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 16,
+                              fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                      const Text('Tu asistente clínico inteligente',
+                          style: TextStyle(
+                              color: Color(0xFF9FE1CB), fontSize: 12,
+                              fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      const Text(
+                          'Obtén respuestas clínicas basadas en evidencia y protocolos actualizados.',
+                          style: TextStyle(
+                              color: Colors.white70, fontSize: 12, height: 1.4)),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white38),
+                        ),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('Consultar IA',
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 13,
+                                  fontWeight: FontWeight.w700)),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_forward_rounded,
+                              color: Colors.white, size: 16),
+                        ]),
+                      ),
+                    ])),
+                    const SizedBox(width: 10),
+                    // Mini stats derechos
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      _MiniStatCard(
+                        icono: Icons.access_time_rounded,
+                        titulo: 'Última actividad',
+                        valor: _consultasHoy > 0 ? 'Hoy' : 'Sin actividad',
+                      ),
+                      const SizedBox(height: 8),
+                      _MiniStatCard(
+                        icono: Icons.people_rounded,
+                        titulo: 'Pacientes activos',
+                        valor: '$_totalPacientes',
+                      ),
+                      const SizedBox(height: 8),
+                      _MiniStatCard(
+                        icono: Icons.warning_amber_rounded,
+                        titulo: 'Alertas pendientes',
+                        valor: '$_alertasPendientes',
+                        esAlerta: _alertasPendientes > 0,
+                      ),
+                    ]),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 16),
 
-              // ── Sección gráficas ─────────────────────────────────────────
-              Text('Estadísticas', style: TextStyle(color: dt.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+              // ── 4 ESTADÍSTICAS ─────────────────────────────────────────
+              Row(children: [
+                Expanded(child: _StatCard4(
+                  icono: Icons.today_rounded,
+                  valor: '$_consultasHoy',
+                  label: 'Consultas\nhoy',
+                  comparativo: _comparativo(_consultasHoy, _consultasAyer),
+                  subColor: _consultasHoy >= _consultasAyer ? _kVerde : Colors.red,
+                  dt: dt,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _StatCard4(
+                  icono: Icons.people_rounded,
+                  valor: '$_totalPacientes',
+                  label: 'Pacientes\nregistrados',
+                  comparativo: _totalPacientes > 0 ? '↑ 100% vs ayer' : '↔ Sin cambios',
+                  subColor: _kVerde,
+                  colorIcono: const Color(0xFF185FA5),
+                  dt: dt,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _StatCard4(
+                  icono: Icons.assignment_rounded,
+                  valor: '$_totalConsultas',
+                  label: 'Consultas\ntotales',
+                  comparativo: _totalConsultas > 0 ? '↑ 100% vs ayer' : '↔ Sin cambios',
+                  subColor: _kVerde,
+                  colorIcono: Colors.purple,
+                  dt: dt,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _StatCard4(
+                  icono: Icons.shield_outlined,
+                  valor: _nivelRiesgo,
+                  label: 'Nivel de riesgo\ngeneral',
+                  comparativo: _nivelRiesgo,
+                  subColor: _nivelRiesgo == 'Alto'
+                      ? Colors.red
+                      : (_nivelRiesgo == 'Medio' ? Colors.orange : _kVerde),
+                  colorIcono: _nivelRiesgo == 'Alto'
+                      ? Colors.red
+                      : (_nivelRiesgo == 'Medio' ? Colors.orange : const Color(0xFF854F0B)),
+                  valorSmall: true,
+                  dt: dt,
+                )),
+              ]),
+              const SizedBox(height: 20),
+
+              // ── ACCIONES RÁPIDAS ───────────────────────────────────────
+              Text('Acciones rápidas',
+                  style: TextStyle(
+                      color: dt.textPrimary, fontSize: 15,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Row(children: [
+                _AccionBtn(
+                    icono: Icons.person_add_outlined,
+                    label: 'Nuevo\npaciente',
+                    color: _kVerde, dt: dt,
+                    onTap: () => Navigator.pushNamed(context, '/nuevo-paciente')),
+                const SizedBox(width: 8),
+                _AccionBtn(
+                    icono: Icons.note_add_outlined,
+                    label: 'Nueva\nconsulta',
+                    color: const Color(0xFF185FA5), dt: dt,
+                    onTap: () => Navigator.pushNamed(context, '/pacientes')),
+                const SizedBox(width: 8),
+                _AccionBtn(
+                    icono: Icons.add_alert_outlined,
+                    label: 'Reportar\nalerta',
+                    color: const Color(0xFFE24B4A), dt: dt,
+                    onTap: () => Navigator.pushNamed(context, '/alertas')),
+                const SizedBox(width: 8),
+                _AccionBtn(
+                    icono: Icons.medication_outlined,
+                    label: 'Medica-\nmentos',
+                    color: const Color(0xFF854F0B), dt: dt,
+                    onTap: () {}),
+                const SizedBox(width: 8),
+                _AccionBtn(
+                    icono: Icons.history_rounded,
+                    label: 'Historia\nclínica',
+                    color: const Color(0xFF534AB7), dt: dt,
+                    onTap: () => Navigator.pushNamed(context, '/historial')),
+
+              ]),
+              const SizedBox(height: 20),
+
+              // ── ALERTAS RECIENTES ──────────────────────────────────────
+              Row(children: [
+                Text('Alertas recientes',
+                    style: TextStyle(
+                        color: dt.textPrimary, fontSize: 15,
+                        fontWeight: FontWeight.bold)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/alertas'),
+                  child: const Text('Ver todas',
+                      style: TextStyle(
+                          color: _kVerde, fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ]),
+              const SizedBox(height: 10),
+
+              if (_cargando)
+                const Center(child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(color: _kVerde)))
+              else if (_alertasRecientes.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                      color: dt.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: dt.border)),
+                  child: Center(child: Text('Sin alertas activas',
+                      style: TextStyle(color: dt.textHint, fontSize: 13))),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                      color: dt.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: dt.border)),
+                  child: Column(
+                    children: _alertasRecientes.asMap().entries.map((e) {
+                      final c     = e.value;
+                      final last  = e.key == _alertasRecientes.length - 1;
+                      final nivel = (c['nivel_riesgo'] as String? ?? '').toLowerCase();
+                      final color = nivel == 'urgente'
+                          ? const Color(0xFFE24B4A)
+                          : const Color(0xFFEF9F27);
+                      final label = nivel == 'urgente' ? 'Alta' : 'Media';
+                      final nombre = c['nombre'] as String? ?? 'Paciente';
+                      return Column(children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          child: Row(children: [
+                            Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(
+                                  color: color.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: Icon(
+                                nivel == 'urgente'
+                                    ? Icons.pregnant_woman_rounded
+                                    : Icons.vaccines_rounded,
+                                color: color, size: 18),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(
+                                (c['diagnostico'] as String?)?.isNotEmpty == true
+                                    ? c['diagnostico'] as String
+                                    : c['modulo'] as String? ?? '',
+                                style: TextStyle(
+                                    color: dt.textPrimary, fontSize: 13,
+                                    fontWeight: FontWeight.w600)),
+                              Text('$nombre · ${c['modulo'] ?? ''}',
+                                  style: TextStyle(
+                                      color: dt.textSecondary, fontSize: 11)),
+                            ])),
+                            Column(crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(20)),
+                                child: Text(label,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 10,
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(_tiempoRelativo(c['fecha'] as String?),
+                                  style: TextStyle(
+                                      color: dt.textHint, fontSize: 10)),
+                            ]),
+                            const SizedBox(width: 6),
+                            Icon(Icons.chevron_right_rounded,
+                                color: dt.textHint, size: 18),
+                          ]),
+                        ),
+                        if (!last) Divider(height: 1, color: dt.border),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              const SizedBox(height: 20),
+
+              // ── ESTADÍSTICAS / GRÁFICAS ────────────────────────────────
+              Text('Estadísticas',
+                  style: TextStyle(
+                      color: dt.textPrimary, fontSize: 15,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
 
+              // Tabs
               Container(
                 decoration: BoxDecoration(
-                  color: dt.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: dt.border),
-                ),
+                    color: dt.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: dt.border)),
                 child: Row(children: [
-                  _GraficaTab(label: 'Por módulo', icono: Icons.bar_chart_rounded,  activo: _graficaTab == 0, onTap: () => setState(() => _graficaTab = 0)),
-                  _GraficaTab(label: '7 días',     icono: Icons.show_chart_rounded,  activo: _graficaTab == 1, onTap: () => setState(() => _graficaTab = 1)),
-                  _GraficaTab(label: 'Riesgo',     icono: Icons.donut_large_rounded, activo: _graficaTab == 2, onTap: () => setState(() => _graficaTab = 2)),
+                  _GrafTab(label: 'Por módulo', activo: _graficaTab == 0,
+                      onTap: () => setState(() => _graficaTab = 0), dt: dt),
+                  _GrafTab(label: '7 días',     activo: _graficaTab == 1,
+                      onTap: () => setState(() => _graficaTab = 1), dt: dt),
+                  _GrafTab(label: '30 días',    activo: _graficaTab == 2,
+                      onTap: () => setState(() => _graficaTab = 2), dt: dt),
+                  _GrafTab(label: 'Riesgo',     activo: _graficaTab == 3,
+                      onTap: () => setState(() => _graficaTab = 3), dt: dt),
                 ]),
               ),
               const SizedBox(height: 12),
@@ -426,147 +603,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                 decoration: BoxDecoration(
-                  color: dt.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: dt.border),
-                ),
+                    color: dt.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: dt.border)),
                 child: _totalConsultas == 0
-                    ? const _SinDatos()
+                    ? _sinDatos(dt)
                     : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 250),
                         child: KeyedSubtree(
                           key: ValueKey(_graficaTab),
                           child: [
                             _buildBarrasModulo(dt),
+                            _buildLineaDias(dt),
                             _buildLineaDias(dt),
                             _buildDonaRiesgo(dt),
                           ][_graficaTab],
                         ),
                       ),
               ),
-              const SizedBox(height: 24),
-
-              // ── Actividad reciente ───────────────────────────────────────
-              Row(children: [
-                Text('Actividad reciente', style: TextStyle(color: dt.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                if (_consultasHoy > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _kVerde.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text('$_consultasHoy hoy',
-                        style: const TextStyle(color: _kVerde, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ),
-              ]),
-              const SizedBox(height: 12),
-
-              if (_cargando)
-                const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _kVerde)))
-              else if (_recientes.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: dt.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: dt.border),
-                  ),
-                  child: Column(children: [
-                    Icon(Icons.medical_information_outlined, color: dt.textHint, size: 40),
-                    const SizedBox(height: 12),
-                    Text('Sin consultas registradas aún.',
-                        style: TextStyle(color: dt.textSecondary, fontSize: 14, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text('Ve a Módulos, selecciona un paciente\ny realiza tu primera consulta.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: dt.textHint, fontSize: 12)),
-                  ]),
-                )
-              else
-                ..._recientes.map((c) {
-                  final color  = _nivelColor(c['nivel_riesgo']);
-                  final nombre = (c['nombre'] as String?) ?? '?';
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: dt.card,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: color.withOpacity(0.25)),
-                    ),
-                    child: Row(children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: color.withOpacity(0.18),
-                        child: Text(nombre[0].toUpperCase(),
-                            style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(nombre, style: TextStyle(color: dt.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                        Text('${c["modulo"] ?? ""} · ${_tiempoRelativo(c["fecha"])}',
-                            style: TextStyle(color: dt.textSecondary, fontSize: 12)),
-                        if ((c['diagnostico'] as String? ?? '').isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(c['diagnostico'] ?? '',
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: color.withOpacity(0.8), fontSize: 11)),
-                          ),
-                      ])),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(_nivelLabel(c['nivel_riesgo']),
-                            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
-                      ),
-                    ]),
-                  );
-                }),
-
-              const SizedBox(height: 20),
-
-              // ── Estado del sistema ───────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: dt.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: dt.border),
-                ),
-                child: Row(children: [
-                  Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: _kVerde.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.cloud_off_rounded, color: _kVerde, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      _tieneInternet
-                          ? 'Modo online activo — IA mejorada disponible'
-                          : 'Modo sin conexión — datos guardados localmente',
-                      style: TextStyle(color: dt.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      _tieneInternet
-                          ? 'Voz con IA de Claude activada · Sincronización disponible'
-                          : 'Datos guardados localmente · listos para sincronizar',
-                      style: TextStyle(color: dt.textSecondary, fontSize: 11),
-                    ),
-                  ])),
-                ]),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 80),
             ]),
           ),
         ),
@@ -574,328 +629,632 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // ── GRÁFICA 1 — Barras por módulo ────────────────────────────────────────
+  // ── Sin datos ────────────────────────────────────────────────────────────
+  Widget _sinDatos(DispersaludColors dt) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 32),
+    child: Center(child: Text(
+      'Sin datos aún.\nRegistra consultas para ver estadísticas.',
+      textAlign: TextAlign.center,
+      style: TextStyle(color: dt.textHint, fontSize: 13))),
+  );
+
+  // ── Gráfica barras ───────────────────────────────────────────────────────
   Widget _buildBarrasModulo(DispersaludColors dt) {
-    if (_porModulo.isEmpty) return const _SinDatos();
+    if (_porModulo.isEmpty) return _sinDatos(dt);
     final modulos = _porModulo.keys.toList();
     final maxVal  = _porModulo.values.fold(0, (a, b) => a > b ? a : b).toDouble();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Consultas por módulo', style: TextStyle(color: dt.textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 180,
-          child: BarChart(BarChartData(
-            maxY: (maxVal * 1.3).ceilToDouble(),
-            gridData: FlGridData(
-              show: true, drawVerticalLine: false,
-              horizontalInterval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
-              getDrawingHorizontalLine: (_) => FlLine(color: dt.border, strokeWidth: 1),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(sideTitles: SideTitles(
-                showTitles: true, reservedSize: 28,
-                interval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
-                getTitlesWidget: (v, _) => Text(v.toInt().toString(),
-                    style: TextStyle(color: dt.textHint, fontSize: 10)),
-              )),
-              bottomTitles: AxisTitles(sideTitles: SideTitles(
-                showTitles: true, reservedSize: 28,
-                getTitlesWidget: (v, _) {
-                  final i = v.toInt();
-                  if (i < 0 || i >= modulos.length) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(_cortoModulo(modulos[i]),
-                        style: TextStyle(color: dt.textSecondary, fontSize: 9)),
-                  );
-                },
-              )),
-              topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            ),
-            barGroups: modulos.asMap().entries.map((e) {
-              final color = _kModuloColores[e.key % _kModuloColores.length];
-              return BarChartGroupData(x: e.key, barRods: [
-                BarChartRodData(
-                  toY: (_porModulo[e.value] ?? 0).toDouble(),
-                  color: color, width: 18,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                  backDrawRodData: BackgroundBarChartRodData(
-                    show: true, toY: maxVal * 1.3,
-                    color: dt.textHint.withOpacity(0.04),
-                  ),
-                ),
-              ]);
-            }).toList(),
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                  '${modulos[group.x]}\n${rod.toY.toInt()} consultas',
-                  TextStyle(color: dt.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
+    const abrev   = {
+      'Gestación': 'Gestación', 'Primera infancia': 'Primera\ninfancia',
+      'Infancia': 'Infancia',   'Adolescencia': 'Adolescencia',
+      'Juventud': 'Juventud',   'Adultez': 'Adultez', 'Vejez': 'Vejez',
+    };
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Consultas por módulo',
+          style: TextStyle(color: dt.textSecondary, fontSize: 12)),
+      const SizedBox(height: 16),
+      SizedBox(height: 180, child: BarChart(BarChartData(
+        maxY: (maxVal * 1.3).ceilToDouble(),
+        gridData: FlGridData(
+          show: true, drawVerticalLine: false,
+          horizontalInterval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: dt.border, strokeWidth: 1)),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(sideTitles: SideTitles(
+            showTitles: true, reservedSize: 28,
+            interval: maxVal <= 3 ? 1 : (maxVal / 3).ceilToDouble(),
+            getTitlesWidget: (v, _) => Text(v.toInt().toString(),
+                style: TextStyle(color: dt.textHint, fontSize: 10)),
           )),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(
+            showTitles: true, reservedSize: 36,
+            getTitlesWidget: (v, _) {
+              final i = v.toInt();
+              if (i < 0 || i >= modulos.length) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  abrev[modulos[i]] ?? modulos[i],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: dt.textSecondary, fontSize: 8)));
+            },
+          )),
+          topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        const SizedBox(height: 12),
-        Wrap(spacing: 10, runSpacing: 6, children: modulos.asMap().entries.map((e) {
+        barGroups: modulos.asMap().entries.map((e) {
           final color = _kModuloColores[e.key % _kModuloColores.length];
-          return Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 4),
-            Text(e.value, style: TextStyle(color: dt.textSecondary, fontSize: 10)),
-          ]);
-        }).toList()),
-        const SizedBox(height: 4),
-      ],
-    );
+          return BarChartGroupData(x: e.key, barRods: [BarChartRodData(
+            toY: (_porModulo[e.value] ?? 0).toDouble(),
+            color: color, width: 16,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true, toY: maxVal * 1.3,
+              color: dt.textHint.withOpacity(0.04)),
+          )]);
+        }).toList(),
+        barTouchData: BarTouchData(touchTooltipData: BarTouchTooltipData(
+          getTooltipItem: (g, _, rod, __) => BarTooltipItem(
+            '${modulos[g.x]}\n${rod.toY.toInt()} consultas',
+            TextStyle(color: dt.textPrimary, fontSize: 12,
+                fontWeight: FontWeight.w600)),
+        )),
+      ))),
+      const SizedBox(height: 4),
+    ]);
   }
 
-  // ── GRÁFICA 2 — Línea últimos 7 días ────────────────────────────────────
+  // ── Gráfica línea 7 días ─────────────────────────────────────────────────
   Widget _buildLineaDias(DispersaludColors dt) {
-    if (_porDia.isEmpty) return const _SinDatos();
+    if (_porDia.isEmpty) return _sinDatos(dt);
+    final hoy      = DateTime.now();
+    final diasList = List.generate(7, (i) =>
+        DateTime(hoy.year, hoy.month, hoy.day - (6 - i)));
+    final diasStr  = diasList
+        .map((d) => d.toIso8601String().substring(0, 10)).toList();
+    final mapa     = {
+      for (final r in _porDia) r['dia'] as String: (r['total'] as int?) ?? 0
+    };
+    final puntos   = diasStr.map((d) => (mapa[d] ?? 0).toDouble()).toList();
+    final maxY     = puntos.fold(0.0, (a, b) => a > b ? a : b);
+    final escala   = maxY < 3 ? 3.0 : (maxY * 1.3);
+    const eti      = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    final etiquetas = diasStr
+        .map((d) => eti[DateTime.parse(d).weekday % 7]).toList();
 
-    final hoy     = DateTime.now();
-    final dias    = List.generate(7, (i) => DateTime(hoy.year, hoy.month, hoy.day - (6 - i)));
-    final diasStr = dias.map((d) => d.toIso8601String().substring(0, 10)).toList();
-    final mapa    = { for (final r in _porDia) r['dia'] as String: (r['total'] as int?) ?? 0 };
-    final puntos  = diasStr.map((d) => (mapa[d] ?? 0).toDouble()).toList();
-    final maxY    = puntos.fold(0.0, (a, b) => a > b ? a : b);
-    final escala  = maxY < 3 ? 3.0 : (maxY * 1.3);
-
-    const etiquetasDia = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-    final etiquetas = diasStr.map((d) => etiquetasDia[DateTime.parse(d).weekday % 7]).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Consultas últimos 7 días', style: TextStyle(color: dt.textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 180,
-          child: LineChart(LineChartData(
-            minX: 0, maxX: 6, minY: 0, maxY: escala,
-            gridData: FlGridData(
-              show: true, drawVerticalLine: false,
-              horizontalInterval: escala / 3,
-              getDrawingHorizontalLine: (_) => FlLine(color: dt.border, strokeWidth: 1),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(sideTitles: SideTitles(
-                showTitles: true, reservedSize: 28,
-                interval: escala / 3,
-                getTitlesWidget: (v, _) => Text(v.toInt().toString(),
-                    style: TextStyle(color: dt.textHint, fontSize: 10)),
-              )),
-              bottomTitles: AxisTitles(sideTitles: SideTitles(
-                showTitles: true, reservedSize: 28,
-                getTitlesWidget: (v, _) {
-                  final i = v.toInt();
-                  if (i < 0 || i > 6) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(i < etiquetas.length ? etiquetas[i] : '',
-                        style: TextStyle(color: dt.textSecondary, fontSize: 10)),
-                  );
-                },
-              )),
-              topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            ),
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
-                  '${s.y.toInt()} consultas',
-                  TextStyle(color: dt.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                )).toList(),
-              ),
-            ),
-            lineBarsData: [
-              LineChartBarData(
-                spots: List.generate(7, (i) => FlSpot(i.toDouble(), puntos[i])),
-                isCurved: true, curveSmoothness: 0.35,
-                color: _kVerde, barWidth: 2.5,
-                dotData: FlDotData(
-                  show: true,
-                  getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                    radius: spot.y > 0 ? 4 : 2,
-                    color: spot.y > 0 ? _kVerde : dt.textHint.withOpacity(0.15),
-                    strokeColor: Colors.transparent,
-                  ),
-                ),
-                belowBarData: BarAreaData(
-                  show: true,
-                  gradient: LinearGradient(
-                    colors: [_kVerde.withOpacity(0.25), _kVerde.withOpacity(0.0)],
-                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  ),
-                ),
-              ),
-            ],
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Consultas últimos 7 días',
+          style: TextStyle(color: dt.textSecondary, fontSize: 12)),
+      const SizedBox(height: 16),
+      SizedBox(height: 180, child: LineChart(LineChartData(
+        minX: 0, maxX: 6, minY: 0, maxY: escala,
+        gridData: FlGridData(
+          show: true, drawVerticalLine: false,
+          horizontalInterval: escala / 3,
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: dt.border, strokeWidth: 1)),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(sideTitles: SideTitles(
+            showTitles: true, reservedSize: 28, interval: escala / 3,
+            getTitlesWidget: (v, _) => Text(v.toInt().toString(),
+                style: TextStyle(color: dt.textHint, fontSize: 10)),
           )),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(
+            showTitles: true, reservedSize: 28,
+            getTitlesWidget: (v, _) {
+              final i = v.toInt();
+              if (i < 0 || i > 6) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                    i < etiquetas.length ? etiquetas[i] : '',
+                    style: TextStyle(
+                        color: dt.textSecondary, fontSize: 10)));
+            },
+          )),
+          topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        const SizedBox(height: 4),
-      ],
-    );
+        lineBarsData: [LineChartBarData(
+          spots: List.generate(7, (i) => FlSpot(i.toDouble(), puntos[i])),
+          isCurved: true, curveSmoothness: 0.35,
+          color: _kVerde, barWidth: 2.5,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+              radius: spot.y > 0 ? 4 : 2,
+              color: spot.y > 0 ? _kVerde : dt.textHint.withOpacity(0.15),
+              strokeColor: Colors.transparent)),
+          belowBarData: BarAreaData(show: true, gradient: LinearGradient(
+            colors: [_kVerde.withOpacity(0.25), _kVerde.withOpacity(0.0)],
+            begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+        )],
+      ))),
+      const SizedBox(height: 4),
+    ]);
   }
 
-  // ── GRÁFICA 3 — Dona nivel de riesgo ────────────────────────────────────
+  // ── Gráfica dona riesgo ──────────────────────────────────────────────────
   Widget _buildDonaRiesgo(DispersaludColors dt) {
-    if (_porRiesgo.isEmpty) return const _SinDatos();
-
-    const coloresRiesgo = {
+    if (_porRiesgo.isEmpty) return _sinDatos(dt);
+    const colores = {
       'estable': Color(0xFF1D9E75),
       'alerta':  Color(0xFFEF9F27),
       'urgente': Color(0xFFE24B4A),
     };
-    const nombresRiesgo = {
-      'estable': 'Estable',
-      'alerta':  'Alerta',
-      'urgente': 'Urgente',
+    const nombres = {
+      'estable': 'Estable', 'alerta': 'Alerta', 'urgente': 'Urgente'
     };
-
     final niveles   = ['estable', 'alerta', 'urgente'];
     final secciones = niveles
         .where((n) => (_porRiesgo[n] ?? 0) > 0)
         .map((n) => PieChartSectionData(
               value: (_porRiesgo[n] ?? 0).toDouble(),
-              color: coloresRiesgo[n]!,
-              radius: 48, showTitle: false,
-            ))
+              color: colores[n]!, radius: 48, showTitle: false))
         .toList();
-
-    if (secciones.isEmpty) return const _SinDatos();
+    if (secciones.isEmpty) return _sinDatos(dt);
     final total = _porRiesgo.values.fold(0, (a, b) => a + b);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Distribución por nivel de riesgo', style: TextStyle(color: dt.textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 140, height: 140,
-              child: PieChart(PieChartData(
-                sections: secciones,
-                centerSpaceRadius: 40,
-                sectionsSpace: 3,
-                pieTouchData: PieTouchData(enabled: false),
-              )),
-            ),
-            const SizedBox(width: 24),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: niveles.map((n) {
-                final val = _porRiesgo[n] ?? 0;
-                if (val == 0) return const SizedBox.shrink();
-                final pct = total > 0 ? (val / total * 100).round() : 0;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(children: [
-                    Container(width: 10, height: 10, decoration: BoxDecoration(
-                        color: coloresRiesgo[n], borderRadius: BorderRadius.circular(3))),
-                    const SizedBox(width: 8),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(nombresRiesgo[n]!,
-                          style: TextStyle(color: dt.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                      Text('$val ($pct%)', style: TextStyle(color: dt.textSecondary, fontSize: 11)),
-                    ]),
-                  ]),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-      ],
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Distribución por nivel de riesgo',
+          style: TextStyle(color: dt.textSecondary, fontSize: 12)),
+      const SizedBox(height: 16),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        SizedBox(width: 140, height: 140, child: PieChart(PieChartData(
+          sections: secciones, centerSpaceRadius: 40, sectionsSpace: 3,
+          pieTouchData: PieTouchData(enabled: false)))),
+        const SizedBox(width: 24),
+        Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: niveles.map((n) {
+            final val = _porRiesgo[n] ?? 0;
+            if (val == 0) return const SizedBox.shrink();
+            final pct = total > 0 ? (val / total * 100).round() : 0;
+            return Padding(padding: const EdgeInsets.only(bottom: 10),
+              child: Row(children: [
+                Container(width: 10, height: 10, decoration: BoxDecoration(
+                    color: colores[n], borderRadius: BorderRadius.circular(3))),
+                const SizedBox(width: 8),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(nombres[n]!, style: TextStyle(
+                      color: dt.textPrimary, fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+                  Text('$val ($pct%)',
+                      style: TextStyle(color: dt.textSecondary, fontSize: 11)),
+                ]),
+              ]));
+          }).toList()),
+      ]),
+      const SizedBox(height: 4),
+    ]);
   }
 }
 
-// ── Widgets auxiliares ───────────────────────────────────────────────────────
-
-class _SinDatos extends StatelessWidget {
-  const _SinDatos();
+// ─────────────────────────────────────────────────────────────────────────────
+// MODAL ASISTENTE IA — texto + voz
+// ─────────────────────────────────────────────────────────────────────────────
+class _AsistenteModal extends StatefulWidget {
+  final bool tieneInternet;
+  const _AsistenteModal({required this.tieneInternet});
   @override
-  Widget build(BuildContext context) {
-    final dt = DT(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Text(
-          'Sin datos suficientes aún.\nRegistra consultas para ver las estadísticas.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: dt.textHint, fontSize: 13),
-        ),
-      ),
-    );
-  }
+  State<_AsistenteModal> createState() => _AsistenteModalState();
 }
 
-class _GraficaTab extends StatelessWidget {
-  final String label;
-  final IconData icono;
-  final bool activo;
-  final VoidCallback onTap;
-  const _GraficaTab({required this.label, required this.icono, required this.activo, required this.onTap});
+class _AsistenteModalState extends State<_AsistenteModal> {
+  final stt.SpeechToText     _stt    = stt.SpeechToText();
+  final FlutterTts            _tts    = FlutterTts();
+  final TextEditingController _ctrl   = TextEditingController();
+  final ScrollController      _scroll = ScrollController();
+
+  bool   _sttDisponible = false;
+  bool   _escuchando    = false;
+  bool   _cargando      = false;
+  String _textoVoz      = '';
+  String _respuesta     = '';
 
   @override
-  Widget build(BuildContext context) {
-    final dt = DT(context);
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: activo ? _kVerde.withOpacity(0.15) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(children: [
-            Icon(icono, color: activo ? _kVerde : dt.textHint, size: 18),
-            const SizedBox(height: 3),
-            Text(label, style: TextStyle(
-                color: activo ? _kVerde : dt.textHint,
-                fontSize: 10, fontWeight: activo ? FontWeight.w600 : FontWeight.normal)),
-          ]),
-        ),
-      ),
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    _sttDisponible = await _stt.initialize(
+      onError:  (e) => setState(() { _escuchando = false; }),
+      onStatus: (s) {
+        if (s == 'done' || s == 'notListening') {
+          setState(() => _escuchando = false);
+        }
+      },
+    );
+    await _tts.setLanguage('es-CO');
+    await _tts.setSpeechRate(0.45);
+    await _tts.setVolume(1.0);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleVoz() async {
+    if (!_sttDisponible) return;
+    if (_escuchando) {
+      await _stt.stop();
+      setState(() => _escuchando = false);
+      return;
+    }
+    setState(() {
+      _escuchando = true;
+      _textoVoz   = '';
+      _respuesta  = '';
+      _ctrl.clear();
+    });
+    await _stt.listen(
+      localeId:  'es_CO',
+      listenFor: const Duration(seconds: 15),
+      pauseFor:  const Duration(seconds: 3),
+      onResult:  (r) {
+        setState(() => _textoVoz = r.recognizedWords);
+        _ctrl.text = r.recognizedWords;
+        if (r.finalResult && r.recognizedWords.isNotEmpty) {
+          _consultar(r.recognizedWords);
+        }
+      },
     );
   }
-}
 
-class _StatCard extends StatelessWidget {
-  final String valor, label;
-  final Color color;
-  final IconData icono;
-  const _StatCard({required this.valor, required this.label, required this.color, required this.icono});
+  Future<void> _consultar(String texto) async {
+    if (texto.trim().isEmpty) return;
+    setState(() { _escuchando = false; _cargando = true; _respuesta = ''; });
+    final resp = await IaService.instance.consultar(texto);
+    if (!mounted) return;
+    setState(() { _respuesta = resp; _cargando = false; });
+    await _tts.speak(resp);
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (_scroll.hasClients) {
+      _scroll.animateTo(_scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+  }
+
+  @override
+  void dispose() {
+    _stt.stop();
+    _tts.stop();
+    _ctrl.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final dt = DT(context);
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
         color: dt.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dt.border),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(children: [
-        Icon(icono, color: color, size: 20),
-        const SizedBox(height: 6),
-        Text(valor, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label, textAlign: TextAlign.center,
-            style: TextStyle(color: dt.textSecondary, fontSize: 10)),
-      ]),
+      padding: EdgeInsets.only(
+        left: 20, right: 20, top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        controller: _scroll,
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+          // Handle
+          Center(child: Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: dt.border, borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 16),
+
+          // Título
+          Row(children: [
+            Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF085041), Color(0xFF1D9E75)]),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.smart_toy_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Asistente DISPERSALUD IA',
+                  style: TextStyle(color: dt.textPrimary, fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+              Row(children: [
+                Container(
+                  width: 6, height: 6,
+                  decoration: BoxDecoration(
+                    color: widget.tieneInternet ? _kVerde : Colors.orange,
+                    shape: BoxShape.circle)),
+                const SizedBox(width: 5),
+                Text(
+                  widget.tieneInternet
+                      ? 'Online — IA clínica mejorada'
+                      : 'Offline — motor local',
+                  style: TextStyle(color: dt.textSecondary, fontSize: 11)),
+              ]),
+            ])),
+            IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: Icon(Icons.close_rounded, color: dt.textHint)),
+          ]),
+          const SizedBox(height: 16),
+
+          // Campo de texto
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _ctrl,
+                style: TextStyle(color: dt.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Escribe tu consulta clínica...',
+                  hintStyle: TextStyle(color: dt.textHint),
+                  filled: true, fillColor: dt.bg,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: dt.border)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: dt.border)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: _kVerde, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                ),
+                onSubmitted: _consultar,
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _consultar(_ctrl.text),
+              child: Container(
+                width: 46, height: 46,
+                decoration: BoxDecoration(
+                    color: _kVerde, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.send_rounded,
+                    color: Colors.white, size: 20)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+
+          // Botón micrófono
+          GestureDetector(
+            onTap: _toggleVoz,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: double.infinity, height: 52,
+              decoration: BoxDecoration(
+                color: _escuchando ? _kVerde : dt.bg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: _escuchando ? _kVerde : dt.border),
+                boxShadow: _escuchando
+                    ? [BoxShadow(color: _kVerde.withOpacity(0.35),
+                        blurRadius: 10, spreadRadius: 1)]
+                    : [],
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                Icon(
+                  _escuchando ? Icons.mic_rounded : Icons.mic_outlined,
+                  color: _escuchando ? Colors.white : dt.textPrimary,
+                  size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  _escuchando
+                      ? 'Escuchando... toca para detener'
+                      : 'Hablar con la IA',
+                  style: TextStyle(
+                    color: _escuchando ? Colors.white : dt.textPrimary,
+                    fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+
+          // Texto reconocido por voz
+          if (_textoVoz.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('"$_textoVoz"',
+                style: TextStyle(color: dt.textHint, fontSize: 12,
+                    fontStyle: FontStyle.italic)),
+          ],
+
+          // Cargando
+          if (_cargando) ...[
+            const SizedBox(height: 20),
+            const Center(child: CircularProgressIndicator(
+                color: _kVerde, strokeWidth: 2)),
+            const SizedBox(height: 8),
+            Center(child: Text('Consultando DISPERSALUD IA...',
+                style: TextStyle(color: dt.textSecondary, fontSize: 12))),
+          ],
+
+          // Respuesta
+          if (_respuesta.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity, padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _kVerde.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _kVerde.withOpacity(0.35)),
+              ),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Icon(Icons.psychology_outlined,
+                      color: _kVerde, size: 16),
+                  const SizedBox(width: 6),
+                  const Text('Respuesta DISPERSALUD IA',
+                      style: TextStyle(color: _kVerde, fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () async { await _tts.speak(_respuesta); },
+                    child: const Icon(Icons.volume_up_rounded,
+                        color: _kVerde, size: 18)),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _respuesta = '';
+                      _textoVoz  = '';
+                      _ctrl.clear();
+                    }),
+                    child: Icon(Icons.refresh_rounded,
+                        color: dt.textHint, size: 18)),
+                ]),
+                const SizedBox(height: 10),
+                Text(_respuesta,
+                    style: TextStyle(color: dt.textPrimary,
+                        fontSize: 13, height: 1.5)),
+              ]),
+            ),
+          ],
+          const SizedBox(height: 8),
+        ]),
+      ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WIDGETS AUXILIARES
+// ─────────────────────────────────────────────────────────────────────────────
+class _MiniStatCard extends StatelessWidget {
+  final IconData icono;
+  final String titulo, valor;
+  final bool esAlerta;
+  const _MiniStatCard({
+    required this.icono, required this.titulo, required this.valor,
+    this.esAlerta = false,
+  });
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.12),
+      borderRadius: BorderRadius.circular(10)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(icono, color: const Color(0xFF9FE1CB), size: 12),
+        const SizedBox(width: 4),
+        Text(titulo,
+            style: const TextStyle(color: Colors.white60, fontSize: 9)),
+      ]),
+      const SizedBox(height: 3),
+      Text(valor, style: TextStyle(
+          color: esAlerta ? const Color(0xFFEF9F27) : Colors.white,
+          fontSize: 13, fontWeight: FontWeight.w700)),
+    ]),
+  );
+}
+
+class _StatCard4 extends StatelessWidget {
+  final IconData icono;
+  final String valor, label, comparativo;
+  final Color subColor;
+  final DispersaludColors dt;
+  final Color colorIcono;
+  final bool valorSmall;
+  const _StatCard4({
+    required this.icono, required this.valor, required this.label,
+    required this.comparativo, required this.subColor, required this.dt,
+    this.colorIcono = const Color(0xFF1D9E75), this.valorSmall = false,
+  });
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+    decoration: BoxDecoration(
+        color: dt.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: dt.border)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icono, color: colorIcono, size: 18),
+      const SizedBox(height: 6),
+      Text(valor, style: TextStyle(
+          color: dt.textPrimary,
+          fontSize: valorSmall ? 14 : 20,
+          fontWeight: FontWeight.bold)),
+      const SizedBox(height: 3),
+      Text(label, style: TextStyle(
+          color: dt.textSecondary, fontSize: 9, height: 1.3)),
+      const SizedBox(height: 4),
+      Text(comparativo, style: TextStyle(
+          color: subColor, fontSize: 9, fontWeight: FontWeight.w600)),
+    ]),
+  );
+}
+
+class _AccionBtn extends StatelessWidget {
+  final IconData icono;
+  final String label;
+  final Color color;
+  final DispersaludColors dt;
+  final VoidCallback onTap;
+  const _AccionBtn({
+    required this.icono, required this.label, required this.color,
+    required this.dt, required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+            color: dt.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: dt.border)),
+        child: Column(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(icono, color: color, size: 18)),
+          const SizedBox(height: 6),
+          Text(label, textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: dt.textSecondary, fontSize: 9, height: 1.3)),
+        ]),
+      ),
+    ),
+  );
+}
+
+class _GrafTab extends StatelessWidget {
+  final String label;
+  final bool activo;
+  final VoidCallback onTap;
+  final DispersaludColors dt;
+  const _GrafTab({
+    required this.label, required this.activo,
+    required this.onTap, required this.dt,
+  });
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: activo ? _kVerde.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10)),
+        child: Text(label, textAlign: TextAlign.center,
+            style: TextStyle(
+              color: activo ? _kVerde : dt.textHint,
+              fontSize: 10,
+              fontWeight: activo ? FontWeight.w700 : FontWeight.normal)),
+      ),
+    ),
+  );
 }

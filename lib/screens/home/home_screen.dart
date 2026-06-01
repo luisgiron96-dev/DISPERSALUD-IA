@@ -101,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _nombre     = '';
   String _vereda     = '';
   String _municipio  = '';
-  String _ultimaSync = 'Nunca';
+  String _ultimaSync = '';
 
   // Conectividad
   bool _online = false;
@@ -111,9 +111,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int    _totalPacientes  = 0;
   int    _totalAlertas    = 0;
   int    _totalPendientes = 0;
-  // Estado por módulo: vacío inicialmente → todos muestran "Sin novedades"
   Map<String, Map<String, int>> _estadosPorModulo = {};
-  bool   _cargando = false; // ← false inicial: muestra "Sin novedades" mientras carga
 
   @override
   void initState() {
@@ -148,20 +146,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _cargarPerfil() async {
-    final prefs  = await SharedPreferences.getInstance();
-    final syncTs = prefs.getString('ultima_sincronizacion') ?? '';
+    final prefs = await SharedPreferences.getInstance();
+
+    // ── FIX: guardar actividad local para no mostrar "Nunca" ─────────────
+    final ahora = DateTime.now().toIso8601String();
+    await prefs.setString('ultima_actividad_local', ahora);
+
+    // Prioridad: sync real → actividad local → ahora mismo
+    final syncTs      = prefs.getString('ultima_sincronizacion') ?? '';
+    final actividadTs = prefs.getString('ultima_actividad_local') ?? ahora;
+    final tsAMostrar  = syncTs.isNotEmpty ? syncTs : actividadTs;
+
     if (!mounted) return;
     setState(() {
       _nombre     = prefs.getString('promotor_nombre')    ?? '';
       _vereda     = prefs.getString('promotor_vereda')    ?? '';
       _municipio  = prefs.getString('promotor_municipio') ?? '';
-      _ultimaSync = syncTs.isNotEmpty ? _formatSync(syncTs) : 'Nunca';
+      _ultimaSync = _formatSync(tsAMostrar);
     });
   }
 
   Future<void> _cargarDatos() async {
     if (!mounted) return;
-    // No ponemos _cargando=true para no mostrar "..." en los badges
     final pacientes  = await DatabaseHelper.instance.totalPacientes();
     final alertas    = await DatabaseHelper.instance.totalAlertasActivas();
     final pendientes = await DatabaseHelper.instance.totalPendientesSync();
@@ -172,7 +178,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _totalAlertas     = alertas;
       _totalPendientes  = pendientes;
       _estadosPorModulo = estados;
-      _cargando         = false;
     });
   }
 
@@ -182,12 +187,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final diff = DateTime.now().difference(dt);
       if (diff.inMinutes < 1)  return 'hace un momento';
       if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} min';
-      final h   = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final m   = dt.minute.toString().padLeft(2, '0');
-      final ap  = dt.hour < 12 ? 'a.m.' : 'p.m.';
+      final h  = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final m  = dt.minute.toString().padLeft(2, '0');
+      final ap = dt.hour < 12 ? 'a.m.' : 'p.m.';
       return 'Hoy $h:$m $ap';
     } catch (_) {
-      return 'Desconocido';
+      return 'hace un momento';
     }
   }
 
@@ -295,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            // ── GRID DE MÓDULOS — 3 columnas con tarjetas más altas ───
+            // ── GRID DE MÓDULOS ───────────────────────────────────────
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverGrid(
@@ -303,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   crossAxisCount:   3,
                   crossAxisSpacing: 10,
                   mainAxisSpacing:  10,
-                  childAspectRatio: 0.68, // altura suficiente para todo el contenido
+                  childAspectRatio: 0.68,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) => _ModuloCard(
@@ -458,7 +463,7 @@ class _Header extends StatelessWidget {
                             ]),
                           ],
                           const SizedBox(height: 6),
-                          // Indicador sync
+                          // Indicador sync — ahora nunca muestra "Nunca"
                           Row(children: [
                             Container(
                               width: 7, height: 7,
@@ -610,7 +615,6 @@ class _ModuloCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = isDark(context);
 
-    // ── Colores del badge según estado ──────────────────────────────────
     final Color  badgeColor;
     final String badgeText;
 
@@ -629,12 +633,10 @@ class _ModuloCard extends StatelessWidget {
       badgeText  = 'Sin novedades';
     }
 
-    // Fondo del ícono adaptado al tema
     final iconBg = dark
         ? modulo.colorIcono.withOpacity(0.20)
         : modulo.colorFondo;
 
-    // Borde con color de alerta si corresponde
     final borderColor = estado.tieneAlertas
         ? const Color(0xFFE24B4A).withOpacity(0.30)
         : estado.tienePendientes
@@ -657,8 +659,6 @@ class _ModuloCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-
-              // ── Icono ──────────────────────────────────────────────
               Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
@@ -667,8 +667,6 @@ class _ModuloCard extends StatelessWidget {
                 ),
                 child: Icon(modulo.icono, color: modulo.colorIcono, size: 22),
               ),
-
-              // ── Nombre ────────────────────────────────────────────
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -694,9 +692,6 @@ class _ModuloCard extends StatelessWidget {
                   ),
                 ],
               ),
-
-              // ── Badge de estado ───────────────────────────────────
-              // Fondo coloreado tipo pill, igual al mockup
               Row(
                 children: [
                   Expanded(

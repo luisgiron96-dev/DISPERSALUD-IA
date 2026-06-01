@@ -10,7 +10,7 @@ class IaService {
   IaService._();
 
   static const _groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  static const _groqApiKey = 'Apy Groq AQUI';
+  static const _groqApiKey = 'Groq Api Key';
   static const _groqModel  = 'llama-3.1-8b-instant';
 
   static const _sistemaPrompt = '''
