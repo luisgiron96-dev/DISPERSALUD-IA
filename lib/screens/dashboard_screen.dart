@@ -454,13 +454,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                     icono: Icons.medication_outlined,
                     label: 'Medica-\nmentos',
                     color: const Color(0xFF854F0B), dt: dt,
-                    onTap: () {}),
+                    onTap: () => Navigator.pushNamed(context, '/medicamentos')),
                 const SizedBox(width: 8),
                 _AccionBtn(
                     icono: Icons.history_rounded,
                     label: 'Historia\nclínica',
                     color: const Color(0xFF534AB7), dt: dt,
-                    onTap: () => Navigator.pushNamed(context, '/historial')),
+                    onTap: () => Navigator.pushNamed(context, '/pacientes')),
 
               ]),
               const SizedBox(height: 20),

@@ -11,6 +11,12 @@ import 'screens/modulos/adolescencia/adolescencia_screen.dart';
 import 'screens/modulos/juventud/juventud_screen.dart';
 import 'screens/modulos/adultez/adultez_screen.dart';
 import 'screens/modulos/vejez/vejez_screen.dart';
+// ── Pantallas nuevas ──────────────────────────────────────────────────
+import 'screens/nuevo_paciente_screen.dart';
+import 'screens/pacientes_screen.dart';
+import 'screens/alertas_screen.dart';
+import 'screens/medicamentos_screen.dart';
+// ─────────────────────────────────────────────────────────────────────
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
 import 'core/app_theme.dart';
@@ -37,7 +43,6 @@ class DispersaludApp extends StatelessWidget {
     return MaterialApp(
       title: 'DISPERSALUD IA',
       debugShowCheckedModeBanner: false,
-      // ── Tema adaptativo — sigue el sistema ──
       theme:     AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
@@ -51,6 +56,7 @@ class DispersaludApp extends StatelessWidget {
       routes: {
         '/pin':              (context) => const PinScreen(),
         '/home':             (context) => const MainScreen(),
+        // ── Módulos ciclo vital ──────────────────────────────────────
         '/gestacion':        (context) => const GestacionScreen(),
         '/primera-infancia': (context) => const PrimeraInfanciaScreen(),
         '/infancia':         (context) => const InfanciaScreen(),
@@ -58,6 +64,11 @@ class DispersaludApp extends StatelessWidget {
         '/juventud':         (context) => const JuventudScreen(),
         '/adultez':          (context) => const AdultezScreen(),
         '/vejez':            (context) => const VejezScreen(),
+        // ── Acciones rápidas ─────────────────────────────────────────
+        '/nuevo-paciente':   (context) => const NuevoPacienteScreen(),
+        '/pacientes':        (context) => PacientesScreen(),
+        '/alertas':          (context) => AlertasScreen(),
+        '/medicamentos':     (context) => const MedicamentosScreen(),
       },
     );
   }
