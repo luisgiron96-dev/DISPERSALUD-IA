@@ -710,6 +710,13 @@ const _kCategorias = [
   'Emergencia',
 ];
 
+// Mapa de color por nivel para los chips
+const Map<String, int> _kNivelColor = {
+  'Básico':       0xFF1D9E75,
+  'Prescripción': 0xFF185FA5,
+  'Emergencia':   0xFFE24B4A,
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PANTALLA PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────

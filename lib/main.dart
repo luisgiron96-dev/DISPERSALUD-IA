@@ -16,6 +16,8 @@ import 'screens/nuevo_paciente_screen.dart';
 import 'screens/pacientes_screen.dart';
 import 'screens/alertas_screen.dart';
 import 'screens/medicamentos_screen.dart';
+import 'screens/historia_clinica_screen.dart';
+import 'screens/historia_clinica_screen.dart';
 // ─────────────────────────────────────────────────────────────────────
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
@@ -69,6 +71,19 @@ class DispersaludApp extends StatelessWidget {
         '/pacientes':        (context) => PacientesScreen(),
         '/alertas':          (context) => AlertasScreen(),
         '/medicamentos':     (context) => const MedicamentosScreen(),
+        '/historia-clinica': (context) => const HistoriaClinicaScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/historia-clinica') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => HistoriaClinicaScreen(
+              pacienteId:     args['pacienteId']     as int,
+              nombrePaciente: args['nombrePaciente'] as String,
+            ),
+          );
+        }
+        return null;
       },
     );
   }

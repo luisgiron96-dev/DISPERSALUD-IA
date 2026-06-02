@@ -3,6 +3,7 @@ import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import 'nuevo_paciente_screen.dart';
 import 'historial_screen.dart';
+import 'historia_clinica_screen.dart';
 
 const Color _kVerde  = Color(0xFF1D9E75);
 DispersaludColors _c(BuildContext ctx) =>
@@ -223,6 +224,34 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                     ),
                                     SizedBox(height: 4),
                                     Row(mainAxisSize: MainAxisSize.min, children: [
+                                      // Botón Historia Clínica
+                                      GestureDetector(
+                                        onTap: () => Navigator.push(context,
+                                          MaterialPageRoute(builder: (_) =>
+                                            HistoriaClinicaScreen(
+                                              pacienteId: p['id'],
+                                              nombrePaciente: p['nombre']))),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF534AB7).withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Row(mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                            Icon(Icons.assignment_rounded,
+                                                color: Color(0xFF534AB7), size: 13),
+                                            SizedBox(width: 3),
+                                            Text('H.C.',
+                                                style: TextStyle(
+                                                    color: Color(0xFF534AB7),
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700)),
+                                          ]),
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
                                       GestureDetector(
                                         onTap: () async {
                                           await Navigator.push(context, MaterialPageRoute(
