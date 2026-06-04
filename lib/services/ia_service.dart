@@ -10,11 +10,12 @@ class IaService {
   IaService._();
 
   static const _groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  static const _groqApiKey = 'API KEY GROQ';
+  static const _groqApiKey = 'GROQ API';
   static const _groqModel  = 'llama-3.1-8b-instant';
 
   static const _sistemaPrompt = '''
-Eres DISPERSALUD IA, asistente de salud para promotores rurales en el Cauca, Colombia.
+Eres DISPERSALUD IA, asistente de salud p
+ara promotores rurales en el Cauca, Colombia.
 Tu rol es orientar al promotor en campo — no reemplazas al médico.
 
 REGLAS ESTRICTAS:

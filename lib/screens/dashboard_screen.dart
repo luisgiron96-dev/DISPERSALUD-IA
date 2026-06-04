@@ -8,6 +8,8 @@ import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
 import '../database/database_helper.dart';
 import '../core/app_theme.dart';
+import 'historia_clinica_screen.dart';
+import 'pacientes_screen.dart';
 
 const Color _kVerde = Color(0xFF1D9E75);
 const Color _kDark  = Color(0xFF0F6E56);
@@ -161,6 +163,24 @@ class _DashboardScreenState extends State<DashboardScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _AsistenteModal(tieneInternet: _tieneInternet),
+    );
+  }
+
+  // ── Selector de paciente para Historia Clínica ─────────────────────────
+  void _abrirSelectorHC() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelectorPacienteHC(onSeleccionar: (pacienteId, nombre) {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => HistoriaClinicaScreen(
+            pacienteId: pacienteId,
+            nombrePaciente: nombre,
+          ),
+        ));
+      }),
     );
   }
 
@@ -457,10 +477,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     onTap: () => Navigator.pushNamed(context, '/medicamentos')),
                 const SizedBox(width: 8),
                 _AccionBtn(
-                    icono: Icons.history_rounded,
+                    icono: Icons.assignment_rounded,
                     label: 'Historia\nclínica',
                     color: const Color(0xFF534AB7), dt: dt,
-                    onTap: () => Navigator.pushNamed(context, '/pacientes')),
+                    onTap: () => _abrirSelectorHC()),
 
               ]),
               const SizedBox(height: 20),
@@ -1256,5 +1276,333 @@ class _GrafTab extends StatelessWidget {
               fontWeight: activo ? FontWeight.w700 : FontWeight.normal)),
       ),
     ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SELECTOR DE PACIENTE PARA HISTORIA CLÍNICA (bottom sheet dentro del dashboard)
+// ─────────────────────────────────────────────────────────────────────────────
+class _SelectorPacienteHC extends StatefulWidget {
+  final void Function(int pacienteId, String nombre) onSeleccionar;
+  const _SelectorPacienteHC({required this.onSeleccionar});
+  @override
+  State<_SelectorPacienteHC> createState() => _SelectorPacienteHCState();
+}
+
+class _SelectorPacienteHCState extends State<_SelectorPacienteHC> {
+  final _searchCtrl = TextEditingController();
+  List<Map<String, dynamic>> _todos     = [];
+  List<Map<String, dynamic>> _filtrados = [];
+  bool _cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargar() async {
+    final lista = await DatabaseHelper.instance.obtenerPacientes();
+    setState(() {
+      _todos     = lista;
+      _filtrados = lista;
+      _cargando  = false;
+    });
+  }
+
+  void _filtrar(String q) {
+    final q2 = q.trim().toLowerCase();
+    setState(() {
+      _filtrados = q2.isEmpty
+          ? _todos
+          : _todos.where((p) {
+              final nombre = (p['nombre'] ?? '').toLowerCase();
+              final vereda = (p['vereda'] ?? '').toLowerCase();
+              final mun    = (p['municipio'] ?? '').toLowerCase();
+              return nombre.contains(q2) ||
+                  vereda.contains(q2) ||
+                  mun.contains(q2);
+            }).toList();
+    });
+  }
+
+  Color _colorModulo(String m) {
+    switch (m) {
+      case 'Gestación':        return const Color(0xFF993556);
+      case 'Primera infancia': return const Color(0xFF854F0B);
+      case 'Infancia':         return const Color(0xFF185FA5);
+      case 'Adolescencia':     return const Color(0xFF534AB7);
+      case 'Juventud':         return const Color(0xFF3B6D11);
+      case 'Adultez':          return const Color(0xFF0F6E56);
+      case 'Vejez':            return const Color(0xFF5F5E5A);
+      default:                 return _kVerde;
+    }
+  }
+
+  String _iniciales(String nombre) {
+    final p = nombre.trim().split(' ');
+    if (p.length >= 2) return '${p[0][0]}${p[1][0]}'.toUpperCase();
+    return nombre.isNotEmpty ? nombre[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = DT(context);
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.80,
+      decoration: BoxDecoration(
+        color: dt.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(children: [
+
+        // ── Handle ───────────────────────────────────────────────────────
+        const SizedBox(height: 12),
+        Center(
+          child: Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // ── Título ───────────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0A5240), Color(0xFF1D9E75)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.assignment_rounded,
+                  color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Historia Clínica',
+                      style: TextStyle(
+                          color: dt.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  Text('Selecciona el paciente',
+                      style: TextStyle(
+                          color: dt.textHint, fontSize: 12)),
+                ],
+              ),
+            ),
+            // Badge total
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: _kVerde.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _kVerde.withOpacity(0.3)),
+              ),
+              child: Text('${_todos.length} pacientes',
+                  style: const TextStyle(
+                      color: _kVerde,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ),
+
+        const SizedBox(height: 14),
+
+        // ── Buscador ─────────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: _filtrar,
+            style: TextStyle(color: dt.textPrimary, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Buscar por nombre, vereda o municipio...',
+              hintStyle: TextStyle(color: dt.textHint, fontSize: 13),
+              prefixIcon: Icon(Icons.search_rounded,
+                  color: dt.textHint, size: 20),
+              suffixIcon: _searchCtrl.text.isNotEmpty
+                  ? GestureDetector(
+                      onTap: () {
+                        _searchCtrl.clear();
+                        _filtrar('');
+                      },
+                      child: Icon(Icons.close_rounded,
+                          color: dt.textHint, size: 18))
+                  : null,
+              filled: true,
+              fillColor: dt.bg,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+        Divider(height: 1, color: dt.border),
+
+        // ── Lista de pacientes ────────────────────────────────────────────
+        Expanded(
+          child: _cargando
+              ? const Center(
+                  child: CircularProgressIndicator(color: _kVerde))
+              : _todos.isEmpty
+                  ? _sinPacientes(dt)
+                  : _filtrados.isEmpty
+                      ? _sinResultados(dt)
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          itemCount: _filtrados.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) =>
+                              _tarjeta(_filtrados[i], dt),
+                        ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _tarjeta(Map<String, dynamic> p, DispersaludColors dt) {
+    final color = _colorModulo(p['modulo'] ?? '');
+    return GestureDetector(
+      onTap: () => widget.onSeleccionar(p['id'] as int, p['nombre'] as String),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: dt.bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: dt.border),
+        ),
+        child: Row(children: [
+
+          // Avatar
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: color.withOpacity(0.18),
+            child: Text(
+              _iniciales(p['nombre'] ?? ''),
+              style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14),
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Datos
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(p['nombre'] ?? '',
+                    style: TextStyle(
+                        color: dt.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
+                Text(
+                  '${p['vereda'] ?? ''}  ·  ${p['municipio'] ?? ''}',
+                  style: TextStyle(
+                      color: dt.textHint, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+
+          // Badge módulo
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(p['modulo'] ?? '',
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 6),
+            // Indicador "Ver H.C."
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.assignment_rounded,
+                  color: Color(0xFF534AB7), size: 13),
+              const SizedBox(width: 4),
+              const Text('Ver H.C.',
+                  style: TextStyle(
+                      color: Color(0xFF534AB7),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right_rounded,
+                  color: dt.textHint, size: 16),
+            ]),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _sinPacientes(DispersaludColors dt) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.people_outline,
+            color: dt.textHint, size: 52),
+        const SizedBox(height: 12),
+        Text('No hay pacientes registrados',
+            style: TextStyle(
+                color: dt.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text(
+          'Registra un paciente primero\npara crear su historia clínica.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              color: dt.textHint, fontSize: 13, height: 1.5),
+        ),
+      ]),
+    ),
+  );
+
+  Widget _sinResultados(DispersaludColors dt) => Center(
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.search_off_rounded, color: dt.textHint, size: 44),
+      const SizedBox(height: 10),
+      Text('Sin resultados para "${_searchCtrl.text}"',
+          style: TextStyle(color: dt.textSecondary, fontSize: 13)),
+      const SizedBox(height: 6),
+      TextButton(
+        onPressed: () { _searchCtrl.clear(); _filtrar(''); },
+        child: const Text('Limpiar búsqueda',
+            style: TextStyle(color: _kVerde)),
+      ),
+    ]),
   );
 }
