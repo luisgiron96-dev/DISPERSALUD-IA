@@ -7,16 +7,843 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
-import '../main.dart' show temaNotifier, temaDesdeString; // ← FIX 1: importa el notifier
+import '../main.dart' show temaNotifier, temaDesdeString;
 
 const Color _kVerde = Color(0xFF1D9E75);
 
 DispersaludColors _c(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PANTALLA COMPLETA "Mi Perfil" (nueva — diseño imagen)
+// Se navega desde el tile "Mi perfil" de Configuración
+// ─────────────────────────────────────────────────────────────────────────────
+class MiPerfilScreen extends StatefulWidget {
+  const MiPerfilScreen({super.key});
+  @override
+  State<MiPerfilScreen> createState() => _MiPerfilScreenState();
+}
+
+class _MiPerfilScreenState extends State<MiPerfilScreen> {
+  // ── datos básicos ──────────────────────────────────────────────────────────
+  String _nombre       = '';
+  String _vereda       = '';
+  String _municipio    = '';
+  String _departamento = '';
+  String _fotoPerfil   = '';
+  bool   _online       = false;
+  StreamSubscription<bool>? _connSub;
+
+  // ── datos personales ───────────────────────────────────────────────────────
+  String _documento    = '';
+  String _fechaNac     = '';
+  String _genero       = 'Masculino';
+  String _grupoSangre  = 'O+';
+
+  // ── contacto ──────────────────────────────────────────────────────────────
+  String _telefono     = '';
+  String _correo       = '';
+
+  // ── médica ────────────────────────────────────────────────────────────────
+  String _eps              = '';
+  String _alergias         = '';
+  String _enfermedades     = '';
+  String _medicamentos     = '';
+
+  // ── emergencia ────────────────────────────────────────────────────────────
+  String _contactoNombre   = '';
+  String _contactoTel      = '';
+  String _contactoParent   = '';
+
+  bool _guardando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+    _connSub = ConnectivityService.instance.cambios
+        .listen((v) { if (mounted) setState(() => _online = v); });
+    _online = ConnectivityService.instance.tieneInternet;
+  }
+
+  @override
+  void dispose() { _connSub?.cancel(); super.dispose(); }
+
+  Future<void> _cargar() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _nombre       = p.getString('promotor_nombre')        ?? '';
+      _vereda       = p.getString('promotor_vereda')        ?? '';
+      _municipio    = p.getString('promotor_municipio')     ?? '';
+      _departamento = p.getString('promotor_departamento')  ?? '';
+      _fotoPerfil   = p.getString('promotor_foto')          ?? '';
+      _documento    = p.getString('promotor_documento')     ?? '';
+      _fechaNac     = p.getString('promotor_fecha_nac')     ?? '';
+      _genero       = p.getString('promotor_genero')        ?? 'Masculino';
+      _grupoSangre  = p.getString('promotor_grupo_sangre')  ?? 'O+';
+      _telefono     = p.getString('promotor_telefono')      ?? '';
+      _correo       = p.getString('promotor_correo')        ?? '';
+      _eps              = p.getString('promotor_eps')            ?? '';
+      _alergias         = p.getString('promotor_alergias')       ?? 'Ninguna';
+      _enfermedades     = p.getString('promotor_enfermedades')   ?? 'Ninguna';
+      _medicamentos     = p.getString('promotor_medicamentos')   ?? 'Ninguno';
+      _contactoNombre   = p.getString('promotor_emer_nombre')    ?? '';
+      _contactoTel      = p.getString('promotor_emer_tel')       ?? '';
+      _contactoParent   = p.getString('promotor_emer_parent')    ?? '';
+    });
+  }
+
+  Future<void> _guardar() async {
+    setState(() => _guardando = true);
+    final p = await SharedPreferences.getInstance();
+    await p.setString('promotor_nombre',       _nombre);
+    await p.setString('promotor_vereda',       _vereda);
+    await p.setString('promotor_municipio',    _municipio);
+    await p.setString('promotor_departamento', _departamento);
+    await p.setString('promotor_foto',         _fotoPerfil);
+    await p.setString('promotor_documento',    _documento);
+    await p.setString('promotor_fecha_nac',    _fechaNac);
+    await p.setString('promotor_genero',       _genero);
+    await p.setString('promotor_grupo_sangre', _grupoSangre);
+    await p.setString('promotor_telefono',     _telefono);
+    await p.setString('promotor_correo',       _correo);
+    await p.setString('promotor_eps',          _eps);
+    await p.setString('promotor_alergias',     _alergias);
+    await p.setString('promotor_enfermedades', _enfermedades);
+    await p.setString('promotor_medicamentos', _medicamentos);
+    await p.setString('promotor_emer_nombre',  _contactoNombre);
+    await p.setString('promotor_emer_tel',     _contactoTel);
+    await p.setString('promotor_emer_parent',  _contactoParent);
+    if (!mounted) return;
+    setState(() => _guardando = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Row(children: [
+        Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+        SizedBox(width: 8), Text('Perfil guardado correctamente'),
+      ]),
+      backgroundColor: _kVerde, behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+    Navigator.pop(context, true); // devuelve true para que ConfigScreen recargue
+  }
+
+  Future<void> _seleccionarFoto() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+    if (img != null) {
+      // Copiar al dir de documentos para persistencia
+      final dir = await getApplicationDocumentsDirectory();
+      final dest = File('${dir.path}/perfil_foto.jpg');
+      await dest.writeAsBytes(await img.readAsBytes());
+      if (!mounted) return;
+      setState(() => _fotoPerfil = dest.path);
+    }
+  }
+
+  Future<void> _tomarFoto() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+    if (img != null) {
+      final dir = await getApplicationDocumentsDirectory();
+      final dest = File('${dir.path}/perfil_foto.jpg');
+      await dest.writeAsBytes(await img.readAsBytes());
+      if (!mounted) return;
+      setState(() => _fotoPerfil = dest.path);
+    }
+  }
+
+  void _mostrarOpcionesFoto() {
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (_) {
+        final dc = _c(context);
+        return Container(
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(20)),
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Center(child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: dc.border, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text('Foto de perfil', style: TextStyle(color: dc.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            _opcionFoto(Icons.photo_library_rounded, 'Elegir de la galería', _kVerde, _seleccionarFoto),
+            const SizedBox(height: 10),
+            _opcionFoto(Icons.camera_alt_rounded, 'Tomar una foto', const Color(0xFF185FA5), _tomarFoto),
+            if (_fotoPerfil.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _opcionFoto(Icons.delete_outline_rounded, 'Eliminar foto', Colors.red, () {
+                setState(() => _fotoPerfil = '');
+                Navigator.pop(context);
+              }),
+            ],
+            const SizedBox(height: 10),
+            SizedBox(width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(side: BorderSide(color: dc.border),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: Text('Cancelar', style: TextStyle(color: dc.textSecondary)),
+              )),
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _opcionFoto(IconData icon, String label, Color color, VoidCallback fn) {
+    final dc = _c(context);
+    return GestureDetector(
+      onTap: () { Navigator.pop(context); fn(); },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.25))),
+        child: Row(children: [
+          Icon(icon, color: color, size: 20), const SizedBox(width: 12),
+          Text(label, style: TextStyle(color: dc.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+        ]),
+      ),
+    );
+  }
+
+  // ── secciones editables ────────────────────────────────────────────────────
+  void _editarSeccion(String titulo, IconData icono, List<_CampoEditar> campos) {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => _SeccionEditorSheet(
+        titulo: titulo, icono: icono, campos: campos,
+        onGuardar: (vals) {
+          setState(() {
+            for (final c in campos) c.onSave(vals[c.key] ?? '');
+          });
+        },
+      ),
+    );
+  }
+
+  void _editarDatosPersonales() => _editarSeccion(
+    'Datos personales', Icons.person_rounded, [
+      _CampoEditar(key: 'doc',    label: 'Documento de identidad', value: _documento,   onSave: (v) => _documento    = v),
+      _CampoEditar(key: 'fec',    label: 'Fecha de nacimiento (DD/MM/AAAA)', value: _fechaNac,    onSave: (v) => _fechaNac     = v),
+      _CampoEditar(key: 'gen',    label: 'Género', value: _genero,     onSave: (v) => _genero       = v,
+          opciones: ['Masculino','Femenino','No binario','Prefiero no decir']),
+      _CampoEditar(key: 'gsp',    label: 'Grupo sanguíneo', value: _grupoSangre, onSave: (v) => _grupoSangre  = v,
+          opciones: ['O+','O-','A+','A-','B+','B-','AB+','AB-']),
+    ],
+  );
+
+  void _editarContacto() => _editarSeccion(
+    'Información de contacto', Icons.phone_rounded, [
+      _CampoEditar(key: 'tel',  label: 'Teléfono',               value: _telefono,     onSave: (v) => _telefono     = v, tipo: TextInputType.phone),
+      _CampoEditar(key: 'cor',  label: 'Correo electrónico',      value: _correo,       onSave: (v) => _correo       = v, tipo: TextInputType.emailAddress),
+      _CampoEditar(key: 've',   label: 'Vereda / Dirección',      value: _vereda,       onSave: (v) => _vereda       = v),
+      _CampoEditar(key: 'mu',   label: 'Municipio',               value: _municipio,    onSave: (v) => _municipio    = v),
+      _CampoEditar(key: 'dep',  label: 'Departamento',            value: _departamento, onSave: (v) => _departamento = v),
+    ],
+  );
+
+  void _editarMedica() => _editarSeccion(
+  'Información médica', Icons.medical_information_rounded, [
+    _CampoEditar(key: 'eps', label: 'EPS', value: _eps, onSave: (v) => _eps = v,
+        opciones: [
+          // Régimen contributivo
+          'Nueva EPS',
+          'Sanitas EPS',
+          'Sura EPS',
+          'Compensar EPS',
+          'Famisanar EPS',
+          'Salud Total EPS',
+          'Coosalud EPS',
+          'Aliansalud EPS',
+          'Medimás EPS',
+          'Comfenalco Valle EPS',
+          'Comfacundi EPS',
+          'Mutual Ser EPS',
+          'Asmet Salud EPS',
+          'Emssanar EPS',
+          'Capresoca EPS',
+          'Barrios Unidos EPS',
+          'Coomeva EPS',
+          // Régimen subsidiado
+          'Pijaos Salud EPSI',
+          'Dusakawi EPSI',
+          'AIC EPSI',
+          'Mallamas EPSI',
+          // Especiales
+          'Ejército - SISFUERZA',
+          'Policía Nacional',
+          'Ecopetrol',
+          'Magisterio - FOMAG',
+          // Sin EPS
+          'Sin EPS / No afiliado',
+          'Otra',
+        ]),
+    _CampoEditar(key: 'ale', label: 'Alergias', value: _alergias,
+        onSave: (v) => _alergias = v),
+    _CampoEditar(key: 'enf', label: 'Enfermedades crónicas', value: _enfermedades,
+        onSave: (v) => _enfermedades = v),
+    _CampoEditar(key: 'med', label: 'Medicamentos actuales', value: _medicamentos,
+        onSave: (v) => _medicamentos = v),
+  ],
+);
+
+  void _editarEmergencia() => _editarSeccion(
+    'Contacto de emergencia', Icons.emergency_rounded, [
+      _CampoEditar(key: 'cnm', label: 'Nombre completo',           value: _contactoNombre,  onSave: (v) => _contactoNombre  = v),
+      _CampoEditar(key: 'cte', label: 'Teléfono',                  value: _contactoTel,     onSave: (v) => _contactoTel     = v, tipo: TextInputType.phone),
+      _CampoEditar(key: 'cpr', label: 'Parentesco',                value: _contactoParent,  onSave: (v) => _contactoParent  = v),
+    ],
+  );
+
+  void _editarNombreCompleto() => _editarSeccion(
+    'Nombre del promotor', Icons.badge_rounded, [
+      _CampoEditar(key: 'nom', label: 'Nombre completo', value: _nombre, onSave: (v) => _nombre = v),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final dc = _c(context);
+    return Scaffold(
+      backgroundColor: dc.bg,
+      body: CustomScrollView(
+        slivers: [
+
+          // ── APP BAR con header verde degradado ──────────────────────────
+          SliverAppBar(
+            expandedHeight: 220,
+            pinned: true,
+            backgroundColor: const Color(0xFF0A5240),
+            leading: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+            title: const Text('Mi Perfil',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0A5240), Color(0xFF0F6E56), Color(0xFF1D9E75)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 56, 20, 16),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+
+                      // Avatar / foto de perfil
+                      GestureDetector(
+                        onTap: _mostrarOpcionesFoto,
+                        child: Stack(children: [
+                          Container(
+                            width: 86, height: 86,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withOpacity(0.4), width: 3),
+                              color: Colors.white.withOpacity(0.15),
+                            ),
+                            child: ClipOval(child: _fotoPerfil.isNotEmpty
+                              ? Image.file(File(_fotoPerfil), fit: BoxFit.cover)
+                              : Center(child: Text(
+                                  _nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
+                                  style: const TextStyle(color: Colors.white, fontSize: 32,
+                                      fontWeight: FontWeight.bold)))),
+                          ),
+                          Positioned(bottom: 0, right: 0,
+                            child: Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: _kVerde, shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2)),
+                              child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
+                            )),
+                        ]),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Nombre + cargo + ubicación + estado
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min, children: [
+                          GestureDetector(
+                            onTap: _editarNombreCompleto,
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Flexible(child: Text(
+                                _nombre.isNotEmpty ? _nombre : 'Toca para editar',
+                                style: const TextStyle(color: Colors.white, fontSize: 20,
+                                    fontWeight: FontWeight.bold),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                              )),
+                              const SizedBox(width: 6),
+                              Icon(Icons.edit_rounded, color: Colors.white.withOpacity(0.6), size: 14),
+                            ]),
+                          ),
+                          const Text('Promotor de Salud Rural',
+                              style: TextStyle(color: Color(0xFF9FE1CB), fontSize: 12)),
+                          const SizedBox(height: 2),
+                          if (_vereda.isNotEmpty || _municipio.isNotEmpty)
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.location_on_rounded, color: Colors.white.withOpacity(0.7), size: 12),
+                              const SizedBox(width: 3),
+                              Flexible(child: Text(
+                                [_vereda, _municipio].where((s) => s.isNotEmpty).join(' - '),
+                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                              )),
+                            ]),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Container(width: 7, height: 7, decoration: BoxDecoration(
+                                  color: _online ? const Color(0xFF4ADE80) : Colors.orange,
+                                  shape: BoxShape.circle)),
+                              const SizedBox(width: 5),
+                              Text(_online ? 'En línea' : 'Offline',
+                                  style: const TextStyle(color: Colors.white, fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── CONTENIDO ───────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+              child: Column(children: [
+
+                // ── Datos personales ───────────────────────────────────────
+                _Seccion(
+                  icono: Icons.person_rounded, titulo: 'Datos personales',
+                  color: _kVerde, onTap: _editarDatosPersonales,
+                  filas: [
+                    _Fila(Icons.badge_outlined,       'Documento de identidad', _documento.isEmpty    ? '—' : _documento),
+                    _Fila(Icons.calendar_today_rounded,'Fecha de nacimiento',   _fechaNac.isEmpty     ? '—' : _fechaNac),
+                    _Fila(Icons.wc_rounded,            'Género',               _genero),
+                    _Fila(Icons.water_drop_rounded,    'Grupo sanguíneo',      _grupoSangre),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── Información de contacto ────────────────────────────────
+                _Seccion(
+                  icono: Icons.phone_rounded, titulo: 'Información de contacto',
+                  color: const Color(0xFF534AB7), onTap: _editarContacto,
+                  filas: [
+                    _Fila(Icons.phone_rounded,         'Teléfono',             _telefono.isEmpty     ? '—' : '+57 $_telefono'),
+                    _Fila(Icons.email_outlined,        'Correo electrónico',   _correo.isEmpty       ? '—' : _correo),
+                    _Fila(Icons.location_on_outlined,  'Dirección',            _vereda.isEmpty       ? '—' : _vereda),
+                    _Fila(Icons.apartment_rounded,     'Municipio / Depto.',
+                        [_municipio, _departamento].where((s) => s.isNotEmpty).join(' - ').isEmpty
+                            ? '—' : [_municipio, _departamento].where((s) => s.isNotEmpty).join(' - ')),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── Información médica ─────────────────────────────────────
+                _Seccion(
+                  icono: Icons.medical_information_rounded, titulo: 'Información médica',
+                  color: const Color(0xFFC62828), onTap: _editarMedica,
+                  filas: [
+                    _Fila(Icons.health_and_safety_rounded, 'EPS',               _eps.isEmpty          ? '—' : _eps),
+                    _Fila(Icons.warning_amber_rounded,     'Alergias',          _alergias.isEmpty     ? '—' : _alergias),
+                    _Fila(Icons.monitor_heart_rounded,     'Enfermedades crónicas', _enfermedades.isEmpty ? '—' : _enfermedades),
+                    _Fila(Icons.medication_rounded,        'Medicamentos actuales', _medicamentos.isEmpty ? '—' : _medicamentos),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── Contacto de emergencia ─────────────────────────────────
+                _Seccion(
+                  icono: Icons.emergency_rounded, titulo: 'Contacto de emergencia',
+                  color: const Color(0xFFEF9F27), onTap: _editarEmergencia,
+                  filas: [
+                    _Fila(Icons.person_outline_rounded,  'Nombre',    _contactoNombre.isEmpty ? '—' : _contactoNombre),
+                    _Fila(Icons.phone_outlined,          'Teléfono',  _contactoTel.isEmpty    ? '—' : '+57 $_contactoTel'),
+                    _Fila(Icons.family_restroom_rounded, 'Parentesco',_contactoParent.isEmpty ? '—' : _contactoParent),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── Seguridad y privacidad ─────────────────────────────────
+                _Seccion(
+                  icono: Icons.lock_rounded, titulo: 'Seguridad y privacidad',
+                  color: const Color(0xFF185FA5), onTap: null,
+                  expandido: true,
+                  filas: [
+                    _Fila(Icons.lock_outline_rounded,  'Cambiar contraseña',     '→'),
+                    _Fila(Icons.verified_user_rounded, 'Verificación en dos pasos', ''),
+                    _Fila(Icons.devices_rounded,       'Dispositivos autorizados', '1 dispositivo'),
+                  ],
+                  accionWidget: Column(children: [
+                    _FilaAccion(Icons.lock_outline_rounded, 'Cambiar contraseña', dc, () {}),
+                    Divider(height: 1, color: dc.border, indent: 52),
+                    _FilaAccionBadge(Icons.verified_user_rounded, 'Verificación en dos pasos',
+                        'Activado', const Color(0xFF1D9E75), dc, () {}),
+                    Divider(height: 1, color: dc.border, indent: 52),
+                    _FilaAccion(Icons.devices_rounded, 'Dispositivos autorizados', dc, () {},
+                        trailing: '1 dispositivo'),
+                  ]),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Botón Guardar ──────────────────────────────────────────
+                SizedBox(
+                  width: double.infinity, height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _guardando ? null : _guardar,
+                    icon: _guardando
+                        ? const SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.save_rounded, color: Colors.white, size: 20),
+                    label: Text(_guardando ? 'Guardando...' : 'Guardar cambios',
+                        style: const TextStyle(color: Colors.white, fontSize: 15,
+                            fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kVerde, elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Botón Eliminar cuenta ──────────────────────────────────
+                SizedBox(
+                  width: double.infinity, height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _confirmarEliminar,
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                    label: const Text('Eliminar cuenta',
+                        style: TextStyle(color: Colors.red, fontSize: 15, fontWeight: FontWeight.w700)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarEliminar() {
+    final dc = _c(context);
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: dc.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('¿Eliminar cuenta?',
+            style: TextStyle(color: dc.textPrimary, fontWeight: FontWeight.bold)),
+        content: Text(
+            'Esta acción borrará todos tus datos, pacientes y consultas. Esta acción es irreversible.',
+            style: TextStyle(color: dc.textSecondary, fontSize: 13, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar', style: TextStyle(color: _kVerde))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              Navigator.pop(context);
+              final p = await SharedPreferences.getInstance();
+              await p.clear();
+              if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/pin', (r) => false);
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Helpers de la pantalla de perfil ──────────────────────────────────────────
+
+class _Fila { final IconData icon; final String label, value;
+  const _Fila(this.icon, this.label, this.value); }
+
+class _Seccion extends StatelessWidget {
+  final IconData icono;
+  final String titulo;
+  final Color color;
+  final VoidCallback? onTap;
+  final List<_Fila> filas;
+  final bool expandido;
+  final Widget? accionWidget;
+
+  const _Seccion({
+    required this.icono, required this.titulo, required this.color,
+    required this.onTap, this.filas = const [], this.expandido = false,
+    this.accionWidget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dc = _c(context);
+    return Container(
+      decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: dc.border)),
+      child: Column(children: [
+        // Título de sección
+        InkWell(
+          onTap: onTap,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(children: [
+              Container(width: 34, height: 34,
+                decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(9)),
+                child: Icon(icono, color: color, size: 18)),
+              const SizedBox(width: 12),
+              Expanded(child: Text(titulo, style: TextStyle(
+                  color: dc.textPrimary, fontSize: 14, fontWeight: FontWeight.w700))),
+              if (onTap != null)
+                Icon(Icons.chevron_right_rounded, color: dc.textHint, size: 20),
+            ]),
+          ),
+        ),
+        Divider(height: 1, color: dc.border),
+        // Filas de datos o widget personalizado
+        if (accionWidget != null)
+          accionWidget!
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(children: filas.map((f) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(children: [
+                Icon(f.icon, color: color, size: 16),
+                const SizedBox(width: 10),
+                Expanded(child: Text(f.label, style: TextStyle(color: dc.textSecondary, fontSize: 13))),
+                Flexible(child: Text(f.value, style: TextStyle(
+                    color: dc.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.end, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ]),
+            )).toList()),
+          ),
+      ]),
+    );
+  }
+}
+
+Widget _FilaAccion(IconData icon, String label, DispersaludColors dc, VoidCallback fn,
+    {String? trailing}) =>
+  InkWell(
+    onTap: fn,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(children: [
+        Icon(icon, color: dc.textSecondary, size: 18),
+        const SizedBox(width: 14),
+        Expanded(child: Text(label, style: TextStyle(color: dc.textPrimary, fontSize: 13))),
+        if (trailing != null) Text(trailing, style: TextStyle(color: dc.textHint, fontSize: 12)),
+        const SizedBox(width: 4),
+        Icon(Icons.chevron_right_rounded, color: dc.textHint, size: 18),
+      ]),
+    ),
+  );
+
+Widget _FilaAccionBadge(IconData icon, String label, String badge, Color badgeColor,
+    DispersaludColors dc, VoidCallback fn) =>
+  InkWell(
+    onTap: fn,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(children: [
+        Icon(icon, color: dc.textSecondary, size: 18),
+        const SizedBox(width: 14),
+        Expanded(child: Text(label, style: TextStyle(color: dc.textPrimary, fontSize: 13))),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(color: badgeColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20)),
+          child: Text(badge, style: TextStyle(
+              color: badgeColor, fontSize: 11, fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(width: 6),
+        Icon(Icons.chevron_right_rounded, color: dc.textHint, size: 18),
+      ]),
+    ),
+  );
+
+// ── Editor de sección (bottom sheet) ──────────────────────────────────────────
+
+class _CampoEditar {
+  final String key, label, value;
+  final Function(String) onSave;
+  final List<String>? opciones;
+  final TextInputType tipo;
+  const _CampoEditar({
+    required this.key, required this.label, required this.value,
+    required this.onSave, this.opciones, this.tipo = TextInputType.text,
+  });
+}
+
+class _SeccionEditorSheet extends StatefulWidget {
+  final String titulo;
+  final IconData icono;
+  final List<_CampoEditar> campos;
+  final Function(Map<String, String>) onGuardar;
+  const _SeccionEditorSheet({
+    required this.titulo, required this.icono,
+    required this.campos, required this.onGuardar,
+  });
+  @override
+  State<_SeccionEditorSheet> createState() => _SeccionEditorSheetState();
+}
+
+class _SeccionEditorSheetState extends State<_SeccionEditorSheet> {
+  late final Map<String, TextEditingController> _ctls;
+  late final Map<String, String> _drops;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctls  = { for (final c in widget.campos) c.key: TextEditingController(text: c.value) };
+    _drops = { for (final c in widget.campos.where((c) => c.opciones != null)) c.key: c.value };
+  }
+
+  @override
+  void dispose() {
+    for (final c in _ctls.values) c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dc     = _c(context);
+    final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
+    return Container(
+      decoration: BoxDecoration(color: dc.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, bottom < 16 ? 32 : bottom + 16),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(child: Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: dc.border, borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 16),
+          Row(children: [
+            Container(width: 38, height: 38,
+              decoration: BoxDecoration(color: _kVerde.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(widget.icono, color: _kVerde, size: 20)),
+            const SizedBox(width: 10),
+            Text(widget.titulo, style: TextStyle(color: dc.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 20),
+
+          // Campos
+          ...widget.campos.map((c) => Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: c.opciones != null
+                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(c.label, style: TextStyle(color: dc.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: dc.bg, borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: dc.border)),
+                      child: DropdownButton<String>(
+                        value: c.opciones!.contains(_drops[c.key]) ? _drops[c.key] : c.opciones!.first,
+                        isExpanded: true, underline: const SizedBox(),
+                        dropdownColor: dc.card,
+                        style: TextStyle(color: dc.textPrimary, fontSize: 14),
+                        items: c.opciones!.map((o) =>
+                            DropdownMenuItem(value: o, child: Text(o))).toList(),
+                        onChanged: (v) => setState(() => _drops[c.key] = v!),
+                      ),
+                    ),
+                  ])
+                : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(c.label, style: TextStyle(color: dc.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 5),
+                    TextField(
+                      controller: _ctls[c.key],
+                      keyboardType: c.tipo,
+                      style: TextStyle(color: dc.textPrimary, fontSize: 14),
+                      decoration: InputDecoration(
+                        isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        filled: true, fillColor: dc.bg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: dc.border)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: dc.border)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: _kVerde, width: 1.5)),
+                      ),
+                    ),
+                  ]),
+          )),
+
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                side: BorderSide(color: dc.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: Text('Cancelar', style: TextStyle(color: dc.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: ElevatedButton(
+              onPressed: () {
+                final vals = <String, String>{
+                  for (final c in widget.campos)
+                    c.key: c.opciones != null
+                        ? (_drops[c.key] ?? c.value)
+                        : (_ctls[c.key]?.text.trim() ?? ''),
+                };
+                // Llamar onSave de cada campo
+                for (final c in widget.campos) c.onSave(vals[c.key]!);
+                widget.onGuardar(vals);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kVerde, padding: const EdgeInsets.symmetric(vertical: 13),
+                elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            )),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG SCREEN ORIGINAL (sin cambios — solo se agrega la navegación al perfil)
+// ─────────────────────────────────────────────────────────────────────────────
 class ConfigScreen extends StatefulWidget {
   ConfigScreen({super.key});
   @override
@@ -30,6 +857,7 @@ class _ConfigScreenState extends State<ConfigScreen>
   String _vereda       = '';
   String _municipio    = '';
   String _departamento = '';
+  String _fotoPerfil   = '';
 
   // Preferencias
   bool   _vozActiva = true;
@@ -53,13 +881,9 @@ class _ConfigScreenState extends State<ConfigScreen>
     _initConectividad();
   }
 
-  // ── FIX 2: conectar al ConnectivityService real ──────────────────────────
   Future<void> _initConectividad() async {
-    // Leer estado actual del singleton (ya inicializado en main)
     final actual = ConnectivityService.instance.tieneInternet;
     if (mounted) setState(() => _online = actual);
-
-    // Suscribirse al stream de cambios en tiempo real
     _connSub = ConnectivityService.instance.cambios.listen((v) {
       if (mounted) setState(() => _online = v);
     });
@@ -85,6 +909,7 @@ class _ConfigScreenState extends State<ConfigScreen>
       _vereda       = p.getString('promotor_vereda')       ?? '';
       _municipio    = p.getString('promotor_municipio')    ?? '';
       _departamento = p.getString('promotor_departamento') ?? '';
+      _fotoPerfil   = p.getString('promotor_foto')         ?? '';
       _vozActiva    = p.getBool('voz_activa')              ?? true;
       _alertas      = p.getBool('alertas_activas')         ?? true;
       _tema         = p.getString('tema_app')              ?? 'Sistema';
@@ -101,16 +926,12 @@ class _ConfigScreenState extends State<ConfigScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        Icon(
-          error ? Icons.error_outline : info
-              ? Icons.info_outline : Icons.check_circle_outline,
-          color: Colors.white, size: 18,
-        ),
+        Icon(error ? Icons.error_outline : info ? Icons.info_outline : Icons.check_circle_outline,
+            color: Colors.white, size: 18),
         const SizedBox(width: 8),
         Expanded(child: Text(msg, style: const TextStyle(fontSize: 13))),
       ]),
-      backgroundColor: error ? Colors.red : info
-          ? const Color(0xFF185FA5) : _kVerde,
+      backgroundColor: error ? Colors.red : info ? const Color(0xFF185FA5) : _kVerde,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       duration: const Duration(seconds: 3),
@@ -125,19 +946,12 @@ class _ConfigScreenState extends State<ConfigScreen>
   }
 
   Future<void> _sincronizar() async {
-    if (!_online) {
-      _snack('Sin conexión. Los datos se sincronizarán automáticamente al reconectarse.', info: true);
-      return;
-    }
+    if (!_online) { _snack('Sin conexión. Los datos se sincronizarán automáticamente al reconectarse.', info: true); return; }
     if (_sincronizando) return;
     setState(() => _sincronizando = true);
     try {
       final pendientes = await DatabaseHelper.instance.obtenerConsultasPendientesSync();
-      if (pendientes.isEmpty) {
-        _snack('Todo está sincronizado. Sin registros pendientes.');
-        setState(() => _sincronizando = false);
-        return;
-      }
+      if (pendientes.isEmpty) { _snack('Todo está sincronizado. Sin registros pendientes.'); setState(() => _sincronizando = false); return; }
       int sincronizados = 0;
       for (final consulta in pendientes) {
         await DatabaseHelper.instance.marcarConsultaSincronizada(consulta['id']);
@@ -147,11 +961,8 @@ class _ConfigScreenState extends State<ConfigScreen>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('ultima_sincronizacion', DateTime.now().toIso8601String());
       _snack('✓ $sincronizados registro${sincronizados == 1 ? '' : 's'} sincronizado${sincronizados == 1 ? '' : 's'}');
-    } catch (e) {
-      _snack('Error al sincronizar: $e', error: true);
-    } finally {
-      if (mounted) setState(() => _sincronizando = false);
-    }
+    } catch (e) { _snack('Error al sincronizar: $e', error: true); }
+    finally { if (mounted) setState(() => _sincronizando = false); }
   }
 
   Future<void> _exportarPDF() async {
@@ -163,14 +974,13 @@ class _ConfigScreenState extends State<ConfigScreen>
       final consultas = await DatabaseHelper.instance.obtenerConsultas();
       final alertas   = await DatabaseHelper.instance.obtenerAlertas(soloActivas: false);
       final resumen   = await DatabaseHelper.instance.resumenGeneral();
-      final pdf       = pw.Document();
-      final ahora     = DateTime.now();
-      final fecha     = '${ahora.day}/${ahora.month}/${ahora.year}';
-      final hora      = '${ahora.hour.toString().padLeft(2,'0')}:${ahora.minute.toString().padLeft(2,'0')}';
-      final verde     = PdfColor.fromHex('1D9E75');
-      final oscuro    = PdfColor.fromHex('0F6E56');
-      final gris      = PdfColor.fromHex('6B7280');
-
+      final pdf = pw.Document();
+      final ahora = DateTime.now();
+      final fecha = '${ahora.day}/${ahora.month}/${ahora.year}';
+      final hora  = '${ahora.hour.toString().padLeft(2,'0')}:${ahora.minute.toString().padLeft(2,'0')}';
+      final verde  = PdfColor.fromHex('1D9E75');
+      final oscuro = PdfColor.fromHex('0F6E56');
+      final gris   = PdfColor.fromHex('6B7280');
       pdf.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
@@ -204,7 +1014,7 @@ class _ConfigScreenState extends State<ConfigScreen>
               pw.Text('${_nombre.isNotEmpty ? _nombre : "Promotor/a"}${_vereda.isNotEmpty ? " · $_vereda · $_municipio" : ""}',
                   style: pw.TextStyle(color: PdfColors.white, fontSize: 11)),
               pw.SizedBox(height: 2),
-              pw.Text('Generado el $fecha a las $hora', style: pw.TextStyle(color: const PdfColor(1, 1, 1, 0.7), fontSize: 10)),
+              pw.Text('Generado el $fecha a las $hora', style: pw.TextStyle(color: const PdfColor(1,1,1,0.7), fontSize: 10)),
             ]),
           ),
           pw.SizedBox(height: 24),
@@ -222,8 +1032,8 @@ class _ConfigScreenState extends State<ConfigScreen>
             pw.Text('Registro de pacientes', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: oscuro)),
             pw.SizedBox(height: 8),
             pw.TableHelper.fromTextArray(
-              headers: ['Nombre', 'Módulo', 'Vereda', 'Municipio', 'Documento'],
-              data: pacientes.take(50).map((p) => [p['nombre']??'', p['modulo']??'', p['vereda']??'', p['municipio']??'', p['documento']??'']).toList(),
+              headers: ['Nombre','Módulo','Vereda','Municipio','Documento'],
+              data: pacientes.take(50).map((p) => [p['nombre']??'',p['modulo']??'',p['vereda']??'',p['municipio']??'',p['documento']??'']).toList(),
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
               headerDecoration: pw.BoxDecoration(color: verde),
               oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromHex('F0FDF4')),
@@ -235,8 +1045,8 @@ class _ConfigScreenState extends State<ConfigScreen>
             pw.Text('Consultas registradas', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: oscuro)),
             pw.SizedBox(height: 8),
             pw.TableHelper.fromTextArray(
-              headers: ['Paciente', 'Módulo', 'Nivel riesgo', 'Fecha'],
-              data: consultas.take(50).map((c) => [c['nombre']??c['paciente_nombre']??'', c['modulo']??'', c['nivel_riesgo']??'Estable', _formatFecha(c['fecha'] as String?)]).toList(),
+              headers: ['Paciente','Módulo','Nivel riesgo','Fecha'],
+              data: consultas.take(50).map((c) => [c['nombre']??c['paciente_nombre']??'',c['modulo']??'',c['nivel_riesgo']??'Estable',_formatFecha(c['fecha'] as String?)]).toList(),
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
               headerDecoration: pw.BoxDecoration(color: oscuro),
               oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromHex('F0FDF4')),
@@ -245,17 +1055,13 @@ class _ConfigScreenState extends State<ConfigScreen>
           ],
         ],
       ));
-
       await Printing.layoutPdf(
         onLayout: (_) async => pdf.save(),
         name: 'DISPERSALUD_IA_${ahora.year}${ahora.month}${ahora.day}.pdf',
       );
       _snack('✓ PDF generado correctamente');
-    } catch (e) {
-      _snack('Error al generar PDF: $e', error: true);
-    } finally {
-      if (mounted) setState(() => _exportando = false);
-    }
+    } catch (e) { _snack('Error al generar PDF: $e', error: true); }
+    finally { if (mounted) setState(() => _exportando = false); }
   }
 
   pw.Widget _pdfStatBox(String label, String valor, PdfColor color) =>
@@ -265,7 +1071,7 @@ class _ConfigScreenState extends State<ConfigScreen>
         child: pw.Column(children: [
           pw.Text(valor, style: pw.TextStyle(color: PdfColors.white, fontSize: 22, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 4),
-          pw.Text(label, style: pw.TextStyle(color: const PdfColor(1, 1, 1, 0.7), fontSize: 10)),
+          pw.Text(label, style: pw.TextStyle(color: const PdfColor(1,1,1,0.7), fontSize: 10)),
         ]),
       ));
 
@@ -284,7 +1090,7 @@ class _ConfigScreenState extends State<ConfigScreen>
       final consultas = await DatabaseHelper.instance.obtenerConsultas();
       final alertas   = await DatabaseHelper.instance.obtenerAlertas(soloActivas: false);
       final prefs     = await SharedPreferences.getInstance();
-      final ahora     = DateTime.now();
+      final ahora = DateTime.now();
       final backup = {
         'version': '1.0', 'app': 'DISPERSALUD IA',
         'promotor': _nombre, 'vereda': _vereda, 'municipio': _municipio,
@@ -295,17 +1101,14 @@ class _ConfigScreenState extends State<ConfigScreen>
             'tema_app': prefs.getString('tema_app') ?? 'Sistema' }},
         'resumen': { 'total_pacientes': pacientes.length, 'total_consultas': consultas.length, 'total_alertas': alertas.length },
       };
-      final dir    = await getApplicationDocumentsDirectory();
+      final dir = await getApplicationDocumentsDirectory();
       final nombre = 'dispersalud_backup_${ahora.year}${ahora.month.toString().padLeft(2,'0')}${ahora.day.toString().padLeft(2,'0')}_${ahora.hour.toString().padLeft(2,'0')}${ahora.minute.toString().padLeft(2,'0')}.json';
-      final file   = File('${dir.path}/$nombre');
+      final file = File('${dir.path}/$nombre');
       await file.writeAsString(_mapToJson(backup));
       await prefs.setString('ultima_copia', ahora.toIso8601String());
       _snack('✓ Copia guardada: ${pacientes.length} pacientes, ${consultas.length} consultas');
-    } catch (e) {
-      _snack('Error al crear copia: $e', error: true);
-    } finally {
-      if (mounted) setState(() => _creandoCopia = false);
-    }
+    } catch (e) { _snack('Error al crear copia: $e', error: true); }
+    finally { if (mounted) setState(() => _creandoCopia = false); }
   }
 
   String _mapToJson(dynamic obj) {
@@ -318,20 +1121,13 @@ class _ConfigScreenState extends State<ConfigScreen>
     return '"$obj"';
   }
 
+  // ── AHORA abre la pantalla completa MiPerfilScreen ──────────────────────
   void _abrirPerfil() {
-    showModalBottomSheet(
-      context: context, isScrollControlled: true, useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _PerfilSheet(
-        nombre: _nombre, vereda: _vereda, municipio: _municipio, departamento: _departamento,
-        onGuardar: (n, v, m, d) async {
-          await _pref('promotor_nombre', n); await _pref('promotor_vereda', v);
-          await _pref('promotor_municipio', m); await _pref('promotor_departamento', d);
-          setState(() { _nombre = n; _vereda = v; _municipio = m; _departamento = d; });
-          _snack('Perfil actualizado ✓');
-        },
-      ),
-    );
+    Navigator.push(context,
+      MaterialPageRoute(builder: (_) => const MiPerfilScreen()),
+    ).then((recargado) {
+      if (recargado == true) _cargar(); // recargar nombre/vereda en la tarjeta
+    });
   }
 
   void _abrirSeguridad() => _sheet('Seguridad y privacidad', Icons.lock_outline_rounded,
@@ -352,10 +1148,7 @@ class _ConfigScreenState extends State<ConfigScreen>
       const SizedBox(height: 10),
       Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.10), borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
-        ),
+        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.10), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.orange.withOpacity(0.3))),
         child: Row(children: [
           const Icon(Icons.info_outline, color: Colors.orange, size: 16),
           const SizedBox(width: 8),
@@ -365,26 +1158,16 @@ class _ConfigScreenState extends State<ConfigScreen>
       ),
     ]));
 
-  // ── FIX 3: _abrirTema ahora actualiza temaNotifier en tiempo real ─────────
   void _abrirTema() {
-    showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent,
-      builder: (_) => _BottomSheet(
-        titulo: 'Tema de la aplicación', icono: Icons.dark_mode_outlined,
+    showModalBottomSheet(context: context, backgroundColor: Colors.transparent, builder: (_) =>
+      _BottomSheet(titulo: 'Tema de la aplicación', icono: Icons.dark_mode_outlined,
         child: Column(children: [
-          ...[
-            ('Sistema', Icons.brightness_auto_rounded),
-            ('Claro',   Icons.light_mode_rounded),
-            ('Oscuro',  Icons.dark_mode_rounded),
-          ].map((t) {
+          ...[ ('Sistema', Icons.brightness_auto_rounded), ('Claro', Icons.light_mode_rounded), ('Oscuro', Icons.dark_mode_rounded) ].map((t) {
             final sel = _tema == t.$1;
             return GestureDetector(
               onTap: () async {
-                // 1. Guardar en SharedPreferences
                 await _pref('tema_app', t.$1);
-                // 2. Actualizar el notifier → MaterialApp cambia al instante
                 temaNotifier.value = temaDesdeString(t.$1);
-                // 3. Actualizar estado local de la pantalla
                 setState(() => _tema = t.$1);
                 if (mounted) Navigator.pop(context);
                 _snack('Tema ${t.$1.toLowerCase()} aplicado ✓');
@@ -400,8 +1183,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                 child: Row(children: [
                   Icon(t.$2, color: sel ? _kVerde : _c(ctx).textSecondary, size: 20),
                   const SizedBox(width: 12),
-                  Text(t.$1, style: TextStyle(
-                      color: sel ? _kVerde : _c(ctx).textPrimary, fontSize: 14,
+                  Text(t.$1, style: TextStyle(color: sel ? _kVerde : _c(ctx).textPrimary, fontSize: 14,
                       fontWeight: sel ? FontWeight.w700 : FontWeight.normal)),
                   const Spacer(),
                   if (sel) const Icon(Icons.check_circle_rounded, color: _kVerde, size: 20),
@@ -420,75 +1202,55 @@ class _ConfigScreenState extends State<ConfigScreen>
       const SizedBox(height: 8),
       Builder(builder: (ctx) => Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: _kVerde.withOpacity(0.06), borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _kVerde.withOpacity(0.2))),
+        decoration: BoxDecoration(color: _kVerde.withOpacity(0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: _kVerde.withOpacity(0.2))),
         child: Text('Actualmente solo está disponible el español colombiano. Próximas versiones incluirán más idiomas.',
             style: TextStyle(color: _c(ctx).textSecondary, fontSize: 12, height: 1.4)),
       )),
     ]));
 
   void _abrirNotificaciones() {
-    showModalBottomSheet(
-      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => _BottomSheet(
-          titulo: 'Notificaciones', icono: Icons.notifications_outlined,
-          child: Column(children: [
-            _switchRow(icono: Icons.notifications_active_rounded, color: const Color(0xFFEF9F27),
-              titulo: 'Alertas de pacientes', desc: 'Notificaciones de nivel urgente y alerta',
-              valor: _alertas, onChange: (v) { setS(() {}); setState(() => _alertas = v); _pref('alertas_activas', v); }),
-            const SizedBox(height: 10),
-            _switchRow(icono: Icons.mic_rounded, color: _kVerde,
-              titulo: 'Respuesta por voz', desc: 'La IA leerá las respuestas en voz alta',
-              valor: _vozActiva, onChange: (v) { setS(() {}); setState(() => _vozActiva = v); _pref('voz_activa', v); }),
-          ]),
-        ),
-      ),
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(builder: (ctx, setS) => _BottomSheet(
+        titulo: 'Notificaciones', icono: Icons.notifications_outlined,
+        child: Column(children: [
+          _switchRow(icono: Icons.notifications_active_rounded, color: const Color(0xFFEF9F27),
+            titulo: 'Alertas de pacientes', desc: 'Notificaciones de nivel urgente y alerta',
+            valor: _alertas, onChange: (v) { setS(() {}); setState(() => _alertas = v); _pref('alertas_activas', v); }),
+          const SizedBox(height: 10),
+          _switchRow(icono: Icons.mic_rounded, color: _kVerde,
+            titulo: 'Respuesta por voz', desc: 'La IA leerá las respuestas en voz alta',
+            valor: _vozActiva, onChange: (v) { setS(() {}); setState(() => _vozActiva = v); _pref('voz_activa', v); }),
+        ]),
+      )),
     );
   }
 
   void _abrirSincronizacion() {
-    showModalBottomSheet(
-      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-      builder: (_) => _BottomSheet(
-        titulo: 'Sincronización de datos', icono: Icons.sync_rounded,
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheet(titulo: 'Sincronización de datos', icono: Icons.sync_rounded,
         child: Column(children: [
-          _infoRow(
-            _online ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-            _online ? _kVerde : Colors.orange,
-            _online ? 'Conectado a internet' : 'Sin conexión a internet',
-            _online ? 'Los datos se sincronizan automáticamente' : 'Los datos se guardan localmente hasta reconectarse',
-          ),
+          _infoRow(_online ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+              _online ? _kVerde : Colors.orange,
+              _online ? 'Conectado a internet' : 'Sin conexión a internet',
+              _online ? 'Los datos se sincronizan automáticamente' : 'Los datos se guardan localmente hasta reconectarse'),
           const SizedBox(height: 10),
-          _infoRow(Icons.storage_rounded, const Color(0xFF185FA5), 'Base de datos local',
-              'SQLite · cifrado AES-256 · sin límite de registros'),
+          _infoRow(Icons.storage_rounded, const Color(0xFF185FA5), 'Base de datos local', 'SQLite · cifrado AES-256 · sin límite de registros'),
           const SizedBox(height: 16),
           SizedBox(width: double.infinity, height: 48,
             child: ElevatedButton.icon(
               onPressed: _sincronizando ? null : () { Navigator.pop(context); _sincronizar(); },
-              icon: _sincronizando
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.sync_rounded, size: 18),
+              icon: _sincronizando ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.sync_rounded, size: 18),
               label: Text(_sincronizando ? 'Sincronizando...' : 'Sincronizar ahora'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _online ? _kVerde : Colors.grey,
-                foregroundColor: Colors.white, elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: _online ? _kVerde : Colors.grey, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),
           const SizedBox(height: 8),
           SizedBox(width: double.infinity, height: 48,
             child: OutlinedButton.icon(
               onPressed: () { Navigator.pop(context); _verificarConectividad(); },
-              icon: Icon(_online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                  color: _online ? _kVerde : Colors.orange, size: 18),
-              label: Text('Verificar conexión',
-                  style: TextStyle(color: _online ? _kVerde : Colors.orange)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: _online ? _kVerde : Colors.orange),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+              icon: Icon(_online ? Icons.wifi_rounded : Icons.wifi_off_rounded, color: _online ? _kVerde : Colors.orange, size: 18),
+              label: Text('Verificar conexión', style: TextStyle(color: _online ? _kVerde : Colors.orange)),
+              style: OutlinedButton.styleFrom(side: BorderSide(color: _online ? _kVerde : Colors.orange), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),
         ]),
@@ -497,27 +1259,17 @@ class _ConfigScreenState extends State<ConfigScreen>
   }
 
   void _abrirExportar() {
-    showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent,
-      builder: (_) => _BottomSheet(
-        titulo: 'Exportar datos', icono: Icons.download_outlined,
+    showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheet(titulo: 'Exportar datos', icono: Icons.download_outlined,
         child: Column(children: [
           GestureDetector(
             onTap: () { Navigator.pop(context); _exportarPDF(); },
             child: Builder(builder: (ctx) => Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE24B4A).withOpacity(0.08), borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE24B4A).withOpacity(0.25)),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFE24B4A).withOpacity(0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE24B4A).withOpacity(0.25))),
               child: Row(children: [
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(color: const Color(0xFFE24B4A).withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-                  child: _exportando
-                      ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(color: Color(0xFFE24B4A), strokeWidth: 2))
-                      : const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFFE24B4A), size: 20),
-                ),
+                Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFE24B4A).withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                  child: _exportando ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(color: Color(0xFFE24B4A), strokeWidth: 2)) : const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFFE24B4A), size: 20)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Exportar como PDF', style: TextStyle(color: _c(ctx).textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
@@ -530,13 +1282,11 @@ class _ConfigScreenState extends State<ConfigScreen>
           const SizedBox(height: 10),
           Builder(builder: (ctx) => Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: _kVerde.withOpacity(0.06), borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kVerde.withOpacity(0.2))),
+            decoration: BoxDecoration(color: _kVerde.withOpacity(0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: _kVerde.withOpacity(0.2))),
             child: Row(children: [
               const Icon(Icons.check_circle_outline_rounded, color: _kVerde, size: 14),
               const SizedBox(width: 8),
-              Expanded(child: Text('El PDF se genera localmente. No requiere internet.',
-                  style: TextStyle(color: _c(ctx).textSecondary, fontSize: 11))),
+              Expanded(child: Text('El PDF se genera localmente. No requiere internet.', style: TextStyle(color: _c(ctx).textSecondary, fontSize: 11))),
             ]),
           )),
         ]),
@@ -545,10 +1295,8 @@ class _ConfigScreenState extends State<ConfigScreen>
   }
 
   void _abrirCopias() {
-    showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent,
-      builder: (_) => _BottomSheet(
-        titulo: 'Copias de seguridad', icono: Icons.backup_outlined,
+    showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheet(titulo: 'Copias de seguridad', icono: Icons.backup_outlined,
         child: Column(children: [
           _infoRow(Icons.phone_android_rounded, _kVerde, 'Copia local activa', 'Los datos se guardan automáticamente en el dispositivo'),
           const SizedBox(height: 10),
@@ -557,12 +1305,9 @@ class _ConfigScreenState extends State<ConfigScreen>
           SizedBox(width: double.infinity, height: 48,
             child: ElevatedButton.icon(
               onPressed: _creandoCopia ? null : () { Navigator.pop(context); _crearCopia(); },
-              icon: _creandoCopia
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.backup_rounded, size: 18),
+              icon: _creandoCopia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.backup_rounded, size: 18),
               label: Text(_creandoCopia ? 'Creando copia...' : 'Crear copia ahora'),
-              style: ElevatedButton.styleFrom(backgroundColor: _kVerde, foregroundColor: Colors.white, elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              style: ElevatedButton.styleFrom(backgroundColor: _kVerde, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),
         ]),
@@ -601,30 +1346,26 @@ class _ConfigScreenState extends State<ConfigScreen>
     ]));
 
   void _cerrarSesion() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: _c(context).card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('¿Cerrar sesión?', style: TextStyle(color: _c(context).textPrimary, fontWeight: FontWeight.bold)),
-        content: Text('Tus datos quedarán guardados. Necesitarás tu PIN para volver a ingresar.',
-            style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: _kVerde))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () async {
-              Navigator.pop(context);
-              final p = await SharedPreferences.getInstance();
-              await p.remove('pin_configurado');
-              if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/pin', (r) => false);
-            },
-            child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
+    showDialog(context: context, builder: (_) => AlertDialog(
+      backgroundColor: _c(context).card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('¿Cerrar sesión?', style: TextStyle(color: _c(context).textPrimary, fontWeight: FontWeight.bold)),
+      content: Text('Tus datos quedarán guardados. Necesitarás tu PIN para volver a ingresar.',
+          style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: _kVerde))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+          onPressed: () async {
+            Navigator.pop(context);
+            final p = await SharedPreferences.getInstance();
+            await p.remove('pin_configurado');
+            if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/pin', (r) => false);
+          },
+          child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        ),
+      ],
+    ));
   }
 
   void _sheet(String titulo, IconData icono, Widget child) {
@@ -656,7 +1397,8 @@ class _ConfigScreenState extends State<ConfigScreen>
                 Text('Configuración', style: TextStyle(color: dc.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
               ]),
             ),
-            // TARJETA PERFIL
+
+            // TARJETA PERFIL — ahora abre MiPerfilScreen
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: GestureDetector(
@@ -665,12 +1407,19 @@ class _ConfigScreenState extends State<ConfigScreen>
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: dc.border)),
                   child: Row(children: [
+                    // Avatar con foto si existe
                     Container(
                       width: 52, height: 52,
-                      decoration: BoxDecoration(color: _kVerde.withOpacity(0.15), shape: BoxShape.circle,
-                          border: Border.all(color: _kVerde.withOpacity(0.3), width: 2)),
-                      child: Center(child: Text(_nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
-                          style: const TextStyle(color: _kVerde, fontSize: 22, fontWeight: FontWeight.bold))),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _kVerde.withOpacity(0.3), width: 2),
+                        color: _kVerde.withOpacity(0.15),
+                      ),
+                      child: ClipOval(child: _fotoPerfil.isNotEmpty
+                        ? Image.file(File(_fotoPerfil), fit: BoxFit.cover)
+                        : Center(child: Text(
+                            _nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
+                            style: const TextStyle(color: _kVerde, fontSize: 22, fontWeight: FontWeight.bold)))),
                     ),
                     const SizedBox(width: 14),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -695,8 +1444,8 @@ class _ConfigScreenState extends State<ConfigScreen>
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(width: 6, height: 6,
-                                decoration: BoxDecoration(color: _online ? _kVerde : Colors.orange, shape: BoxShape.circle)),
+                            Container(width: 6, height: 6, decoration: BoxDecoration(
+                                color: _online ? _kVerde : Colors.orange, shape: BoxShape.circle)),
                             const SizedBox(width: 5),
                             Text(_online ? 'Online' : 'Offline', style: TextStyle(
                                 color: _online ? _kVerde : Colors.orange, fontSize: 11, fontWeight: FontWeight.w600)),
@@ -709,6 +1458,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                 ),
               ),
             ),
+
             const SizedBox(height: 4),
             _label('Cuenta'),
             _grupo([
@@ -724,7 +1474,6 @@ class _ConfigScreenState extends State<ConfigScreen>
               _tile(Icons.notifications_outlined, 'Notificaciones', 'Personalizadas', dc, onTap: _abrirNotificaciones, last: true),
             ], dc),
             const SizedBox(height: 8),
-            // TARJETA DISPERSALUD IA
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
               child: Container(
@@ -735,14 +1484,11 @@ class _ConfigScreenState extends State<ConfigScreen>
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Container(
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                  Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
                     child: Stack(alignment: Alignment.center, children: [
                       const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 28),
                       Positioned(top: 5, right: 5, child: Icon(Icons.auto_awesome, color: Colors.white.withOpacity(0.7), size: 10)),
-                    ]),
-                  ),
+                    ])),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('DISPERSALUD IA', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
@@ -792,7 +1538,7 @@ class _ConfigScreenState extends State<ConfigScreen>
   }
 }
 
-// HELPERS DE LAYOUT
+// ─── HELPERS DE LAYOUT (sin cambios) ─────────────────────────────────────────
 Widget _label(String texto) => Padding(
   padding: const EdgeInsets.fromLTRB(20, 4, 16, 6),
   child: Builder(builder: (ctx) => Text(texto, style: TextStyle(color: _c(ctx).textHint, fontSize: 12, fontWeight: FontWeight.w600))),
@@ -843,8 +1589,8 @@ Widget _infoRow(IconData icono, Color color, String titulo, String desc) =>
     ]),
   ));
 
-Widget _switchRow({required IconData icono, required Color color, required String titulo, required String desc,
-    required bool valor, required ValueChanged<bool> onChange}) =>
+Widget _switchRow({required IconData icono, required Color color, required String titulo,
+    required String desc, required bool valor, required ValueChanged<bool> onChange}) =>
   Builder(builder: (ctx) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(color: _c(ctx).bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _c(ctx).border)),
@@ -875,7 +1621,7 @@ Widget _manualItem(String titulo, String desc) =>
     ]),
   ));
 
-// BOTTOM SHEET GENÉRICO
+// BOTTOM SHEET GENÉRICO (sin cambios)
 class _BottomSheet extends StatelessWidget {
   final String titulo;
   final IconData icono;
@@ -916,98 +1662,4 @@ class _BottomSheet extends StatelessWidget {
       ),
     );
   }
-}
-
-// SHEET DE PERFIL
-class _PerfilSheet extends StatefulWidget {
-  final String nombre, vereda, municipio, departamento;
-  final Function(String, String, String, String) onGuardar;
-  const _PerfilSheet({required this.nombre, required this.vereda, required this.municipio,
-      required this.departamento, required this.onGuardar});
-  @override
-  State<_PerfilSheet> createState() => _PerfilSheetState();
-}
-
-class _PerfilSheetState extends State<_PerfilSheet> {
-  late final TextEditingController _n, _v, _m, _d;
-
-  @override
-  void initState() {
-    super.initState();
-    _n = TextEditingController(text: widget.nombre);
-    _v = TextEditingController(text: widget.vereda);
-    _m = TextEditingController(text: widget.municipio);
-    _d = TextEditingController(text: widget.departamento);
-  }
-
-  @override
-  void dispose() { _n.dispose(); _v.dispose(); _m.dispose(); _d.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final dc     = _c(context);
-    final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
-    return Container(
-      decoration: BoxDecoration(color: dc.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, bottom < 16 ? 32 : bottom + 16),
-      child: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Center(child: Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: dc.border, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Row(children: [
-            Container(width: 38, height: 38,
-              decoration: BoxDecoration(color: _kVerde.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.person_outline_rounded, color: _kVerde, size: 20)),
-            const SizedBox(width: 10),
-            Text('Mi perfil', style: TextStyle(color: dc.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-          ]),
-          const SizedBox(height: 20),
-          _campo('Nombre completo', _n, dc),
-          _campo('Vereda', _v, dc),
-          Row(children: [
-            Expanded(child: _campo('Municipio', _m, dc)),
-            const SizedBox(width: 12),
-            Expanded(child: _campo('Departamento', _d, dc)),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13),
-                  side: BorderSide(color: dc.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: Text('Cancelar', style: TextStyle(color: dc.textSecondary)),
-            )),
-            const SizedBox(width: 12),
-            Expanded(flex: 2, child: ElevatedButton(
-              onPressed: () { widget.onGuardar(_n.text.trim(), _v.text.trim(), _m.text.trim(), _d.text.trim()); Navigator.pop(context); },
-              style: ElevatedButton.styleFrom(backgroundColor: _kVerde, padding: const EdgeInsets.symmetric(vertical: 13),
-                  elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            )),
-          ]),
-        ]),
-      ),
-    );
-  }
-
-  Widget _campo(String label, TextEditingController ctrl, DispersaludColors dc) =>
-    Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(color: dc.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 5),
-        TextField(
-          controller: ctrl,
-          style: TextStyle(color: dc.textPrimary, fontSize: 14),
-          decoration: InputDecoration(
-            isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            filled: true, fillColor: dc.bg,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: dc.border)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: dc.border)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _kVerde, width: 1.5)),
-          ),
-        ),
-      ]),
-    );
 }

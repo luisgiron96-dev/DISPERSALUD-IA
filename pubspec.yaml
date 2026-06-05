@@ -38,9 +38,12 @@ dependencies:
   pdf: ^3.10.8
   printing: ^5.13.1
 
-  # ✅ NUEVO — Conectividad y red híbrida
+  # Conectividad y red híbrida
   connectivity_plus: ^6.0.3
   http: ^1.2.1
+
+  # Foto de perfil
+  image_picker: ^1.0.7
 
 dev_dependencies:
   flutter_test:
