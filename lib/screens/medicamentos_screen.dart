@@ -733,10 +733,15 @@ class _MedicamentosScreenState extends State<MedicamentosScreen> {
 
   List<Map<String, dynamic>> get _filtrados {
     var lista = _kMedicamentos.toList();
-    // Filtro por nivel
+    // Filtro por nivel — normaliza tildes y mayúsculas
     if (_filtro != 'Todos') {
-      final nivel = _filtro.toLowerCase();
-      lista = lista.where((m) => m['nivel'] == nivel).toList();
+      final Map<String, String> mapaFiltro = {
+        'Básico':       'basico',
+        'Prescripción': 'prescripcion',
+        'Emergencia':   'emergencia',
+      };
+      final nivelBuscado = mapaFiltro[_filtro] ?? _filtro.toLowerCase();
+      lista = lista.where((m) => m['nivel'] == nivelBuscado).toList();
     }
     // Búsqueda por nombre o categoría
     if (_query.isNotEmpty) {

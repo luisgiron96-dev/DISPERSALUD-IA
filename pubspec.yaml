@@ -43,8 +43,11 @@ dependencies:
   connectivity_plus: ^6.0.3
   http: ^1.2.1
 
-  # Foto de perfil
+  # Foto de perfil / Cámara
   image_picker: ^1.0.7
+
+  # Ubicación GPS ← NUEVO
+  geolocator: ^13.0.2
 
 dev_dependencies:
   flutter_test:

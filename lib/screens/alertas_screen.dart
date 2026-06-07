@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 
@@ -423,11 +426,155 @@ class _AlertasScreenState extends State<AlertasScreen> {
   bool _mostrarTodosSeguimiento = false;
   final _searchCtrl = TextEditingController();
 
-  @override
-  void initState() { super.initState(); _cargar(); }
+  // Ubicación del promotor
+  String _vereda    = '';
+  String _municipio = '';
+  String _ubicacionCompleta = 'Departamento del Cauca';
+
+  // GPS tiempo real continuo
+  bool   _gpsActivo        = false;
+  bool   _cargandoGPS      = false;
+  double? _latGPS;
+  double? _lngGPS;
+  String  _ubicacionGPS    = '';
+  StreamSubscription<Position>? _posicionStream;
+  Timer?  _timerGPS;
 
   @override
-  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+  void initState() { super.initState(); _cargar(); _cargarUbicacion(); }
+
+  // ── GPS tiempo real continuo ─────────────────────────────────────────────
+  Future<void> _activarGPS() async {
+    if (_cargandoGPS) return;
+    setState(() => _cargandoGPS = true);
+
+    try {
+      bool servicioActivo = await Geolocator.isLocationServiceEnabled();
+      if (!servicioActivo) {
+        if (mounted) _snack('GPS desactivado. Actívalo en ajustes.', Colors.orange);
+        setState(() { _cargandoGPS = false; });
+        return;
+      }
+
+      LocationPermission permiso = await Geolocator.checkPermission();
+      if (permiso == LocationPermission.denied) {
+        permiso = await Geolocator.requestPermission();
+        if (permiso == LocationPermission.denied) {
+          if (mounted) _snack('Permiso de ubicación denegado.', Colors.orange);
+          setState(() { _cargandoGPS = false; });
+          return;
+        }
+      }
+      if (permiso == LocationPermission.deniedForever) {
+        if (mounted) _snack('Permiso denegado permanentemente. Actívalo en configuración del sistema.', Colors.red);
+        setState(() { _cargandoGPS = false; });
+        return;
+      }
+
+      // Primera ubicación inmediata
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _latGPS       = pos.latitude;
+        _lngGPS       = pos.longitude;
+        _ubicacionGPS = '📍 ${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
+        _gpsActivo    = true;
+        _cargandoGPS  = false;
+      });
+      _snack('GPS activo — actualizando cada 30 segundos 🛰️', _kAzul);
+
+      // Stream continuo — escucha cambios de posición
+      _posicionStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10, // actualiza si se mueve más de 10 metros
+        ),
+      ).listen((Position nuevaPos) {
+        if (!mounted) return;
+        setState(() {
+          _latGPS       = nuevaPos.latitude;
+          _lngGPS       = nuevaPos.longitude;
+          _ubicacionGPS = '📍 ${nuevaPos.latitude.toStringAsFixed(5)}, ${nuevaPos.longitude.toStringAsFixed(5)}';
+        });
+      });
+
+      // Timer de refresco visible cada 30 segundos
+      _timerGPS = Timer.periodic(const Duration(seconds: 30), (_) async {
+        if (!mounted || !_gpsActivo) return;
+        try {
+          final p = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 10),
+          );
+          if (!mounted) return;
+          setState(() {
+            _latGPS       = p.latitude;
+            _lngGPS       = p.longitude;
+            _ubicacionGPS = '📍 ${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)}';
+          });
+        } catch (_) {}
+      });
+
+    } catch (e) {
+      if (mounted) {
+        _snack('No se pudo obtener la ubicación GPS.', Colors.red);
+        setState(() { _cargandoGPS = false; });
+      }
+    }
+  }
+
+  void _desactivarGPS() {
+    _posicionStream?.cancel();
+    _posicionStream = null;
+    _timerGPS?.cancel();
+    _timerGPS = null;
+    setState(() {
+      _gpsActivo    = false;
+      _latGPS       = null;
+      _lngGPS       = null;
+      _ubicacionGPS = '';
+    });
+    _snack('GPS desactivado', Colors.grey);
+  }
+
+  void _snack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
+  Future<void> _cargarUbicacion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final vereda    = prefs.getString('promotor_vereda')    ?? '';
+    final municipio = prefs.getString('promotor_municipio') ?? '';
+    if (!mounted) return;
+    setState(() {
+      _vereda    = vereda;
+      _municipio = municipio;
+      if (vereda.isNotEmpty && municipio.isNotEmpty) {
+        _ubicacionCompleta = '$vereda · $municipio · Cauca';
+      } else if (municipio.isNotEmpty) {
+        _ubicacionCompleta = '$municipio · Departamento del Cauca';
+      } else {
+        _ubicacionCompleta = 'Departamento del Cauca';
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _posicionStream?.cancel();
+    _timerGPS?.cancel();
+    super.dispose();
+  }
 
   Future<void> _cargar() async {
     setState(() => _cargando = true);
@@ -520,6 +667,188 @@ class _AlertasScreenState extends State<AlertasScreen> {
     }).toList();
   }
 
+  // ── Modal protocolo completo ─────────────────────────────────────────────
+  void _verProtocolo(Map<String, dynamic> ev) {
+    final cat  = _catInfo(ev['categoria'] as String? ?? 'todas');
+    final clr  = _nivelColor(ev['nivel_base']);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _c(context).card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75, maxChildSize: 0.96, minChildSize: 0.5,
+        expand: false,
+        builder: (_, ctrl) => SingleChildScrollView(
+          controller: ctrl,
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Handle
+            Center(child: Container(width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: _c(context).border,
+                    borderRadius: BorderRadius.circular(2)))),
+
+            // Encabezado protocolo
+            Container(padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+                  clr.withValues(alpha: 0.15), clr.withValues(alpha: 0.05)]),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: clr.withValues(alpha: 0.3)),
+              ),
+              child: Row(children: [
+                Container(width: 52, height: 52,
+                  decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14)),
+                  child: Center(child: Text(ev['emoji'],
+                      style: const TextStyle(fontSize: 28)))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Protocolo SIVIGILA', style: TextStyle(
+                      color: clr, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(ev['nombre'], style: TextStyle(
+                      color: _c(context).textPrimary,
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Código: ${ev['codigo']} · ${cat.nombre}',
+                      style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                ])),
+              ]),
+            ),
+            const SizedBox(height: 16),
+
+            // Notificación obligatoria
+            _ProtoSeccion(
+              emoji: '📢',
+              titulo: 'Notificación SIVIGILA',
+              color: clr,
+              dc: _c(context),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _ProtoItem('Evento de notificación ${ev['nivel_base'] == 'urgente' ? 'INMEDIATA (< 2 horas)' : 'obligatoria'}'),
+                _ProtoItem('Código: ${ev['codigo']} en el sistema SIVIGILA'),
+                _ProtoItem('Reportar al coordinador municipal de vigilancia en salud'),
+                if (ev['nivel_base'] == 'urgente')
+                  _ProtoItem('⚠️ Notificar también por teléfono a la Secretaría Departamental de Salud'),
+              ]),
+            ),
+
+            // Definición de caso
+            _ProtoSeccion(
+              emoji: '🔬',
+              titulo: 'Definición de caso',
+              color: _kAzul,
+              dc: _c(context),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: _kAzul.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Text(ev['descripcion'],
+                      style: TextStyle(color: _c(context).textPrimary,
+                          fontSize: 13, height: 1.5))),
+              ]),
+            ),
+
+            // Signos de alarma
+            _ProtoSeccion(
+              emoji: '🚨',
+              titulo: 'Signos de alarma — Actuar de inmediato',
+              color: _kRojo,
+              dc: _c(context),
+              child: Container(padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: _kRojo.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kRojo.withValues(alpha: 0.3))),
+                child: Text(ev['signos_alarma'],
+                    style: TextStyle(color: _c(context).textPrimary,
+                        fontSize: 13, height: 1.5))),
+            ),
+
+            // Medidas de prevención y control
+            _ProtoSeccion(
+              emoji: '🛡️',
+              titulo: 'Medidas de prevención y control',
+              color: _kVerde,
+              dc: _c(context),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Text(ev['prevencion'],
+                      style: TextStyle(color: _c(context).textPrimary,
+                          fontSize: 13, height: 1.5))),
+              ]),
+            ),
+
+            // Municipios en riesgo
+            _ProtoSeccion(
+              emoji: '📍',
+              titulo: 'Municipios en riesgo · Cauca',
+              color: _kAzul,
+              dc: _c(context),
+              child: Wrap(spacing: 6, runSpacing: 6,
+                children: (ev['municipios_riesgo'] as List<String>)
+                    .map((m) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(color: _kAzul.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: _kAzul.withValues(alpha: 0.3))),
+                        child: Text(m, style: const TextStyle(
+                            color: _kAzul, fontSize: 12))))
+                    .toList()),
+            ),
+
+            // Pasos de acción
+            _ProtoSeccion(
+              emoji: '📋',
+              titulo: 'Pasos de acción para el promotor',
+              color: _kNaranja,
+              dc: _c(context),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _PasoAccion('1', 'Identificar y confirmar el caso según definición SIVIGILA'),
+                _PasoAccion('2', 'Notificar al coordinador municipal en < ${ev['nivel_base'] == 'urgente' ? '2 horas' : '24 horas'}'),
+                _PasoAccion('3', 'Registrar en ficha de notificación epidemiológica'),
+                _PasoAccion('4', 'Iniciar investigación de campo y búsqueda activa'),
+                _PasoAccion('5', 'Implementar medidas de prevención y control'),
+                _PasoAccion('6', 'Dar seguimiento hasta cierre del caso'),
+              ]),
+            ),
+
+            // Referencia legal
+            Container(padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: _c(context).bg,
+                  borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                const Icon(Icons.gavel_rounded, color: _kVerde, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  'Basado en el protocolo de vigilancia del Instituto Nacional de Salud (INS) Colombia y el Sistema de Vigilancia en Salud Pública SIVIGILA.',
+                  style: TextStyle(color: _c(context).textHint,
+                      fontSize: 11, height: 1.4))),
+              ]),
+            ),
+
+            const SizedBox(height: 12),
+            // Botón reportar desde protocolo
+            SizedBox(width: double.infinity, height: 46,
+              child: ElevatedButton.icon(
+                onPressed: () { Navigator.pop(context); _mostrarFormulario(ev); },
+                icon: const Icon(Icons.add_circle_outline, color: Colors.white, size: 18),
+                label: Text('Reportar caso de ${ev['nombre']}',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: _kVerde,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+              )),
+          ]),
+        ),
+      ),
+    );
+  }
+
   // ── Modal detalle ──────────────────────────────────────────────────────────
   void _verDetalle(Map<String, dynamic> ev) {
     final cat = _catInfo(ev['categoria'] as String? ?? 'todas');
@@ -604,7 +933,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
             const SizedBox(height: 14),
             Row(children: [
               Expanded(child: OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _verProtocolo(ev);
+                },
                 icon: const Icon(Icons.description_outlined, size: 16),
                 label: const Text('Ver protocolo'),
                 style: OutlinedButton.styleFrom(foregroundColor: _kVerde,
@@ -614,7 +946,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
               )),
               const SizedBox(width: 10),
               Expanded(child: ElevatedButton.icon(
-                onPressed: () { Navigator.pop(context); _mostrarFormulario(); },
+                onPressed: () { Navigator.pop(context); _mostrarFormulario(ev); },
                 icon: const Icon(Icons.add_circle_outline, size: 16),
                 label: const Text('Reportar caso'),
                 style: ElevatedButton.styleFrom(backgroundColor: _kVerde,
@@ -1153,65 +1485,311 @@ class _AlertasScreenState extends State<AlertasScreen> {
   }
 
   // ── Mapa epidemiológico simplificado ──────────────────────────────────────
+  // ── Modal detalle municipio ───────────────────────────────────────────────
+  void _verDetalleMunicipio(Map<String, dynamic> municipio) {
+    final colores = {'alto': _kRojo, 'medio': _kNaranja, 'bajo': Colors.amber.shade600};
+    final clr = colores[municipio['nivel']] ?? _kVerde;
+    final nivelLabel = municipio['nivel'] == 'alto' ? 'RIESGO ALTO'
+        : municipio['nivel'] == 'medio' ? 'RIESGO MEDIO' : 'RIESGO BAJO';
+
+    // Eventos que tienen este municipio en su lista de riesgo
+    final eventosRelacionados = _kEventos.where((ev) {
+      final munis = ev['municipios_riesgo'] as List<String>;
+      return munis.any((m) =>
+          m.toLowerCase().contains(municipio['nombre'].toString().toLowerCase()) ||
+          m.toLowerCase().contains('todo el departamento') ||
+          m.toLowerCase().contains('cauca'));
+    }).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _c(context).card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6, maxChildSize: 0.92, minChildSize: 0.4,
+        expand: false,
+        builder: (_, ctrl) => SingleChildScrollView(
+          controller: ctrl,
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: _c(context).border,
+                    borderRadius: BorderRadius.circular(2)))),
+            // Encabezado municipio
+            Row(children: [
+              Container(width: 50, height: 50,
+                decoration: BoxDecoration(color: clr.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14)),
+                child: const Center(child: Icon(Icons.location_city_rounded,
+                    color: Colors.white, size: 26))),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(municipio['nombre']!, style: TextStyle(
+                    color: _c(context).textPrimary,
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Departamento del Cauca · Colombia',
+                    style: TextStyle(color: _c(context).textHint, fontSize: 12)),
+                const SizedBox(height: 4),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(color: clr.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(nivelLabel, style: TextStyle(color: clr,
+                      fontSize: 11, fontWeight: FontWeight.bold))),
+              ])),
+            ]),
+            const SizedBox(height: 16),
+            // Indicadores
+            Container(padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: clr.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: clr.withValues(alpha: 0.25))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('📊 Indicadores epidemiológicos',
+                    style: TextStyle(color: clr, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Row(children: [
+                  _IndicadorChip('${eventosRelacionados.where((e) => e['nivel_base'] == 'urgente').length}',
+                      'Urgentes', _kRojo),
+                  const SizedBox(width: 8),
+                  _IndicadorChip('${eventosRelacionados.where((e) => e['nivel_base'] == 'alerta').length}',
+                      'Alertas', _kNaranja),
+                  const SizedBox(width: 8),
+                  _IndicadorChip('${eventosRelacionados.fold(0, (s, e) => s + (e['casos'] as int))}',
+                      'Casos', _kAzul),
+                ]),
+              ]),
+            ),
+            const SizedBox(height: 14),
+            // Eventos relacionados
+            if (eventosRelacionados.isNotEmpty) ...[
+              Text('⚠️ Eventos en vigilancia (${eventosRelacionados.length})',
+                  style: TextStyle(color: _c(context).textPrimary,
+                      fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ...eventosRelacionados.take(6).map((ev) {
+                final evClr = _nivelColor(ev['nivel_base']);
+                return GestureDetector(
+                  onTap: () { Navigator.pop(context); _verDetalle(ev); },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(color: _c(context).bg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _c(context).border)),
+                    child: Row(children: [
+                      Text(ev['emoji'], style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(ev['nombre'], style: TextStyle(
+                            color: _c(context).textPrimary,
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('${ev['casos']} casos · ${ev['nivel_base'].toString().toUpperCase()}',
+                            style: TextStyle(color: evClr, fontSize: 11)),
+                      ])),
+                      Icon(Icons.chevron_right, color: _c(context).border, size: 16),
+                    ]),
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 8),
+            // Recomendaciones
+            Container(padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kVerde.withValues(alpha: 0.2))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('✅ Acciones recomendadas',
+                    style: TextStyle(color: _kVerde, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                _ItemAccion('Notificar a la secretaría de salud municipal'),
+                _ItemAccion('Activar búsqueda activa de casos'),
+                _ItemAccion('Fortalecer medidas de prevención comunitaria'),
+                _ItemAccion('Actualizar registros en SIVIGILA'),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _IndicadorChip(String valor, String label, Color color) =>
+      Expanded(child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.25))),
+        child: Column(children: [
+          Text(valor, style: TextStyle(color: color,
+              fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(color: color, fontSize: 10)),
+        ]),
+      ));
+
+  Widget _ItemAccion(String texto) => Padding(
+    padding: const EdgeInsets.only(bottom: 5),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('• ', style: TextStyle(color: _kVerde, fontSize: 13)),
+      Expanded(child: Text(texto, style: TextStyle(
+          color: _c(context).textSecondary, fontSize: 12, height: 1.4))),
+    ]),
+  );
+
   Widget _MapaEpidemiologico(BuildContext context) {
     final colores = {'alto': _kRojo, 'medio': _kNaranja, 'bajo': Colors.amber.shade600};
+    final totalAlto  = _kMunicipios.where((m) => m['nivel'] == 'alto').length;
+    final totalMedio = _kMunicipios.where((m) => m['nivel'] == 'medio').length;
+    final totalBajo  = _kMunicipios.where((m) => m['nivel'] == 'bajo').length;
+    final totalSinAlertas = 42 - _kMunicipios.length;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: _c(context).card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _c(context).border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Encabezado ampliado
         Row(children: [
-          const Icon(Icons.location_on_rounded, color: _kVerde, size: 18),
-          const SizedBox(width: 6),
-          Text('Cauca', style: TextStyle(color: _c(context).textPrimary,
-              fontSize: 15, fontWeight: FontWeight.bold)),
-          const Spacer(),
-          Text('Situación epidemiológica por municipios',
-              style: TextStyle(color: _c(context).textHint, fontSize: 10)),
-        ]),
-        const SizedBox(height: 10),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Leyenda
+          Container(width: 38, height: 38,
+            decoration: BoxDecoration(
+                color: _gpsActivo
+                    ? _kAzul.withValues(alpha: 0.15)
+                    : _kVerde.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(
+                _gpsActivo ? Icons.gps_fixed_rounded : Icons.map_rounded,
+                color: _gpsActivo ? _kAzul : _kVerde, size: 20)),
+          const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _LeyendaMapa('alto',  '${_kMunicipios.where((m) => m['nivel'] == 'alto').length} Municipios en riesgo alto',   _kRojo),
-            _LeyendaMapa('medio', '${_kMunicipios.where((m) => m['nivel'] == 'medio').length} Municipios en riesgo medio', _kNaranja),
-            _LeyendaMapa('bajo',  '${_kMunicipios.where((m) => m['nivel'] == 'bajo').length} Municipios en riesgo bajo',   Colors.amber.shade600),
-            _LeyendaMapa('ok',    '24 Municipios sin alertas', _kVerde),
+            Text(_municipio.isNotEmpty ? _municipio : 'Departamento del Cauca',
+                style: TextStyle(
+                color: _c(context).textPrimary,
+                fontSize: 15, fontWeight: FontWeight.bold)),
+            Text(_gpsActivo ? _ubicacionGPS : _ubicacionCompleta,
+                style: TextStyle(
+                    color: _gpsActivo ? _kAzul : _c(context).textHint,
+                    fontSize: 10,
+                    fontWeight: _gpsActivo ? FontWeight.w600 : FontWeight.normal)),
           ])),
-          const SizedBox(width: 12),
-          // Lista de municipios
-          Expanded(child: Column(children: _kMunicipios.take(4).map((m) {
-            final clr = colores[m['nivel']] ?? _kVerde;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+          // Botón GPS manual
+          GestureDetector(
+            onTap: _gpsActivo ? _desactivarGPS : _activarGPS,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: _gpsActivo
+                    ? _kAzul.withValues(alpha: 0.15)
+                    : _kVerde.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: _gpsActivo
+                        ? _kAzul.withValues(alpha: 0.4)
+                        : _kVerde.withValues(alpha: 0.3)),
+              ),
+              child: _cargandoGPS
+                  ? const SizedBox(width: 14, height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _kAzul))
+                  : Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(
+                        _gpsActivo ? Icons.gps_off_rounded : Icons.my_location_rounded,
+                        color: _gpsActivo ? _kAzul : _kVerde, size: 13),
+                      const SizedBox(width: 4),
+                      Text(
+                        _gpsActivo ? 'GPS ON' : 'GPS',
+                        style: TextStyle(
+                            color: _gpsActivo ? _kAzul : _kVerde,
+                            fontSize: 9, fontWeight: FontWeight.bold)),
+                    ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        // Resumen riesgo en chips
+        Row(children: [
+          _ChipRiesgo('$totalAlto', 'Alto', _kRojo),
+          const SizedBox(width: 6),
+          _ChipRiesgo('$totalMedio', 'Medio', _kNaranja),
+          const SizedBox(width: 6),
+          _ChipRiesgo('$totalBajo', 'Bajo', Colors.amber.shade600),
+          const SizedBox(width: 6),
+          _ChipRiesgo('$totalSinAlertas', 'Sin alertas', _kVerde),
+        ]),
+        const SizedBox(height: 12),
+        Divider(height: 1, color: _c(context).border),
+        const SizedBox(height: 10),
+        // Lista completa de municipios con flechas funcionales
+        Text('Municipios con alertas activas',
+            style: TextStyle(color: _c(context).textSecondary,
+                fontSize: 11, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        ..._kMunicipios.map((m) {
+          final clr = colores[m['nivel']] ?? _kVerde;
+          final nivelLabel = m['nivel'] == 'alto' ? 'Alto'
+              : m['nivel'] == 'medio' ? 'Medio' : 'Bajo';
+          return GestureDetector(
+            onTap: () => _verDetalleMunicipio(m),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: clr.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: clr.withValues(alpha: 0.2)),
+              ),
               child: Row(children: [
-                Container(width: 8, height: 8,
+                Container(width: 9, height: 9,
                     decoration: BoxDecoration(color: clr, shape: BoxShape.circle)),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(m['nombre']!, style: TextStyle(color: _c(context).textPrimary,
-                      fontSize: 12, fontWeight: FontWeight.w500),
+                      fontSize: 13, fontWeight: FontWeight.w600),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(m['nivel'] == 'alto' ? 'Alto'
-                      : m['nivel'] == 'medio' ? 'Medio' : 'Bajo',
-                      style: TextStyle(color: clr, fontSize: 10)),
+                  Text('Departamento del Cauca · Riesgo $nivelLabel',
+                      style: TextStyle(color: _c(context).textHint, fontSize: 10)),
                 ])),
-                Icon(Icons.chevron_right, color: _c(context).border, size: 14),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: clr.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(nivelLabel,
+                      style: TextStyle(color: clr, fontSize: 10, fontWeight: FontWeight.bold))),
+                const SizedBox(width: 6),
+                Icon(Icons.chevron_right_rounded, color: clr, size: 16),
               ]),
-            );
-          }).toList())),
-        ]),
-        const SizedBox(height: 8),
+            ),
+          );
+        }),
+        const SizedBox(height: 4),
         GestureDetector(
-          onTap: () {},
-          child: Text('Ver todos los municipios →',
-              style: const TextStyle(color: _kVerde,
-                  fontSize: 12, fontWeight: FontWeight.w600)),
+          onTap: () => setState(() {}), // refrescar
+          child: Row(children: [
+            const Icon(Icons.refresh_rounded, color: _kVerde, size: 14),
+            const SizedBox(width: 4),
+            Text('Actualizar datos epidemiológicos',
+                style: const TextStyle(color: _kVerde,
+                    fontSize: 12, fontWeight: FontWeight.w600)),
+          ]),
         ),
       ]),
     );
   }
+
+  Widget _ChipRiesgo(String count, String label, Color color) =>
+      Expanded(child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.3))),
+        child: Column(children: [
+          Text(count, style: TextStyle(color: color,
+              fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(color: color, fontSize: 9), textAlign: TextAlign.center),
+        ]),
+      ));
 
   Widget _LeyendaMapa(String nivel, String texto, Color color) =>
       Padding(padding: const EdgeInsets.only(bottom: 5),
@@ -1446,3 +2024,60 @@ Widget _LabelField(String label) => Builder(builder: (ctx) => Padding(
   padding: const EdgeInsets.only(bottom: 4),
   child: Text(label, style: TextStyle(color: _c(ctx).textHint,
       fontSize: 11, fontWeight: FontWeight.w500))));
+
+// ── Widgets de protocolo ─────────────────────────────────────────────────────
+class _ProtoSeccion extends StatelessWidget {
+  final String emoji, titulo;
+  final Color color;
+  final DispersaludColors dc;
+  final Widget child;
+  const _ProtoSeccion({required this.emoji, required this.titulo,
+      required this.color, required this.dc, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 16)),
+        const SizedBox(width: 6),
+        Expanded(child: Text(titulo, style: TextStyle(
+            color: color, fontSize: 13, fontWeight: FontWeight.bold))),
+      ]),
+      const SizedBox(height: 8),
+      child,
+    ]),
+  );
+}
+
+class _ProtoItem extends StatelessWidget {
+  final String texto;
+  const _ProtoItem(this.texto);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('• ', style: TextStyle(color: _kVerde, fontSize: 14)),
+      Expanded(child: Text(texto, style: TextStyle(
+          color: _c(context).textPrimary, fontSize: 12, height: 1.4))),
+    ]),
+  );
+}
+
+class _PasoAccion extends StatelessWidget {
+  final String numero, texto;
+  const _PasoAccion(this.numero, this.texto);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(width: 22, height: 22,
+        decoration: const BoxDecoration(color: _kNaranja, shape: BoxShape.circle),
+        child: Center(child: Text(numero, style: const TextStyle(
+            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)))),
+      const SizedBox(width: 10),
+      Expanded(child: Text(texto, style: TextStyle(
+          color: _c(context).textPrimary, fontSize: 12, height: 1.4))),
+    ]),
+  );
+}
