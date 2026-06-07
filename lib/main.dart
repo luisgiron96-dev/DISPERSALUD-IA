@@ -17,9 +17,11 @@ import 'screens/pacientes_screen.dart';
 import 'screens/alertas_screen.dart';
 import 'screens/medicamentos_screen.dart';
 import 'screens/historia_clinica_screen.dart';
+import 'screens/reportar_alerta_screen.dart'; // ← NUEVO
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
 import 'core/app_theme.dart';
+
 
 // ── ValueNotifier global de tema — accesible desde cualquier pantalla ────────
 final temaNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
@@ -43,7 +45,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SecurityService.instance.init();
   await ConnectivityService.instance.init();
-  await _cargarTemaGuardado(); // ← carga el tema antes de construir la app
+  await _cargarTemaGuardado();
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor:           Colors.transparent,
@@ -59,8 +61,6 @@ class DispersaludApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ValueListenableBuilder escucha temaNotifier y reconstruye
-    // MaterialApp cada vez que el promotor cambia el tema
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: temaNotifier,
       builder: (_, modo, __) => MaterialApp(
@@ -68,7 +68,7 @@ class DispersaludApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme:     AppTheme.light,
         darkTheme: AppTheme.dark,
-        themeMode: modo, // ← ahora reactivo al notifier
+        themeMode: modo,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -91,6 +91,7 @@ class DispersaludApp extends StatelessWidget {
           '/alertas':          (context) => AlertasScreen(),
           '/medicamentos':     (context) => const MedicamentosScreen(),
           '/historia-clinica': (context) => const HistoriaClinicaScreen(),
+          '/reportar-alerta':  (context) => const ReportarAlertaScreen(), // ← NUEVO
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/historia-clinica') {

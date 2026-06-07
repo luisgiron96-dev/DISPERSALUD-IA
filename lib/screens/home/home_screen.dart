@@ -148,11 +148,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _cargarPerfil() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // ── FIX: guardar actividad local para no mostrar "Nunca" ─────────────
     final ahora = DateTime.now().toIso8601String();
     await prefs.setString('ultima_actividad_local', ahora);
 
-    // Prioridad: sync real → actividad local → ahora mismo
     final syncTs      = prefs.getString('ultima_sincronizacion') ?? '';
     final actividadTs = prefs.getString('ultima_actividad_local') ?? ahora;
     final tsAMostrar  = syncTs.isNotEmpty ? syncTs : actividadTs;
@@ -270,6 +268,77 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     dc: dc,
                   ),
                 ]),
+              ),
+            ),
+
+            // ── BOTÓN REPORTAR ALERTA ← NUEVO ─────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => Navigator.pushNamed(context, '/reportar-alerta'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0A5240), Color(0xFF1D9E75)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38, height: 38,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.20),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.notifications_active_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Reportar alerta',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Registra una situación de salud en tu comunidad',
+                                  style: TextStyle(
+                                    color: Color(0xFFB8F0DC),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -463,7 +532,6 @@ class _Header extends StatelessWidget {
                             ]),
                           ],
                           const SizedBox(height: 6),
-                          // Indicador sync — ahora nunca muestra "Nunca"
                           Row(children: [
                             Container(
                               width: 7, height: 7,

@@ -468,7 +468,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     icono: Icons.add_alert_outlined,
                     label: 'Reportar\nalerta',
                     color: const Color(0xFFE24B4A), dt: dt,
-                    onTap: () => Navigator.pushNamed(context, '/alertas')),
+                    onTap: () => Navigator.pushNamed(context, '/reportar-alerta')),
                 const SizedBox(width: 8),
                 _AccionBtn(
                     icono: Icons.medication_outlined,
