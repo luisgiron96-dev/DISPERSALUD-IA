@@ -1128,58 +1128,36 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Eventos SIVIGILA', style: TextStyle(
+                    Text('Centro de Alertas', style: TextStyle(
                         color: _c(context).textPrimary,
                         fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text('Vigilancia en salud pública · INS Colombia',
-                        style: TextStyle(color: _c(context).textHint, fontSize: 12)),
+                    Text('Vigilancia Epidemiológica',
+                        style: const TextStyle(color: _kVerde,
+                            fontSize: 13, fontWeight: FontWeight.w600)),
                   ])),
-                  // Badge urgentes
                   GestureDetector(
                     onTap: _mostrarFormulario,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _kRojo.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _kRojo.withValues(alpha: 0.4)),
+                        color: _c(context).card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _c(context).border),
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.add_circle_outline_rounded,
-                            color: _kRojo, size: 15),
-                        const SizedBox(width: 5),
-                        Text('${_urgentes.length} urgentes',
-                            style: const TextStyle(color: _kRojo,
-                                fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: Stack(children: [
+                        const Icon(Icons.notifications_outlined, size: 22),
+                        if (_alertasDB.any((a) => (a['resuelta'] as int? ?? 0) == 0))
+                          Positioned(right: 0, top: 0,
+                            child: Container(width: 8, height: 8,
+                              decoration: const BoxDecoration(
+                                  color: _kVerde, shape: BoxShape.circle))),
                       ]),
                     ),
                   ),
                 ]),
               )),
 
-              // ── MÉTRICAS 4 CARDS ──────────────────────────────────────────
-              SliverToBoxAdapter(child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Row(children: [
-                  _MetricaCard(num: _urgentes.length.toString(),
-                      label: 'Urgentes', sub: 'Requieren acción inmediata',
-                      color: _kRojo, icon: Icons.warning_rounded),
-                  const SizedBox(width: 8),
-                  _MetricaCard(num: _alertas.length.toString(),
-                      label: 'Alertas', sub: 'Requieren seguimiento',
-                      color: _kNaranja, icon: Icons.warning_amber_rounded),
-                  const SizedBox(width: 8),
-                  _MetricaCard(num: _totalSeguimiento.toString(),
-                      label: 'En seguimiento', sub: 'Casos bajo vigilancia',
-                      color: _kVerde, icon: Icons.check_circle_rounded),
-                  const SizedBox(width: 8),
-                  _MetricaCard(num: _totalEventos.toString(),
-                      label: 'Eventos vigilados', sub: 'En tu jurisdicción',
-                      color: _kAzul, icon: Icons.description_outlined),
-                ]),
-              )),
-
-              // ── BUSCADOR + FILTROS ────────────────────────────────────────
+              // ── BUSCADOR ──────────────────────────────────────────────────
               SliverToBoxAdapter(child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                 child: TextField(
@@ -1216,7 +1194,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     final cat = _kCategorias[i];
                     final activo = _categoriaSeleccionada == cat.id;
                     return GestureDetector(
-                      onTap: () => setState(() => _categoriaSeleccionada = cat.id),
+                      onTap: () => setState(() {
+                        _categoriaSeleccionada = cat.id;
+                        _busqueda = '';
+                        _searchCtrl.clear();
+                      }),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1244,191 +1226,153 @@ class _AlertasScreenState extends State<AlertasScreen> {
               SliverToBoxAdapter(child: const SizedBox(height: 16)),
 
               // ════════════════════════════════════════════════════════════════
-              // VISTA DASHBOARD (categoría = todas y sin búsqueda)
+              // VISTA DASHBOARD — categoría "todas" sin búsqueda
               // ════════════════════════════════════════════════════════════════
               if (mostrarDashboard) ...[
 
-                // ── MAPA EPIDEMIOLÓGICO ───────────────────────────────────────
+                // ── ESTADO SISTEMA + GPS ──────────────────────────────────────
                 SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: _MapaEpidemiologico(context),
+                  child: _buildEstadoSistema(context),
                 )),
 
-                // ── SECCIÓN URGENTES ─────────────────────────────────────────
-                if (_urgentes.isNotEmpty) ...[
-                  SliverToBoxAdapter(child: _SeccionHeader(
-                    icono: Icons.warning_rounded, color: _kRojo,
-                    titulo: 'Urgentes', count: _urgentes.length,
-                    onVerTodas: () => setState(() => _mostrarTodosUrgentes = !_mostrarTodosUrgentes),
-                    mostrando: _mostrarTodosUrgentes,
-                  )),
-                  SliverToBoxAdapter(child: SizedBox(
-                    height: 200,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                      itemCount: _mostrarTodosUrgentes
-                          ? _urgentes.length
-                          : (_urgentes.length > 3 ? 3 : _urgentes.length),
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) => _TarjetaEvento(
-                        ev: _urgentes[i], color: _kRojo,
-                        onVerProtocolo: () => _verDetalle(_urgentes[i]),
-                        onReportar: () => _mostrarFormulario(_urgentes[i]),
-                      ),
-                    ),
-                  )),
-                  SliverToBoxAdapter(child: const SizedBox(height: 16)),
-                ],
-
-                // ── SECCIÓN ALERTAS ───────────────────────────────────────────
-                if (_alertas.isNotEmpty) ...[
-                  SliverToBoxAdapter(child: _SeccionHeader(
-                    icono: Icons.warning_amber_rounded, color: _kNaranja,
-                    titulo: 'Alertas', count: _alertas.length,
-                    onVerTodas: () => setState(() => _mostrarTodasAlertas = !_mostrarTodasAlertas),
-                    mostrando: _mostrarTodasAlertas,
-                  )),
-                  SliverToBoxAdapter(child: SizedBox(
-                    height: 200,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                      itemCount: _mostrarTodasAlertas
-                          ? _alertas.length
-                          : (_alertas.length > 3 ? 3 : _alertas.length),
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) => _TarjetaEvento(
-                        ev: _alertas[i], color: _kNaranja,
-                        onVerProtocolo: () => _verDetalle(_alertas[i]),
-                        onReportar: () => _mostrarFormulario(_alertas[i]),
-                      ),
-                    ),
-                  )),
-                  SliverToBoxAdapter(child: const SizedBox(height: 16)),
-                ],
-
-                // ── SECCIÓN EN SEGUIMIENTO ────────────────────────────────────
-                if (_seguimiento.isNotEmpty) ...[
-                  SliverToBoxAdapter(child: _SeccionHeader(
-                    icono: Icons.check_circle_rounded, color: _kVerde,
-                    titulo: 'En seguimiento', count: _totalSeguimiento,
-                    onVerTodas: () => setState(() => _mostrarTodosSeguimiento = !_mostrarTodosSeguimiento),
-                    mostrando: _mostrarTodosSeguimiento,
-                  )),
-                  SliverToBoxAdapter(child: SizedBox(
-                    height: 200,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                      itemCount: _mostrarTodosSeguimiento
-                          ? _seguimiento.length
-                          : (_seguimiento.length > 3 ? 3 : _seguimiento.length),
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) => _TarjetaEvento(
-                        ev: _seguimiento[i], color: _kVerde,
-                        onVerProtocolo: () => _verDetalle(_seguimiento[i]),
-                        onReportar: () => _mostrarFormulario(_seguimiento[i]),
-                      ),
-                    ),
-                  )),
-                  SliverToBoxAdapter(child: const SizedBox(height: 16)),
-                ],
-
-                // ── Alertas registradas por el promotor ───────────────────────
+                // ── SIVIGILA POR CATEGORÍAS ────────────────────────────────────
                 SliverToBoxAdapter(child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: Row(children: [
-                    Expanded(child: Text('Alertas registradas por ti',
-                        style: TextStyle(color: _c(context).textSecondary,
-                            fontSize: 13, fontWeight: FontWeight.w600))),
-                    TextButton(onPressed: _mostrarFormulario,
-                        child: const Text('+ Registrar', style: TextStyle(color: _kVerde))),
+                    const Icon(Icons.policy_outlined, color: _kAzul, size: 16),
+                    const SizedBox(width: 6),
+                    Text('Vigilancia SIVIGILA',
+                        style: TextStyle(color: _c(context).textPrimary,
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: _kAzul.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text('${_kEventos.length} eventos',
+                          style: const TextStyle(color: _kAzul,
+                              fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
                   ]),
                 )),
-                SliverToBoxAdapter(child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _cargando
-                      ? const Center(child: CircularProgressIndicator(color: _kVerde))
-                      : _alertasDB.isEmpty
-                          ? _VacioCard()
-                          : Column(children: _alertasDB.map((a) {
-                              final clr = _nivelColor(a['nivel'] ?? 'normal');
-                              final resuelta = (a['resuelta'] as int? ?? 0) == 1;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(color: _c(context).card,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: resuelta
-                                        ? _c(context).border
-                                        : clr.withValues(alpha: 0.4))),
-                                child: Row(children: [
-                                  Icon(_nivelIcon(a['nivel'] ?? 'normal'),
-                                      color: resuelta ? _c(context).textHint : clr, size: 20),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(a['mensaje'] ?? '',
-                                        style: TextStyle(color: resuelta
-                                            ? _c(context).textHint : _c(context).textPrimary,
-                                            fontSize: 13, fontWeight: FontWeight.w500)),
-                                    Text('${a['modulo'] ?? ''} · ${a['fecha'] ?? ''}',
-                                        style: TextStyle(color: _c(context).textHint, fontSize: 11)),
-                                  ])),
-                                  if (!resuelta)
-                                    GestureDetector(
-                                      onTap: () => _resolverAlerta(a['id']),
-                                      child: Container(padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 6),
-                                          decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(8)),
-                                          child: const Text('Resolver',
-                                              style: TextStyle(color: _kVerde,
-                                                  fontSize: 12, fontWeight: FontWeight.w600))),
-                                    )
-                                  else
-                                    Icon(Icons.check_circle_outline,
-                                        color: _c(context).border, size: 20),
-                                ]),
-                              );
-                            }).toList()),
-                )),
-                SliverToBoxAdapter(child: const SizedBox(height: 16)),
 
-                // ── Guía completa ─────────────────────────────────────────────
-                SliverToBoxAdapter(child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                  child: Row(children: [
-                    Expanded(child: Text(
-                        'Guía completa SIVIGILA (${_kEventos.length} eventos)',
-                        style: TextStyle(color: _c(context).textSecondary,
-                            fontSize: 13, fontWeight: FontWeight.w600))),
-                  ]),
-                )),
+                // ── Categorías como cards navegables ──────────────────────────
+                ..._kCategorias.where((c) => c.id != 'todas').map((cat) {
+                  final eventosCategoria = _kEventos
+                      .where((e) => e['categoria'] == cat.id ||
+                          (cat.id == 'urgente' && e['nivel_base'] == 'urgente'))
+                      .toList();
+                  final conCasos = eventosCategoria
+                      .where((e) => (e['casos'] as int) > 0).length;
+                  final urgentes = eventosCategoria
+                      .where((e) => e['nivel_base'] == 'urgente').length;
+
+                  return SliverToBoxAdapter(child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _categoriaSeleccionada = cat.id;
+                        _busqueda = '';
+                        _searchCtrl.clear();
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                            color: _c(context).card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: urgentes > 0
+                                ? _kRojo.withValues(alpha: 0.3)
+                                : _c(context).border)),
+                        child: Row(children: [
+                          Container(width: 44, height: 44,
+                            decoration: BoxDecoration(
+                                color: cat.color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12)),
+                            child: Center(child: Text(cat.emoji,
+                                style: const TextStyle(fontSize: 22)))),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(cat.nombre, style: TextStyle(
+                                color: _c(context).textPrimary,
+                                fontSize: 14, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text('${eventosCategoria.length} eventos vigilados'
+                                '${conCasos > 0 ? ' · $conCasos con casos' : ''}',
+                                style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                          ])),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            if (urgentes > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                    color: _kRojo.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20)),
+                                child: Text('$urgentes urgente${urgentes > 1 ? 's' : ''}',
+                                    style: const TextStyle(color: _kRojo,
+                                        fontSize: 10, fontWeight: FontWeight.bold))),
+                            if (urgentes > 0) const SizedBox(height: 4),
+                            Icon(Icons.chevron_right_rounded,
+                                color: _c(context).textHint, size: 18),
+                          ]),
+                        ]),
+                      ),
+                    ),
+                  ));
+                }),
+
+                SliverToBoxAdapter(child: const SizedBox(height: 32)),
               ],
 
               // ════════════════════════════════════════════════════════════════
-              // LISTA FILTRADA (búsqueda o categoría específica)
+              // VISTA FILTRADA — búsqueda o categoría específica
               // ════════════════════════════════════════════════════════════════
-              if (!mostrarDashboard || true) ...[
-                if (!mostrarDashboard)
-                  SliverToBoxAdapter(child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: Text(
+              if (!mostrarDashboard) ...[
+
+                // Título de la sección filtrada
+                SliverToBoxAdapter(child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: Row(children: [
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _categoriaSeleccionada = 'todas';
+                        _busqueda = '';
+                        _searchCtrl.clear();
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                            color: _c(context).card,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _c(context).border)),
+                        child: Icon(Icons.arrow_back_rounded,
+                            color: _c(context).textSecondary, size: 16)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(
                       _busqueda.isNotEmpty
-                          ? 'Resultados para "$_busqueda" (${eventos.length})'
+                          ? 'Resultados: "$_busqueda" (${eventos.length})'
                           : '${_catInfo(_categoriaSeleccionada).emoji} '
                             '${_catInfo(_categoriaSeleccionada).nombre} '
                             '(${eventos.length})',
-                      style: TextStyle(color: _c(context).textSecondary,
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  )),
+                      style: TextStyle(color: _c(context).textPrimary,
+                          fontSize: 14, fontWeight: FontWeight.w600))),
+                  ]),
+                )),
 
+                // Lista de eventos filtrados
                 eventos.isEmpty
                     ? SliverToBoxAdapter(child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Center(child: Text('No se encontraron eventos',
-                            style: TextStyle(color: _c(context).textHint, fontSize: 14)))))
+                        padding: const EdgeInsets.all(32),
+                        child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.search_off_rounded,
+                              color: _c(context).border, size: 48),
+                          const SizedBox(height: 12),
+                          Text('No se encontraron eventos',
+                              style: TextStyle(color: _c(context).textHint,
+                                  fontSize: 15)),
+                        ]))))
                     : SliverList(delegate: SliverChildBuilderDelegate((_, i) {
                         final ev  = eventos[i];
                         final clr = _nivelColor(ev['nivel_base']);
@@ -1443,11 +1387,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: _c(context).border)),
                               child: Row(children: [
-                                Container(width: 42, height: 42,
-                                  decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.12),
+                                Container(width: 44, height: 44,
+                                  decoration: BoxDecoration(
+                                      color: cat.color.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(10)),
                                   child: Center(child: Text(ev['emoji'],
-                                      style: const TextStyle(fontSize: 20)))),
+                                      style: const TextStyle(fontSize: 22)))),
                                 const SizedBox(width: 12),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text(ev['nombre'], style: TextStyle(
@@ -1456,33 +1401,78 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                   const SizedBox(height: 2),
                                   Text(ev['descripcion'], maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                                      style: TextStyle(color: _c(context).textHint,
+                                          fontSize: 11)),
                                   if ((ev['casos'] as int) > 0)
-                                    Text('${ev['casos']} casos',
-                                        style: TextStyle(color: clr,
-                                            fontSize: 11, fontWeight: FontWeight.w600)),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text('${ev['casos']} casos activos',
+                                          style: TextStyle(color: clr,
+                                              fontSize: 11, fontWeight: FontWeight.w600)),
+                                    ),
                                 ])),
                                 const SizedBox(width: 8),
                                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                                   _Badge(label: ev['nivel_base'].toString().toUpperCase(),
                                       color: clr, small: true),
-                                  const SizedBox(height: 4),
-                                  Icon(Icons.chevron_right, color: _c(context).border, size: 16),
+                                  const SizedBox(height: 6),
+                                  Icon(Icons.chevron_right_rounded,
+                                      color: _c(context).textHint, size: 16),
                                 ]),
                               ]),
                             ),
                           ),
                         );
                       }, childCount: eventos.length)),
+
+                SliverToBoxAdapter(child: const SizedBox(height: 32)),
               ],
 
-              SliverToBoxAdapter(child: const SizedBox(height: 32)),
             ],
           ),
         ),
       ),
     );
   }
+
+  // ── Widget estado vacío de alertas ────────────────────────────────────────
+  Widget _buildSinAlertas() => Container(
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+    decoration: BoxDecoration(color: _c(context).card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _c(context).border)),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 64, height: 64,
+        decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.10),
+            shape: BoxShape.circle),
+        child: const Icon(Icons.notifications_none_rounded,
+            color: _kVerde, size: 34)),
+      const SizedBox(height: 14),
+      Text('No hay alertas activas',
+          style: TextStyle(color: _c(context).textPrimary,
+              fontSize: 15, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 6),
+      Text('En este momento no existen alertas\npendientes en el sistema.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _c(context).textHint, fontSize: 13)),
+      const SizedBox(height: 16),
+      GestureDetector(
+        onTap: _mostrarFormulario,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(color: _kVerde,
+              borderRadius: BorderRadius.circular(20)),
+          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.add_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 6),
+            Text('Reportar nueva alerta',
+                style: TextStyle(color: Colors.white,
+                    fontSize: 13, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ),
+    ]),
+  );
 
   // ── Mapa epidemiológico simplificado ──────────────────────────────────────
   // ── Modal detalle municipio ───────────────────────────────────────────────
@@ -1640,12 +1630,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
     ]),
   );
 
-  Widget _MapaEpidemiologico(BuildContext context) {
-    final colores = {'alto': _kRojo, 'medio': _kNaranja, 'bajo': Colors.amber.shade600};
-    final totalAlto  = _kMunicipios.where((m) => m['nivel'] == 'alto').length;
-    final totalMedio = _kMunicipios.where((m) => m['nivel'] == 'medio').length;
-    final totalBajo  = _kMunicipios.where((m) => m['nivel'] == 'bajo').length;
-    final totalSinAlertas = 42 - _kMunicipios.length;
+  // ── Estado del sistema + alertas registradas ─────────────────────────────
+  Widget _buildEstadoSistema(BuildContext context) {
+    final totalEventosConCasos = _kEventos.where((e) => (e['casos'] as int) > 0).length;
+    final totalUrgentes = _urgentes.length;
+    final alertasPendientes = _alertasDB.where((a) => (a['resuelta'] as int? ?? 0) == 0).length;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1653,38 +1642,82 @@ class _AlertasScreenState extends State<AlertasScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _c(context).border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Encabezado ampliado
-        Row(children: [
-          Container(width: 38, height: 38,
+
+        // ── Header: estado sistema + GPS ─────────────────────────────────
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(width: 52, height: 52,
             decoration: BoxDecoration(
-                color: _gpsActivo
-                    ? _kAzul.withValues(alpha: 0.15)
-                    : _kVerde.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10)),
+              color: totalUrgentes > 0
+                  ? _kRojo.withValues(alpha: 0.12)
+                  : _kVerde.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              totalUrgentes > 0 ? Icons.warning_rounded : Icons.shield_outlined,
+              color: totalUrgentes > 0 ? _kRojo : _kVerde, size: 28)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(totalUrgentes > 0 ? 'Alertas activas' : 'Sistema operativo',
+                style: TextStyle(color: _c(context).textPrimary,
+                    fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(totalUrgentes > 0
+                ? 'Hay $totalUrgentes evento${totalUrgentes > 1 ? 's' : ''} urgente${totalUrgentes > 1 ? 's' : ''} activo${totalUrgentes > 1 ? 's' : ''}.'
+                : 'El sistema está funcionando correctamente.',
+                style: TextStyle(color: _c(context).textSecondary,
+                    fontSize: 12, height: 1.4)),
+          ])),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Row(children: [
+              Icon(Icons.schedule_rounded, color: _c(context).textHint, size: 12),
+              const SizedBox(width: 4),
+              Text('Última sincronización', style: TextStyle(
+                  color: _c(context).textHint, fontSize: 9)),
+            ]),
+            const SizedBox(height: 2),
+            Text(_gpsActivo ? 'GPS activo' : 'No disponible',
+                style: TextStyle(
+                    color: _gpsActivo ? _kAzul : _c(context).textPrimary,
+                    fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(_gpsActivo ? _ubicacionGPS : 'Sin conexión con SIVIGILA',
+                style: TextStyle(color: _c(context).textHint, fontSize: 9)),
+          ]),
+        ]),
+
+        const SizedBox(height: 12),
+        Divider(height: 1, color: _c(context).border),
+        const SizedBox(height: 12),
+
+        // ── Ubicación + GPS ───────────────────────────────────────────────
+        Row(children: [
+          Container(width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: _gpsActivo
+                  ? _kAzul.withValues(alpha: 0.12)
+                  : _kVerde.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10)),
             child: Icon(
                 _gpsActivo ? Icons.gps_fixed_rounded : Icons.map_rounded,
-                color: _gpsActivo ? _kAzul : _kVerde, size: 20)),
+                color: _gpsActivo ? _kAzul : _kVerde, size: 18)),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(_municipio.isNotEmpty ? _municipio : 'Departamento del Cauca',
-                style: TextStyle(
-                color: _c(context).textPrimary,
-                fontSize: 15, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: _c(context).textPrimary,
+                    fontSize: 13, fontWeight: FontWeight.w600)),
             Text(_gpsActivo ? _ubicacionGPS : _ubicacionCompleta,
                 style: TextStyle(
                     color: _gpsActivo ? _kAzul : _c(context).textHint,
                     fontSize: 10,
                     fontWeight: _gpsActivo ? FontWeight.w600 : FontWeight.normal)),
           ])),
-          // Botón GPS manual
           GestureDetector(
             onTap: _gpsActivo ? _desactivarGPS : _activarGPS,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: _gpsActivo
                     ? _kAzul.withValues(alpha: 0.15)
-                    : _kVerde.withValues(alpha: 0.1),
+                    : _kVerde.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                     color: _gpsActivo
@@ -1695,110 +1728,323 @@ class _AlertasScreenState extends State<AlertasScreen> {
                   ? const SizedBox(width: 14, height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2, color: _kAzul))
                   : Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(
-                        _gpsActivo ? Icons.gps_off_rounded : Icons.my_location_rounded,
-                        color: _gpsActivo ? _kAzul : _kVerde, size: 13),
+                      Icon(_gpsActivo ? Icons.gps_off_rounded : Icons.my_location_rounded,
+                          color: _gpsActivo ? _kAzul : _kVerde, size: 13),
                       const SizedBox(width: 4),
-                      Text(
-                        _gpsActivo ? 'GPS ON' : 'GPS',
-                        style: TextStyle(
-                            color: _gpsActivo ? _kAzul : _kVerde,
-                            fontSize: 9, fontWeight: FontWeight.bold)),
+                      Text(_gpsActivo ? 'GPS ON' : 'GPS',
+                          style: TextStyle(
+                              color: _gpsActivo ? _kAzul : _kVerde,
+                              fontSize: 10, fontWeight: FontWeight.bold)),
                     ]),
             ),
           ),
         ]),
-        const SizedBox(height: 12),
-        // Resumen riesgo en chips
-        Row(children: [
-          _ChipRiesgo('$totalAlto', 'Alto', _kRojo),
-          const SizedBox(width: 6),
-          _ChipRiesgo('$totalMedio', 'Medio', _kNaranja),
-          const SizedBox(width: 6),
-          _ChipRiesgo('$totalBajo', 'Bajo', Colors.amber.shade600),
-          const SizedBox(width: 6),
-          _ChipRiesgo('$totalSinAlertas', 'Sin alertas', _kVerde),
-        ]),
+
         const SizedBox(height: 12),
         Divider(height: 1, color: _c(context).border),
-        const SizedBox(height: 10),
-        // Lista completa de municipios con flechas funcionales
-        Text('Municipios con alertas activas',
-            style: TextStyle(color: _c(context).textSecondary,
-                fontSize: 11, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        ..._kMunicipios.map((m) {
-          final clr = colores[m['nivel']] ?? _kVerde;
-          final nivelLabel = m['nivel'] == 'alto' ? 'Alto'
-              : m['nivel'] == 'medio' ? 'Medio' : 'Bajo';
-          return GestureDetector(
-            onTap: () => _verDetalleMunicipio(m),
+        const SizedBox(height: 12),
+
+        // ── Alertas registradas por ti ────────────────────────────────────
+        Row(children: [
+          const Icon(Icons.notification_add_rounded, color: _kVerde, size: 15),
+          const SizedBox(width: 6),
+          Expanded(child: Text('Alertas registradas por ti',
+              style: TextStyle(color: _c(context).textPrimary,
+                  fontSize: 13, fontWeight: FontWeight.bold))),
+          GestureDetector(
+            onTap: _mostrarFormulario,
             child: Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: clr.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: clr.withValues(alpha: 0.2)),
-              ),
+                  color: _kVerde.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20)),
+              child: const Text('+ Nueva',
+                  style: TextStyle(color: _kVerde,
+                      fontSize: 11, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        // Contenido alertas inline
+        if (_cargando)
+          const Center(child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2)))
+        else if (_alertasDB.isEmpty)
+          _buildSinAlertas()
+        else
+          Column(children: _alertasDB.map((a) {
+            final clr = _nivelColor(a['nivel'] ?? 'normal');
+            final resuelta = (a['resuelta'] as int? ?? 0) == 1;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 7),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: _c(context).bg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: resuelta
+                      ? _c(context).border
+                      : clr.withValues(alpha: 0.35))),
               child: Row(children: [
-                Container(width: 9, height: 9,
-                    decoration: BoxDecoration(color: clr, shape: BoxShape.circle)),
-                const SizedBox(width: 10),
+                Container(width: 34, height: 34,
+                  decoration: BoxDecoration(
+                      color: clr.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9)),
+                  child: Icon(_nivelIcon(a['nivel'] ?? 'normal'),
+                      color: resuelta ? _c(context).textHint : clr, size: 18)),
+                const SizedBox(width: 9),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(m['nombre']!, style: TextStyle(color: _c(context).textPrimary,
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text('Departamento del Cauca · Riesgo $nivelLabel',
+                  Text(a['mensaje'] ?? '',
+                      style: TextStyle(
+                          color: resuelta ? _c(context).textHint : _c(context).textPrimary,
+                          fontSize: 12, fontWeight: FontWeight.w500)),
+                  Text('${a['modulo'] ?? ''} · ${a['fecha'] ?? ''}',
                       style: TextStyle(color: _c(context).textHint, fontSize: 10)),
                 ])),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: clr.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Text(nivelLabel,
-                      style: TextStyle(color: clr, fontSize: 10, fontWeight: FontWeight.bold))),
-                const SizedBox(width: 6),
-                Icon(Icons.chevron_right_rounded, color: clr, size: 16),
+                if (!resuelta)
+                  GestureDetector(
+                    onTap: () => _resolverAlerta(a['id']),
+                    child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                            color: _kVerde.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(7)),
+                        child: const Text('Resolver',
+                            style: TextStyle(color: _kVerde,
+                                fontSize: 11, fontWeight: FontWeight.w600))),
+                  )
+                else
+                  Icon(Icons.check_circle_outline, color: _kVerde, size: 18),
               ]),
-            ),
-          );
-        }),
-        const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () => setState(() {}), // refrescar
-          child: Row(children: [
-            const Icon(Icons.refresh_rounded, color: _kVerde, size: 14),
-            const SizedBox(width: 4),
-            Text('Actualizar datos epidemiológicos',
-                style: const TextStyle(color: _kVerde,
-                    fontSize: 12, fontWeight: FontWeight.w600)),
-          ]),
+            );
+          }).toList()),
+
+        const SizedBox(height: 12),
+        Divider(height: 1, color: _c(context).border),
+        const SizedBox(height: 12),
+
+        // ── Acciones rápidas ──────────────────────────────────────────────
+        Text('⚡ Acciones rápidas',
+            style: TextStyle(color: _c(context).textPrimary,
+                fontSize: 13, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        _AccionRapida(
+          icono: Icons.description_outlined,
+          color: _kAzul,
+          titulo: 'Consultar protocolos SIVIGILA',
+          subtitulo: 'Ver lineamientos por categoría',
+          onTap: () => setState(() {
+            _categoriaSeleccionada = 'vectores';
+            _busqueda = '';
+            _searchCtrl.clear();
+          }),
+        ),
+        const SizedBox(height: 8),
+        _AccionRapida(
+          icono: Icons.category_outlined,
+          color: const Color(0xFF534AB7),
+          titulo: 'Eventos de interés',
+          subtitulo: 'Explorar $totalEventosConCasos eventos con casos activos',
+          onTap: () => setState(() {
+            _categoriaSeleccionada = 'urgente';
+          }),
+        ),
+
+        const SizedBox(height: 12),
+        Divider(height: 1, color: _c(context).border),
+        const SizedBox(height: 12),
+
+        // ── Categorías de eventos ─────────────────────────────────────────
+        Text('Categorías de eventos',
+            style: TextStyle(color: _c(context).textPrimary,
+                fontSize: 13, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 5,
+          childAspectRatio: 0.75,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          children: [
+            _CategoriaGridItem('🦟', 'Vectores',      'vectores', const Color(0xFF3B6D11)),
+            _CategoriaGridItem('💉', 'Inmuno',         'inmuno',   const Color(0xFF185FA5)),
+            _CategoriaGridItem('🐾', 'Zoonosis',      'zoonosis', const Color(0xFF854F0B)),
+            _CategoriaGridItem('🤧', 'IRA',            'respira',  const Color(0xFF534AB7)),
+            _CategoriaGridItem('😷', 'ESI-IRAG',      'respira',  const Color(0xFF534AB7)),
+          ],
         ),
       ]),
     );
   }
 
-  Widget _ChipRiesgo(String count, String label, Color color) =>
-      Expanded(child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withValues(alpha: 0.3))),
-        child: Column(children: [
-          Text(count, style: TextStyle(color: color,
-              fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(label, style: TextStyle(color: color, fontSize: 9), textAlign: TextAlign.center),
+  // ── Ver alertas registradas por el promotor ───────────────────────────────
+  void _verAlertasRegistradas() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _c(context).card,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6, maxChildSize: 0.95, minChildSize: 0.3,
+        expand: false,
+        builder: (_, ctrl) => Column(children: [
+          Container(margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: _c(context).border,
+                  borderRadius: BorderRadius.circular(2))),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              const Icon(Icons.notification_add_rounded, color: _kVerde, size: 20),
+              const SizedBox(width: 8),
+              Text('Alertas registradas por ti',
+                  style: TextStyle(color: _c(context).textPrimary,
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () { Navigator.pop(context); _mostrarFormulario(); },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: _kVerde.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: const Text('+ Nueva',
+                      style: TextStyle(color: _kVerde, fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _alertasDB.isEmpty
+                ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.notifications_off_outlined,
+                        color: _c(context).border, size: 48),
+                    const SizedBox(height: 12),
+                    Text('Sin alertas registradas',
+                        style: TextStyle(color: _c(context).textHint, fontSize: 15)),
+                    const SizedBox(height: 8),
+                    Text('Toca "+ Nueva" para registrar un evento.',
+                        style: TextStyle(color: _c(context).textHint, fontSize: 12)),
+                  ]))
+                : ListView.separated(
+                    controller: ctrl,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                    itemCount: _alertasDB.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final a = _alertasDB[i];
+                      final clr = _nivelColor(a['nivel'] ?? 'normal');
+                      final resuelta = (a['resuelta'] as int? ?? 0) == 1;
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: _c(context).bg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: resuelta
+                                ? _c(context).border : clr.withValues(alpha: 0.4))),
+                        child: Row(children: [
+                          Icon(_nivelIcon(a['nivel'] ?? 'normal'),
+                              color: resuelta ? _c(context).textHint : clr, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(a['mensaje'] ?? '',
+                                style: TextStyle(
+                                    color: resuelta ? _c(context).textHint : _c(context).textPrimary,
+                                    fontSize: 13, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 2),
+                            Text('${a['modulo'] ?? ''} · ${a['fecha'] ?? ''}',
+                                style: TextStyle(color: _c(context).textHint, fontSize: 11)),
+                          ])),
+                          if (!resuelta)
+                            GestureDetector(
+                              onTap: () async {
+                                await _resolverAlerta(a['id']);
+                                if (mounted) Navigator.pop(context);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                    color: _kVerde.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8)),
+                                child: const Text('Resolver',
+                                    style: TextStyle(color: _kVerde,
+                                        fontSize: 12, fontWeight: FontWeight.w600)),
+                              ),
+                            )
+                          else
+                            Icon(Icons.check_circle_outline,
+                                color: _kVerde, size: 20),
+                        ]),
+                      );
+                    },
+                  ),
+          ),
         ]),
-      ));
+      ),
+    );
+  }
 
-  Widget _LeyendaMapa(String nivel, String texto, Color color) =>
-      Padding(padding: const EdgeInsets.only(bottom: 5),
+  // ── Widget acción rápida ──────────────────────────────────────────────────
+  Widget _AccionRapida({required IconData icono, required Color color,
+      required String titulo, required String subtitulo,
+      required VoidCallback onTap}) =>
+    GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _c(context).bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _c(context).border),
+        ),
         child: Row(children: [
-          Container(width: 10, height: 10, margin: const EdgeInsets.only(right: 6),
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          Expanded(child: Text(texto, style: TextStyle(
-              color: _c(context).textSecondary, fontSize: 11))),
-        ]));
+          Container(width: 36, height: 36,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(9)),
+              child: Icon(icono, color: color, size: 18)),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(titulo, style: TextStyle(color: _c(context).textPrimary,
+                fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(subtitulo, style: TextStyle(color: _c(context).textHint,
+                fontSize: 11)),
+          ])),
+          Icon(Icons.chevron_right_rounded, color: _c(context).textHint, size: 16),
+        ]),
+      ),
+    );
+
+  // ── Grid item categoría ───────────────────────────────────────────────────
+  Widget _CategoriaGridItem(String emoji, String label,
+      String catId, Color color) =>
+    GestureDetector(
+      onTap: () => setState(() => _categoriaSeleccionada = catId),
+      child: Column(children: [
+        Container(
+          width: double.infinity, height: 48,
+          decoration: BoxDecoration(
+            color: _categoriaSeleccionada == catId
+                ? color.withValues(alpha: 0.2) : _c(context).bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: _categoriaSeleccionada == catId
+                    ? color : _c(context).border,
+                width: _categoriaSeleccionada == catId ? 1.5 : 1),
+          ),
+          child: Center(child: Text(emoji,
+              style: const TextStyle(fontSize: 22))),
+        ),
+        const SizedBox(height: 4),
+        Text(label, textAlign: TextAlign.center,
+            style: TextStyle(color: _c(context).textSecondary,
+                fontSize: 8, height: 1.2),
+            maxLines: 2, overflow: TextOverflow.ellipsis),
+      ]),
+    );
+
 }
 
 // ════════════════════════════════════════════════════════════════════════════
