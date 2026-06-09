@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
 import '../services/security_service.dart';
 
@@ -14,13 +16,18 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+      return await openDatabase(filePath,
+          version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
+    }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
-    return await openDatabase(path, version: 3,
-        onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path,
+        version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
-  Future _createDB(Database db, int version) async {
+Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE pacientes (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,

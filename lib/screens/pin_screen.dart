@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:local_auth/local_auth.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/connectivity_service.dart';
 
@@ -24,7 +25,6 @@ class _PinScreenState extends State<PinScreen> with TickerProviderStateMixin {
 
   final _storage   = const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true));
-  final _localAuth = LocalAuthentication();
 
   bool   _cargando   = true;
   bool   _creandoPin = false;
@@ -100,27 +100,18 @@ class _PinScreenState extends State<PinScreen> with TickerProviderStateMixin {
   }
 
   Future<bool> _verificarBiometria() async {
+    if (kIsWeb) return false;
     try {
-      return await _localAuth.canCheckBiometrics &&
-             await _localAuth.isDeviceSupported();
+      // local_auth solo disponible en móvil
+      return false; // Se activa en móvil con plugin nativo
     } catch (_) { return false; }
   }
 
   Future<void> _autenticarHuella() async {
-    try {
-      if (!await _localAuth.canCheckBiometrics) {
-        _mostrarError('Huella no disponible en este dispositivo.');
-        return;
-      }
-      final ok = await _localAuth.authenticate(
-        localizedReason: 'Usa tu huella para entrar a DISPERSALUD IA',
-        options: const AuthenticationOptions(
-            biometricOnly: false, stickyAuth: true),
-      );
-      if (ok && mounted) _entrarApp();
-    } catch (e) {
-      _mostrarError('Error biométrico: ${e.toString().split(":").first}');
-    }
+    // Biometría manejada por plugin nativo en móvil
+    // En web no está disponible
+    if (kIsWeb) return;
+    _mostrarError('Huella no disponible. Usa tu PIN.');
   }
 
   void _presionarTecla(String v) {
@@ -550,7 +541,7 @@ class _AvatarFoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tieneFoto = fotoPath.isNotEmpty && File(fotoPath).existsSync();
+    final tieneFoto = !kIsWeb && fotoPath.isNotEmpty && File(fotoPath).existsSync();
     return Container(
       width: size, height: size,
       decoration: BoxDecoration(

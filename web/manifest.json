@@ -1,35 +1,16 @@
 {
-    "name": "dispersalud_ia",
-    "short_name": "dispersalud_ia",
-    "start_url": ".",
-    "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
-    "prefer_related_applications": false,
-    "icons": [
-        {
-            "src": "icons/Icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-maskable-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "maskable"
-        },
-        {
-            "src": "icons/Icon-maskable-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
-        }
-    ]
+  "name": "DISPERSALUD IA",
+  "short_name": "DISPERSALUD",
+  "description": "App de salud rural inteligente para promotores de Colombia",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0A5240",
+  "theme_color": "#0A5240",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icons/Icon-192.png",          "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/Icon-512.png",          "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/Icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/Icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }

@@ -1,23 +1,20 @@
 name: dispersalud_ia
-
 description: App de salud rural inteligente
-
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
   sdk: '^3.11.0'
 
 dependencies:
-
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
 
-  # Base de datos local
+  # Base de datos — compatible móvil + web
   sqflite: ^2.3.0
+  sqflite_common_ffi_web: ^0.4.5+1   # ← web SQLite
   path: ^1.9.0
   path_provider: ^2.1.2
 
@@ -29,24 +26,24 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.3.2
 
-  # Seguridad
+  # Seguridad — flutter_secure_storage web usa localStorage
   encrypt: ^5.0.3
-  flutter_secure_storage: ^9.2.2
-  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.2   # ya soporta web
+  # local_auth NO soporta web — se maneja condicionalmente
 
   # Gráficas y PDF
   fl_chart: ^0.68.0
   pdf: ^3.10.8
   printing: ^5.13.1
 
-  # Conectividad y red híbrida
+  # Conectividad y red
   connectivity_plus: ^6.0.3
   http: ^1.2.1
 
-  # Foto de perfil / Cámara
+  # Foto / Cámara — soporta web con input file
   image_picker: ^1.0.7
 
-  # Ubicación GPS ← NUEVO
+  # GPS — soporta web con API del navegador
   geolocator: ^13.0.2
 
 dev_dependencies:
@@ -56,7 +53,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/
 

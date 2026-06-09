@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'package:sqflite/sqflite.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/pin_screen.dart';
 import 'screens/main_screen.dart';
@@ -17,18 +20,15 @@ import 'screens/pacientes_screen.dart';
 import 'screens/alertas_screen.dart';
 import 'screens/medicamentos_screen.dart';
 import 'screens/historia_clinica_screen.dart';
-import 'screens/reportar_alerta_screen.dart'; // ← NUEVO
+import 'screens/reportar_alerta_screen.dart';
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
 import 'core/app_theme.dart';
 
-
-// ── ValueNotifier global de tema — accesible desde cualquier pantalla ────────
 final temaNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
 
-// ── Cargar el tema guardado en SharedPreferences ─────────────────────────────
 Future<void> _cargarTemaGuardado() async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs   = await SharedPreferences.getInstance();
   final guardado = prefs.getString('tema_app') ?? 'Sistema';
   temaNotifier.value = temaDesdeString(guardado);
 }
@@ -43,15 +43,24 @@ ThemeMode temaDesdeString(String s) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Inicializar SQLite para web ──────────────────────────────────────────
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  }
+
   await SecurityService.instance.init();
   await ConnectivityService.instance.init();
   await _cargarTemaGuardado();
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor:           Colors.transparent,
-    systemNavigationBarColor: Colors.transparent,
-    statusBarIconBrightness:  Brightness.light,
-  ));
+  // En web no aplicar overlays nativos del sistema
+  if (!kIsWeb) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor:           Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      statusBarIconBrightness:  Brightness.light,
+    ));
+  }
 
   runApp(const DispersaludApp());
 }
@@ -91,7 +100,7 @@ class DispersaludApp extends StatelessWidget {
           '/alertas':          (context) => AlertasScreen(),
           '/medicamentos':     (context) => const MedicamentosScreen(),
           '/historia-clinica': (context) => const HistoriaClinicaScreen(),
-          '/reportar-alerta':  (context) => const ReportarAlertaScreen(), // ← NUEVO
+          '/reportar-alerta':  (context) => const ReportarAlertaScreen(),
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/historia-clinica') {
