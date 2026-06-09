@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 
@@ -67,6 +68,21 @@ class ConnectivityService {
 
   // ── Verifica internet real (no solo red local) ─────────────────────────
   Future<bool> _verificarInternet() async {
+    // En web, la petición HTTP puede bloquearse por CORS — usamos timeout corto
+    // y asumimos conexión disponible si falla (el usuario está en un navegador)
+    if (kIsWeb) {
+      try {
+        final response = await http.get(
+          Uri.parse(_checkUrl),
+          headers: {'Accept': 'application/json'},
+        ).timeout(const Duration(seconds: 3));
+        return response.statusCode == 200;
+      } catch (_) {
+        // En web con CORS bloqueado, asumir conectado (el browser ya tiene red)
+        return true;
+      }
+    }
+    // En móvil/desktop: verificación normal
     try {
       final response = await http.get(
         Uri.parse(_checkUrl),

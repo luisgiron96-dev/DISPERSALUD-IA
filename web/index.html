@@ -118,6 +118,16 @@
       }
       document.body.style.background = "transparent";
     }
+
+    // Conectar al ciclo de vida de Flutter para quitar el splash automáticamente
+    window.addEventListener("flutter-first-frame", function() {
+      removeSplashFromWeb();
+    });
+
+    // Fallback: si Flutter tarda más de 12 segundos, quitar el splash igual
+    setTimeout(function() {
+      removeSplashFromWeb();
+    }, 12000);
   </script>
 </head>
 <body>

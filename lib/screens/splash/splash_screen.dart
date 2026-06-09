@@ -101,8 +101,8 @@ class _SplashScreenState extends State<SplashScreen>
                       child: GestureDetector(
                         onTap: _irAlPin,
                         child: Container(
-                          width: size.width * 0.58,
-                          height: size.width * 0.58,
+                          width: (size.width * 0.58).clamp(0.0, 280.0),
+                          height: (size.width * 0.58).clamp(0.0, 280.0),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
@@ -124,7 +124,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                     ),
-                    SizedBox(height: size.height * 0.06),
+                    SizedBox(height: (size.height * 0.06).clamp(0.0, 40.0)),
                     AnimatedBuilder(
                       animation: _textCtrl,
                       builder: (_, child) => FadeTransition(
@@ -133,12 +133,12 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
-                        child: const Text(
+                        child: Text(
                           'Tecnología que cuida tu salud,\ndonde más se necesita.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: size.width > 600 ? 18.0 : 22.0,
                             fontWeight: FontWeight.w700,
                             height: 1.45,
                           ),

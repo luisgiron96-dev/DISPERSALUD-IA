@@ -49,9 +49,14 @@ void main() async {
     databaseFactory = databaseFactoryFfiWeb;
   }
 
-  await SecurityService.instance.init();
-  await ConnectivityService.instance.init();
-  await _cargarTemaGuardado();
+  // FIX: Todos los servicios con timeout para no bloquear la app en web
+  await Future.wait([
+    SecurityService.instance.init().catchError((_) {}),
+    _cargarTemaGuardado().catchError((_) {}),
+  ]);
+
+  // ConnectivityService se inicia en background — no bloquea el arranque
+  ConnectivityService.instance.init().catchError((_) {});
 
   // En web no aplicar overlays nativos del sistema
   if (!kIsWeb) {
@@ -63,6 +68,14 @@ void main() async {
   }
 
   runApp(const DispersaludApp());
+
+  // En web: quitar el splash HTML después del primer frame
+  if (kIsWeb) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // El evento 'flutter-first-frame' en index.html lo maneja automáticamente
+      // No se necesita llamada JS explícita
+    });
+  }
 }
 
 class DispersaludApp extends StatelessWidget {

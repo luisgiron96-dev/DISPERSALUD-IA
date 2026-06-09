@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/connectivity_service.dart';
@@ -100,18 +101,41 @@ class _PinScreenState extends State<PinScreen> with TickerProviderStateMixin {
   }
 
   Future<bool> _verificarBiometria() async {
+    // La biometría nunca está disponible en web
     if (kIsWeb) return false;
     try {
-      // local_auth solo disponible en móvil
-      return false; // Se activa en móvil con plugin nativo
-    } catch (_) { return false; }
+      final auth = LocalAuthentication();
+      final soportado = await auth.isDeviceSupported();
+      if (!soportado) return false;
+      final puedeChekar = await auth.canCheckBiometrics;
+      if (!puedeChekar) return false;
+      final biometrias = await auth.getAvailableBiometrics();
+      return biometrias.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _autenticarHuella() async {
-    // Biometría manejada por plugin nativo en móvil
-    // En web no está disponible
+    // La biometría solo funciona en móvil, nunca en web
     if (kIsWeb) return;
-    _mostrarError('Huella no disponible. Usa tu PIN.');
+    try {
+      final auth = LocalAuthentication();
+      final autenticado = await auth.authenticate(
+        localizedReason: 'Usa tu huella dactilar para ingresar a DISPERSALUD',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+      if (autenticado && mounted) {
+        _entrarApp();
+      }
+    } on PlatformException catch (e) {
+      if (mounted) _mostrarError('Huella no disponible: ${e.message}');
+    } catch (_) {
+      if (mounted) _mostrarError('Error al autenticar. Usa tu PIN.');
+    }
   }
 
   void _presionarTecla(String v) {
