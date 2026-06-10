@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -136,21 +137,27 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
     if (img != null) {
-      // Copiar al dir de documentos para persistencia
-      final dir = await getApplicationDocumentsDirectory();
-      final dest = File('${dir.path}/perfil_foto.jpg');
-      await dest.writeAsBytes(await img.readAsBytes());
-      if (!mounted) return;
-      setState(() => _fotoPerfil = dest.path);
+      if (kIsWeb) {
+        // En web usar el path directamente (blob URL)
+        if (!mounted) return;
+        setState(() => _fotoPerfil = img.path);
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final dest = File('\${dir.path}/perfil_foto.jpg');
+        await dest.writeAsBytes(await img.readAsBytes());
+        if (!mounted) return;
+        setState(() => _fotoPerfil = dest.path);
+      }
     }
   }
 
   Future<void> _tomarFoto() async {
+    if (kIsWeb) { _seleccionarFoto(); return; } // En web no hay cámara nativa
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
     if (img != null) {
       final dir = await getApplicationDocumentsDirectory();
-      final dest = File('${dir.path}/perfil_foto.jpg');
+      final dest = File('\${dir.path}/perfil_foto.jpg');
       await dest.writeAsBytes(await img.readAsBytes());
       if (!mounted) return;
       setState(() => _fotoPerfil = dest.path);
@@ -357,7 +364,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                               border: Border.all(color: Colors.white.withOpacity(0.4), width: 3),
                               color: Colors.white.withOpacity(0.15),
                             ),
-                            child: ClipOval(child: _fotoPerfil.isNotEmpty
+                            child: ClipOval(child: (!kIsWeb && _fotoPerfil.isNotEmpty)
                               ? Image.file(File(_fotoPerfil), fit: BoxFit.cover)
                               : Center(child: Text(
                                   _nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
@@ -1101,10 +1108,16 @@ class _ConfigScreenState extends State<ConfigScreen>
             'tema_app': prefs.getString('tema_app') ?? 'Sistema' }},
         'resumen': { 'total_pacientes': pacientes.length, 'total_consultas': consultas.length, 'total_alertas': alertas.length },
       };
-      final dir = await getApplicationDocumentsDirectory();
-      final nombre = 'dispersalud_backup_${ahora.year}${ahora.month.toString().padLeft(2,'0')}${ahora.day.toString().padLeft(2,'0')}_${ahora.hour.toString().padLeft(2,'0')}${ahora.minute.toString().padLeft(2,'0')}.json';
-      final file = File('${dir.path}/$nombre');
-      await file.writeAsString(_mapToJson(backup));
+      final mm  = ahora.month.toString().padLeft(2, '0');
+      final dd  = ahora.day.toString().padLeft(2, '0');
+      final hh  = ahora.hour.toString().padLeft(2, '0');
+      final min = ahora.minute.toString().padLeft(2, '0');
+      if (!kIsWeb) {
+        final dir = await getApplicationDocumentsDirectory();
+        final nombre = 'dispersalud_backup_${ahora.year}${mm}${dd}_${hh}${min}.json';
+        final file = File('${dir.path}/$nombre');
+        await file.writeAsString(_mapToJson(backup));
+      }
       await prefs.setString('ultima_copia', ahora.toIso8601String());
       _snack('✓ Copia guardada: ${pacientes.length} pacientes, ${consultas.length} consultas');
     } catch (e) { _snack('Error al crear copia: $e', error: true); }
@@ -1385,13 +1398,7 @@ class _ConfigScreenState extends State<ConfigScreen>
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: Row(children: [
-                GestureDetector(
-                  onTap: () => Navigator.maybePop(context),
-                  child: Container(width: 36, height: 36,
-                    decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: dc.border)),
-                    child: Icon(Icons.arrow_back_rounded, color: dc.textSecondary, size: 18)),
-                ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 4),
                 Icon(Icons.settings_rounded, color: _kVerde, size: 22),
                 const SizedBox(width: 8),
                 Text('Configuración', style: TextStyle(color: dc.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -1415,7 +1422,7 @@ class _ConfigScreenState extends State<ConfigScreen>
                         border: Border.all(color: _kVerde.withOpacity(0.3), width: 2),
                         color: _kVerde.withOpacity(0.15),
                       ),
-                      child: ClipOval(child: _fotoPerfil.isNotEmpty
+                      child: ClipOval(child: (!kIsWeb && _fotoPerfil.isNotEmpty)
                         ? Image.file(File(_fotoPerfil), fit: BoxFit.cover)
                         : Center(child: Text(
                             _nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
