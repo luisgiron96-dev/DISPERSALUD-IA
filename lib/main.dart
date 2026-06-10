@@ -21,6 +21,7 @@ import 'screens/alertas_screen.dart';
 import 'screens/medicamentos_screen.dart';
 import 'screens/historia_clinica_screen.dart';
 import 'screens/reportar_alerta_screen.dart';
+import 'screens/seguimiento_screen.dart';
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
 import 'core/app_theme.dart';
@@ -114,6 +115,7 @@ class DispersaludApp extends StatelessWidget {
           '/medicamentos':     (context) => const MedicamentosScreen(),
           '/historia-clinica': (context) => const HistoriaClinicaScreen(),
           '/reportar-alerta':  (context) => const ReportarAlertaScreen(),
+          '/seguimiento':      (context) => const SeguimientoScreen(),
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/historia-clinica') {

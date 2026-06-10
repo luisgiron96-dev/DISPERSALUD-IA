@@ -459,10 +459,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     onTap: () => Navigator.pushNamed(context, '/nuevo-paciente')),
                 const SizedBox(width: 8),
                 _AccionBtn(
-                    icono: Icons.note_add_outlined,
-                    label: 'Nueva\nconsulta',
-                    color: const Color(0xFF185FA5), dt: dt,
-                    onTap: () => Navigator.pushNamed(context, '/pacientes')),
+                    icono: Icons.assignment_turned_in_outlined,
+                    label: 'Segui-\nmiento',
+                    color: const Color(0xFF1D9E75), dt: dt,
+                    onTap: () => Navigator.pushNamed(context, '/seguimiento')),
                 const SizedBox(width: 8),
                 _AccionBtn(
                     icono: Icons.add_alert_outlined,
