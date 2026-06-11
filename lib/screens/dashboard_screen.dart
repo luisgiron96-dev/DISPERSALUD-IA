@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'especialistas/especialistas_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
@@ -482,16 +481,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     label: 'Historia\nclínica',
                     color: const Color(0xFF534AB7), dt: dt,
                     onTap: () => _abrirSelectorHC()),
-                const SizedBox(width: 8),
-                _AccionBtn(
-                    icono: Icons.medical_services_rounded,
-                    label: 'Especia-\nlistas',
-                    color: const Color(0xFF0288D1), dt: dt,
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const EspecialistasScreen()))),
-
               ]),
               const SizedBox(height: 8),
               // ── PARTERA ───────────────────────────────────────────────
