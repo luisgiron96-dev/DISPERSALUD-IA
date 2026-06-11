@@ -97,6 +97,7 @@ class DatabaseHelper {
         calificacion     REAL  DEFAULT 4.5,
         anios_exp        INTEGER DEFAULT 1,
         disponible       INTEGER DEFAULT 1,
+        foto_path        TEXT    DEFAULT '',
         created_at       TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
@@ -137,6 +138,7 @@ class DatabaseHelper {
           )
         ''');
       } catch (_) {}
+      try { await db.execute('ALTER TABLE especialistas ADD COLUMN foto_path TEXT DEFAULT ""'); } catch (_) {}
     }
   }
 
