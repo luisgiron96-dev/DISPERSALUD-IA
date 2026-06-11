@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'especialistas/especialistas_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
@@ -481,8 +482,115 @@ class _DashboardScreenState extends State<DashboardScreen>
                     label: 'Historia\nclínica',
                     color: const Color(0xFF534AB7), dt: dt,
                     onTap: () => _abrirSelectorHC()),
+                const SizedBox(width: 8),
+                _AccionBtn(
+                    icono: Icons.medical_services_rounded,
+                    label: 'Especia-\nlistas',
+                    color: const Color(0xFF0288D1), dt: dt,
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const EspecialistasScreen()))),
 
               ]),
+              const SizedBox(height: 8),
+              // ── PARTERA ───────────────────────────────────────────────
+              const SizedBox(height: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => Navigator.pushNamed(context, '/partera'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3D0A2A), Color(0xFF993556)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF993556).withOpacity(0.4)),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.favorite_rounded,
+                            color: Color(0xFFF48FB1), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Partera',
+                              style: TextStyle(color: Colors.white,
+                                  fontWeight: FontWeight.bold, fontSize: 13)),
+                          SizedBox(height: 2),
+                          Text('Atención materna + seguimiento gestante',
+                              style: TextStyle(color: Color(0xFFF48FB1),
+                                  fontSize: 10)),
+                        ],
+                      )),
+                      const Icon(Icons.pregnant_woman_rounded,
+                          color: Color(0xFFF48FB1), size: 20),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: Colors.white54, size: 20),
+                    ]),
+                  ),
+                ),
+              ),
+
+              // ── SABERES ANCESTRALES ────────────────────────────────────
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => Navigator.pushNamed(context, '/saberes-ancestrales'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D1A0F), Color(0xFF1A7A42)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF2ECC71).withOpacity(0.3)),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.eco_rounded, color: Color(0xFF2ECC71), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Consulta por Saberes Ancestrales',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          SizedBox(height: 2),
+                          Text('Medicina tradicional + IA + plantas medicinales',
+                              style: TextStyle(color: Color(0xFF7AAB84), fontSize: 10)),
+                        ],
+                      )),
+                      const Icon(Icons.local_florist_rounded,
+                          color: Color(0xFF2ECC71), size: 18),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: Colors.white54, size: 20),
+                    ]),
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
 
               // ── ALERTAS RECIENTES ──────────────────────────────────────
