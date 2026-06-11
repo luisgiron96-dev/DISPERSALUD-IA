@@ -19,15 +19,15 @@ class DatabaseHelper {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
-Future _createDB(Database db, int version) async {
+  Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE pacientes (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +84,22 @@ Future _createDB(Database db, int version) async {
         fecha       TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS especialistas (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre           TEXT NOT NULL,
+        especialidad     TEXT NOT NULL,
+        ciudad           TEXT,
+        telefono         TEXT,
+        proximo_horario  TEXT,
+        categoria_id     TEXT DEFAULT 'medicina_interna',
+        calificacion     REAL  DEFAULT 4.5,
+        anios_exp        INTEGER DEFAULT 1,
+        disponible       INTEGER DEFAULT 1,
+        created_at       TEXT DEFAULT (datetime('now','localtime'))
+      )
+    ''');
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -102,6 +118,25 @@ Future _createDB(Database db, int version) async {
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN departamento TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN eps TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE consultas ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS especialistas (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre           TEXT NOT NULL,
+            especialidad     TEXT NOT NULL,
+            ciudad           TEXT,
+            telefono         TEXT,
+            proximo_horario  TEXT,
+            categoria_id     TEXT DEFAULT 'medicina_interna',
+            calificacion     REAL  DEFAULT 4.5,
+            anios_exp        INTEGER DEFAULT 1,
+            disponible       INTEGER DEFAULT 1,
+            created_at       TEXT DEFAULT (datetime('now','localtime'))
+          )
+        ''');
+      } catch (_) {}
     }
   }
 
@@ -270,6 +305,47 @@ Future _createDB(Database db, int version) async {
   }
 
   // ════════════════════════════════════════════════════════════════════
+  // ESPECIALISTAS
+  // ════════════════════════════════════════════════════════════════════
+
+  Future<int> insertarEspecialista(Map<String, dynamic> data) async {
+    final db = await database;
+    return await db.insert('especialistas', data,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerEspecialistas() async {
+    final db = await database;
+    return await db.query('especialistas', orderBy: 'nombre ASC');
+  }
+
+  Future<int> actualizarEspecialista(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    return await db.update('especialistas', data,
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> eliminarEspecialista(int id) async {
+    final db = await database;
+    return await db.delete('especialistas',
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> totalEspecialistas() async {
+    final db = await database;
+    final r  = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM especialistas');
+    return Sqflite.firstIntValue(r) ?? 0;
+  }
+
+  Future<int> totalEspecialistasDisponibles() async {
+    final db = await database;
+    final r  = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM especialistas WHERE disponible = 1');
+    return Sqflite.firstIntValue(r) ?? 0;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
   // RESUMEN Y GRÁFICAS
   // ════════════════════════════════════════════════════════════════════
 
@@ -347,13 +423,9 @@ Future _createDB(Database db, int version) async {
     );
   }
 
-  /// Devuelve para cada módulo cuántas consultas tienen nivel_riesgo
-  /// 'urgente' o 'alerta' (alertas) y cuántas están sin sincronizar (pendientes).
-  /// Resultado: { 'Gestación': {'alertas': 3, 'pendientes': 1}, ... }
   Future<Map<String, Map<String, int>>> estadosPorModulo() async {
     final db = await database;
 
-    // Alertas por módulo (nivel urgente o alerta)
     final rowsAlertas = await db.rawQuery('''
       SELECT modulo,
              SUM(CASE WHEN LOWER(nivel_riesgo) IN ('urgente','alerta') THEN 1 ELSE 0 END) AS alertas,
@@ -364,7 +436,7 @@ Future _createDB(Database db, int version) async {
 
     final map = <String, Map<String, int>>{};
     for (final r in rowsAlertas) {
-      final modulo     = (r['modulo'] as String? ?? 'Otro').trim();
+      final modulo = (r['modulo'] as String? ?? 'Otro').trim();
       map[modulo] = {
         'alertas':    (r['alertas']    as int?) ?? 0,
         'pendientes': (r['pendientes'] as int?) ?? 0,

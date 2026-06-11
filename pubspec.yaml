@@ -14,7 +14,7 @@ dependencies:
 
   # Base de datos — compatible móvil + web
   sqflite: ^2.3.0
-  sqflite_common_ffi_web: ^0.4.5+1   # ← web SQLite
+  sqflite_common_ffi_web: ^0.4.5+1
   path: ^1.9.0
   path_provider: ^2.1.2
 
@@ -26,10 +26,10 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.3.2
 
-  # Seguridad — flutter_secure_storage web usa localStorage
+  # Seguridad
   encrypt: ^5.0.3
-  flutter_secure_storage: ^9.2.2   # ya soporta web
-  local_auth: ^2.3.0          # huella dactilar / biometría en móvil
+  flutter_secure_storage: ^9.2.2
+  local_auth: ^2.3.0
 
   # Gráficas y PDF
   fl_chart: ^0.68.0
@@ -40,11 +40,14 @@ dependencies:
   connectivity_plus: ^6.0.3
   http: ^1.2.1
 
-  # Foto / Cámara — soporta web con input file
+  # Foto / Cámara
   image_picker: ^1.0.7
 
-  # GPS — soporta web con API del navegador
+  # GPS
   geolocator: ^13.0.2
+
+  # Enlaces externos (llamadas, WhatsApp, correo)
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:
