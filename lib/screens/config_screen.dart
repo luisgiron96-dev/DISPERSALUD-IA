@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../services/excel_service.dart';
 import 'package:printing/printing.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/app_theme.dart';
@@ -876,7 +877,8 @@ class _ConfigScreenState extends State<ConfigScreen>
   StreamSubscription<bool>? _connSub;
 
   // Estado de operaciones
-  bool _exportando    = false;
+  bool _exportando      = false;
+  bool _exportandoExcel = false;
   bool _sincronizando = false;
   bool _creandoCopia  = false;
 
@@ -1271,6 +1273,20 @@ class _ConfigScreenState extends State<ConfigScreen>
     );
   }
 
+  Future<void> _exportarExcel() async {
+    if (_exportandoExcel) return;
+    setState(() => _exportandoExcel = true);
+    _snack('Generando Excel...', info: true);
+    try {
+      final ruta = await ExcelService.instance.exportarTodo();
+      _snack('Excel guardado: $ruta');
+    } catch (e) {
+      _snack('Error al generar Excel: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _exportandoExcel = false);
+    }
+  }
+
   void _abrirExportar() {
     showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
       builder: (_) => _BottomSheet(titulo: 'Exportar datos', icono: Icons.download_outlined,
@@ -1302,6 +1318,39 @@ class _ConfigScreenState extends State<ConfigScreen>
               Expanded(child: Text('El PDF se genera localmente. No requiere internet.', style: TextStyle(color: _c(ctx).textSecondary, fontSize: 11))),
             ]),
           )),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () { Navigator.pop(context); _exportarExcel(); },
+            child: Builder(builder: (ctx) => Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1D7A3A).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF1D7A3A).withOpacity(0.25)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1D7A3A).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: _exportandoExcel
+                    ? const Padding(padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(color: Color(0xFF1D7A3A), strokeWidth: 2))
+                    : const Icon(Icons.table_chart_outlined, color: Color(0xFF1D7A3A), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Exportar como Excel', style: TextStyle(
+                      color: _c(ctx).textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('Pacientes, consultas, signos vitales, alertas, especialistas y medicamentos',
+                      style: TextStyle(color: _c(ctx).textHint, fontSize: 11)),
+                ])),
+                const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF1D7A3A), size: 14),
+              ]),
+            )),
+          ),
         ]),
       ),
     );

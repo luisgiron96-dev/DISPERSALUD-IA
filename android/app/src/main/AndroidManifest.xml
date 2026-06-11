@@ -16,6 +16,10 @@
     <!-- Permisos llamadas -->
     <uses-permission android:name="android.permission.CALL_PHONE"/>
 
+    <!-- Permiso para guardar y abrir archivos Excel en Descargas -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+
     <!-- Queries necesarios para url_launcher (Android 11+) -->
     <queries>
         <intent>
@@ -58,6 +62,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- FileProvider para abrir archivos con open_filex -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileProvider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
 
     </application>
 </manifest>
