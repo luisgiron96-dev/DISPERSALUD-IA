@@ -133,22 +133,48 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
       builder: (_) => _Formulario(
         dc: dc, verde: verde, datos: editar,
         onGuardar: (data) async {
-          if (editar != null) {
-            await DatabaseHelper.instance.actualizarEspecialista(editar['id'] as int, data);
-            messenger.showSnackBar(SnackBar(
-              content: Text('Especialista "${data['nombre']}" actualizado'),
-              backgroundColor: verde, behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ));
-          } else {
-            await DatabaseHelper.instance.insertarEspecialista(data);
-            messenger.showSnackBar(SnackBar(
-              content: Text('Especialista "${data['nombre']}" agregado'),
-              backgroundColor: verde, behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ));
+          try {
+            // Remover foto_path si la columna no existe aún en BD antigua
+            final dataSafe = Map<String, dynamic>.from(data);
+            if (editar != null) {
+              await DatabaseHelper.instance.actualizarEspecialista(editar['id'] as int, dataSafe);
+              messenger.showSnackBar(SnackBar(
+                content: Text('Especialista "${dataSafe['nombre']}" actualizado'),
+                backgroundColor: verde, behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ));
+            } else {
+              await DatabaseHelper.instance.insertarEspecialista(dataSafe);
+              messenger.showSnackBar(SnackBar(
+                content: Text('Especialista "${dataSafe['nombre']}" agregado'),
+                backgroundColor: verde, behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ));
+            }
+            _cargar();
+          } catch (e) {
+            // Si falla por foto_path, intentar sin esa columna
+            try {
+              final dataSinFoto = Map<String, dynamic>.from(data)..remove('foto_path');
+              if (editar != null) {
+                await DatabaseHelper.instance.actualizarEspecialista(editar['id'] as int, dataSinFoto);
+              } else {
+                await DatabaseHelper.instance.insertarEspecialista(dataSinFoto);
+              }
+              messenger.showSnackBar(SnackBar(
+                content: Text('Especialista "${data['nombre']}" guardado'),
+                backgroundColor: verde, behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ));
+              _cargar();
+            } catch (e2) {
+              messenger.showSnackBar(SnackBar(
+                content: Text('Error al guardar: $e2'),
+                backgroundColor: const Color(0xFFE24B4A), behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ));
+            }
           }
-          _cargar();
         },
       ),
     );

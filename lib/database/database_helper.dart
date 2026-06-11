@@ -19,12 +19,12 @@ class DatabaseHelper {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
