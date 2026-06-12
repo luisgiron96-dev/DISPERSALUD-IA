@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -68,10 +69,18 @@ class PdfService {
     );
 
     // 3 — Compartir / imprimir
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename: 'DISPERSALUD_${pacienteNombre.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
+    final _pdfBytes = await pdf.save();
+    if (kIsWeb) {
+      await Printing.layoutPdf(
+        onLayout: (_) async => _pdfBytes,
+        name: 'DISPERSALUD_Informe.pdf',
+      );
+    } else {
+      await Printing.sharePdf(
+        bytes: _pdfBytes,
+        filename: 'DISPERSALUD_${pacienteNombre.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    }
   }
 
   // ── Header de cada página ────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -453,7 +454,7 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
                 color: color.withOpacity(0.2), shape: BoxShape.circle,
                 border: Border.all(color: color.withOpacity(0.4), width: 2),
                 image: fotoPath.isNotEmpty
-                    ? DecorationImage(image: FileImage(File(fotoPath)), fit: BoxFit.cover)
+                    ? DecorationImage(image: (!kIsWeb && fotoPath.isNotEmpty) ? FileImage(File(fotoPath)) as ImageProvider : const AssetImage('assets/logo_dispersalud.png'), fit: BoxFit.cover)
                     : null,
               ),
               child: fotoPath.isEmpty
@@ -859,7 +860,7 @@ class _FormularioState extends State<_Formulario> {
                 color: verde.withOpacity(0.12),
                 border: Border.all(color: verde.withOpacity(0.4), width: 2),
                 image: (_fotoPath != null && _fotoPath!.isNotEmpty)
-                    ? DecorationImage(image: FileImage(File(_fotoPath!)), fit: BoxFit.cover)
+                    ? DecorationImage(image: (!kIsWeb && (_fotoPath?.isNotEmpty ?? false)) ? FileImage(File(_fotoPath!)) as ImageProvider : const AssetImage('assets/logo_dispersalud.png'), fit: BoxFit.cover)
                     : null,
               ),
               child: (_fotoPath == null || _fotoPath!.isEmpty)
