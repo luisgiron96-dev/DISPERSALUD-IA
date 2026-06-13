@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
+import 'fichas_epidemiologicas_screen.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  alertas_screen.dart  —  DISPERSALUD IA
@@ -1828,6 +1829,50 @@ class _AlertasScreenState extends State<AlertasScreen> {
             style: TextStyle(color: _c(context).textPrimary,
                 fontSize: 13, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
+
+        // ── FICHAS EPIDEMIOLÓGICAS INS ─────────────────────────────────
+        GestureDetector(
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const FichasEpidemiologicasScreen())),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_kRojo.withValues(alpha: 0.18), _kRojo.withValues(alpha: 0.06)],
+                begin: Alignment.centerLeft, end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _kRojo.withValues(alpha: 0.4)),
+            ),
+            child: Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                    color: _kRojo.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.picture_as_pdf_rounded, color: _kRojo, size: 24)),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Fichas Epidemiológicas INS',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 2),
+                const Text('51 protocolos · Dengue, IRA, Malaria, MME y más',
+                    style: TextStyle(color: Colors.white60, fontSize: 10.5)),
+                const SizedBox(height: 5),
+                const Row(children: [
+                  _FichaChip('🚨 Urgentes'),
+                  SizedBox(width: 6),
+                  _FichaChip('📋 PDF oficiales'),
+                  SizedBox(width: 6),
+                  _FichaChip('🔍 Buscador'),
+                ]),
+              ])),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 22),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 8),
+
         _AccionRapida(
           icono: Icons.description_outlined,
           color: _kAzul,
@@ -2325,5 +2370,20 @@ class _PasoAccion extends StatelessWidget {
       Expanded(child: Text(texto, style: TextStyle(
           color: _c(context).textPrimary, fontSize: 12, height: 1.4))),
     ]),
+  );
+}
+// ── Widget chip decorativo para el banner de fichas ──────────────────────────
+class _FichaChip extends StatelessWidget {
+  final String texto;
+  const _FichaChip(this.texto);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6)),
+    child: Text(texto,
+        style: const TextStyle(color: Colors.white70, fontSize: 9.5)),
   );
 }

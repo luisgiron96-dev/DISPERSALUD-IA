@@ -531,19 +531,25 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
       ]),
       const SizedBox(height: 10),
       // Selector
-      DropdownButtonFormField<Map<String, dynamic>>(
-        value: _pacienteSel,
+      DropdownButtonFormField<int>(
+        value: _pacienteSel != null
+            ? _pacientes.any((p) => p['id'] == _pacienteSel!['id'])
+                ? _pacienteSel!['id'] as int
+                : null
+            : null,
+        isExpanded: true,
         dropdownColor: _kCardAlt,
         style: const TextStyle(color: _kTexto, fontSize: 11),
         hint: const Text('Seleccionar paciente...',
             style: TextStyle(color: _kTextoH, fontSize: 10)),
         decoration: _inputDeco('Paciente'),
         items: _pacientes.map((p) => DropdownMenuItem(
-          value: p,
+          value: p['id'] as int,
           child: Text(p['nombre'] as String? ?? '',
               overflow: TextOverflow.ellipsis),
         )).toList(),
-        onChanged: (p) => setState(() => _pacienteSel = p),
+        onChanged: (id) => setState(() => _pacienteSel =
+            _pacientes.firstWhere((p) => p['id'] == id)),
       ),
       if (_pacienteSel != null) ...[
         const SizedBox(height: 8),
@@ -613,19 +619,25 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
           ),
         )
       else
-        DropdownButtonFormField<Map<String, dynamic>>(
-          value: _parteraSel,
+        DropdownButtonFormField<int>(
+          value: _parteraSel != null
+              ? _parteras.any((p) => p['id'] == _parteraSel!['id'])
+                  ? _parteraSel!['id'] as int
+                  : null
+              : null,
+          isExpanded: true,
           dropdownColor: _kCardAlt,
           style: const TextStyle(color: _kTexto, fontSize: 11),
           hint: const Text('Seleccionar partera...',
               style: TextStyle(color: _kTextoH, fontSize: 10)),
           decoration: _inputDeco('Partera'),
           items: _parteras.map((p) => DropdownMenuItem(
-            value: p,
+            value: p['id'] as int,
             child: Text(p['nombre'] as String? ?? '',
                 overflow: TextOverflow.ellipsis),
           )).toList(),
-          onChanged: (p) => setState(() => _parteraSel = p),
+          onChanged: (id) => setState(() => _parteraSel =
+              _parteras.firstWhere((p) => p['id'] == id)),
         ),
       if (_parteraSel != null) ...[
         const SizedBox(height: 8),
@@ -733,6 +745,7 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _desequilSel.isEmpty ? null : _desequilSel,
+            isExpanded: true,
             dropdownColor: _kCardAlt,
             style: const TextStyle(color: _kTexto, fontSize: 11),
             hint: const Text('Seleccionar...',
@@ -1044,85 +1057,89 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   // BOTTOM BAR DE ACCIONES
   // ─────────────────────────────────────────────────────────────────────────
   Widget _bottomBar() => Container(
-    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
     decoration: const BoxDecoration(
         color: _kCard,
         border: Border(top: BorderSide(color: _kBorder))),
-    child: Row(children: [
-      // Registrar nueva consulta
-      Expanded(
-        flex: 3,
-        child: GestureDetector(
-          onTap: _guardar,
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_kVerdeOsc, _kVerdeBI]),
-              borderRadius: BorderRadius.circular(12),
+    child: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Registrar nueva consulta — botón principal, ancho completo
+          GestureDetector(
+            onTap: _guardar,
+            child: Container(
+              width: double.infinity,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [_kVerdeOsc, _kVerdeBI]),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _guardando
+                    ? const SizedBox(width: 16, height: 16,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.add_rounded,
+                        color: Colors.white, size: 18),
+                const SizedBox(width: 6),
+                const Text('Registrar nueva consulta',
+                    style: TextStyle(color: Colors.white,
+                        fontWeight: FontWeight.bold, fontSize: 12)),
+              ]),
             ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _guardando
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.add_rounded,
-                      color: Colors.white, size: 18),
-              const SizedBox(width: 6),
-              const Text('Registrar nueva consulta',
-                  style: TextStyle(color: Colors.white,
-                      fontWeight: FontWeight.bold, fontSize: 11)),
-            ]),
           ),
-        ),
+          const SizedBox(height: 8),
+          // Botones secundarios — fila propia, más alta y legible
+          Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _visitaDomiciliaria,
+                child: Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                      color: _kCardAlt, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _kBorder)),
+                  child: const Column(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    Icon(Icons.home_outlined, color: _kTextoS, size: 18),
+                    SizedBox(height: 4),
+                    Text('Visita domiciliaria',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: _kTextoS, fontSize: 10.5,
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: GestureDetector(
+                onTap: _mostrarNotaRapida,
+                child: Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                      color: _kCardAlt, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _kBorder)),
+                  child: const Column(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    Icon(Icons.edit_note_rounded, color: _kTextoS, size: 18),
+                    SizedBox(height: 4),
+                    Text('Nota rápida',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: _kTextoS, fontSize: 10.5,
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
+        ]),
       ),
-      const SizedBox(width: 6),
-      // Visita domiciliaria
-      Expanded(
-        flex: 2,
-        child: GestureDetector(
-          onTap: _visitaDomiciliaria,
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-                color: _kCardAlt, borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kBorder)),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-              Icon(Icons.home_outlined, color: _kTextoS, size: 15),
-              SizedBox(width: 4),
-              Flexible(child: Text('Registrar visita domiciliaria',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: _kTextoS, fontSize: 9.5),
-                  maxLines: 2)),
-            ]),
-          ),
-        ),
-      ),
-      const SizedBox(width: 6),
-      // Agregar nota rápida
-      Expanded(
-        flex: 2,
-        child: GestureDetector(
-          onTap: _mostrarNotaRapida,
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-                color: _kCardAlt, borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kBorder)),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-              Icon(Icons.edit_note_rounded, color: _kTextoS, size: 15),
-              SizedBox(width: 4),
-              Flexible(child: Text('Agregar nota rápida',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: _kTextoS, fontSize: 9.5),
-                  maxLines: 2)),
-            ]),
-          ),
-        ),
-      ),
-    ]),
+    ),
   );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1133,8 +1150,14 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     backgroundColor: _kCard,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => StatefulBuilder(builder: (ctx, setS) => SizedBox(
-      height: MediaQuery.of(ctx).size.height * 0.75,
+    builder: (_) => StatefulBuilder(builder: (ctx, setS) {
+      final teclado = MediaQuery.of(ctx).viewInsets.bottom;
+      final alturaBase = MediaQuery.of(ctx).size.height * 0.75;
+      final altura = teclado > 0
+          ? MediaQuery.of(ctx).size.height - teclado
+          : alturaBase;
+      return SizedBox(
+      height: altura,
       child: Column(children: [
         // Header
         Container(
@@ -1209,7 +1232,9 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
           },
         )),
         // Input
-        Container(
+        SafeArea(
+          top: false,
+          child: Container(
           padding: EdgeInsets.fromLTRB(12, 6, 12,
               MediaQuery.of(ctx).viewInsets.bottom + 10),
           child: Row(children: [
@@ -1254,8 +1279,10 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
             ),
           ]),
         ),
+        ),
       ]),
-    )),
+    );
+    }),
   );
 
   void _verPreparacion(_Planta p) => showModalBottomSheet(
@@ -1350,31 +1377,55 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     backgroundColor: _kCard,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16,
-          MediaQuery.of(context).viewInsets.bottom + 16),
-      child: Column(mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Agregar nota rápida', style: TextStyle(
-            color: _kTexto, fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _notasCtrl, maxLines: 4,
-          style: const TextStyle(color: _kTexto, fontSize: 12),
-          decoration: _inputDeco('Escribe una observación rápida...'),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(width: double.infinity, child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _kVerdeBI,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10))),
-          onPressed: () { Navigator.pop(context); _snack('✅ Nota guardada'); },
-          child: const Text('Guardar nota',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        )),
-      ]),
+    builder: (ctx) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16,
+            MediaQuery.of(ctx).viewInsets.bottom + 16),
+        child: Column(mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Agregar nota rápida', style: TextStyle(
+              color: _kTexto, fontSize: 15, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notasCtrl, maxLines: 4,
+            style: const TextStyle(color: _kTexto, fontSize: 12),
+            decoration: _inputDeco('Escribe una observación rápida...'),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _kVerdeBI,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              final texto = _notasCtrl.text.trim();
+              if (texto.isEmpty) {
+                _snack('Escribe una nota antes de guardar');
+                return;
+              }
+              Navigator.pop(ctx);
+              await DatabaseHelper.instance.insertarConsulta({
+                'paciente_id':   _pacienteSel?['id'],
+                'nombre':        _pacienteSel?['nombre'] ?? 'Sin paciente',
+                'modulo':        'Salud Integral Ancestral',
+                'diagnostico':   'Nota rápida',
+                'observaciones': texto,
+                'nivel_riesgo':  'estable',
+                'fecha':         DateTime.now().toIso8601String(),
+              });
+              _notasCtrl.clear();
+              if (mounted) {
+                _snack('✅ Nota guardada');
+                _cargar();
+              }
+            },
+            child: const Text('Guardar nota',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          )),
+        ]),
+      ),
     ),
   );
 
