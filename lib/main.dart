@@ -22,9 +22,8 @@ import 'screens/medicamentos_screen.dart';
 import 'screens/historia_clinica_screen.dart';
 import 'screens/reportar_alerta_screen.dart';
 import 'screens/seguimiento_screen.dart';
-import 'screens/partera_screen.dart';
+import 'screens/partera_saberes/partera_saberes_screen.dart';
 import 'screens/especialistas/especialistas_screen.dart';
-import 'screens/saberes_ancestrales_screen.dart';
 import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
 import 'core/app_theme.dart';
@@ -119,8 +118,9 @@ class DispersaludApp extends StatelessWidget {
           '/historia-clinica': (context) => const HistoriaClinicaScreen(),
           '/reportar-alerta':  (context) => const ReportarAlertaScreen(),
           '/seguimiento':      (context) => const SeguimientoScreen(),
-          '/saberes-ancestrales': (context) => const SaberesAncestalesScreen(),
-          '/partera':             (context) => const ParteraScreen(),
+          '/salud-integral':       (context) => const ParteraSaberesScreen(),
+          '/partera':              (context) => const ParteraSaberesScreen(),
+          '/saberes-ancestrales':  (context) => const ParteraSaberesScreen(),
           '/especialistas':        (context) => const EspecialistasScreen(),
         },
         onGenerateRoute: (settings) {
