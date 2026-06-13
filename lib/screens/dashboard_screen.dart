@@ -482,69 +482,77 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: const Color(0xFF534AB7), dt: dt,
                     onTap: () => _abrirSelectorHC()),
               ]),
-              const SizedBox(height: 8),
-              // ── SALUD INTEGRAL (Partera + Saberes Ancestrales) ─────────
+              // ── SALUD INTEGRAL ANCESTRAL ───────────────────────────────
               const SizedBox(height: 8),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () => Navigator.pushNamed(context, '/salud-integral'),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF2D0A1A), Color(0xFF0D2A15)],
+                        colors: [Color(0xFF0D1A0F), Color(0xFF1A3D20), Color(0xFF3D0A2A)],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: const Color(0xFF993556).withOpacity(0.5)),
+                          color: const Color(0xFF2ECC71).withOpacity(0.35)),
                     ),
                     child: Row(children: [
-                      // Íconos dobles partera + planta
-                      SizedBox(width: 48, height: 40,
-                        child: Stack(children: [
-                          Positioned(left: 0, child: Container(
-                            width: 34, height: 34,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF993556).withOpacity(0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: const Color(0xFF993556).withOpacity(0.5)),
-                            ),
-                            child: const Icon(Icons.favorite_rounded,
-                                color: Color(0xFFF48FB1), size: 18),
-                          )),
-                          Positioned(left: 18, top: 6, child: Container(
-                            width: 28, height: 28,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A7A42).withOpacity(0.3),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: const Color(0xFF2ECC71).withOpacity(0.5)),
-                            ),
-                            child: const Icon(Icons.eco_rounded,
-                                color: Color(0xFF2ECC71), size: 14),
-                          )),
-                        ]),
-                      ),
-                      const SizedBox(width: 8),
+                      // Íconos superpuestos partera + planta
+                      SizedBox(width: 52, height: 44, child: Stack(children: [
+                        Positioned(top: 0, left: 0, child: Container(
+                          width: 38, height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF993556).withOpacity(0.25),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: const Color(0xFF993556).withOpacity(0.4)),
+                          ),
+                          child: const Icon(Icons.favorite_rounded,
+                              color: Color(0xFFF48FB1), size: 18),
+                        )),
+                        Positioned(bottom: 0, right: 0, child: Container(
+                          width: 32, height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A7A42).withOpacity(0.3),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: const Color(0xFF2ECC71).withOpacity(0.5)),
+                          ),
+                          child: const Icon(Icons.eco_rounded,
+                              color: Color(0xFF2ECC71), size: 15),
+                        )),
+                      ])),
+                      const SizedBox(width: 12),
                       const Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Salud Integral',
+                          Text('Salud Integral Ancestral',
                               style: TextStyle(color: Colors.white,
-                                  fontWeight: FontWeight.bold, fontSize: 13)),
-                          SizedBox(height: 2),
-                          Text('Partera · Saberes Ancestrales · IA',
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                          SizedBox(height: 3),
+                          Text('Partería + Saberes Ancestrales + IA',
                               style: TextStyle(
                                   color: Color(0xFFB2DFDB), fontSize: 10)),
+                          SizedBox(height: 5),
+                          Row(children: [
+                            _BadgeTag(texto: 'Partera',
+                                color: Color(0xFF993556)),
+                            SizedBox(width: 5),
+                            _BadgeTag(texto: 'Plantas medicinales',
+                                color: Color(0xFF1A7A42)),
+                            SizedBox(width: 5),
+                            _BadgeTag(texto: 'IA',
+                                color: Color(0xFF534AB7)),
+                          ]),
                         ],
                       )),
                       const Icon(Icons.chevron_right_rounded,
-                          color: Colors.white54, size: 20),
+                          color: Colors.white54, size: 22),
                     ]),
                   ),
                 ),
@@ -1670,5 +1678,23 @@ class _SelectorPacienteHCState extends State<_SelectorPacienteHC> {
             style: TextStyle(color: _kVerde)),
       ),
     ]),
+  );
+}
+// ── Widget auxiliar para badges del botón Salud Integral ─────────────────────
+class _BadgeTag extends StatelessWidget {
+  final String texto;
+  final Color color;
+  const _BadgeTag({required this.texto, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.2),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: color.withOpacity(0.5)),
+    ),
+    child: Text(texto, style: TextStyle(
+        color: color, fontSize: 8.5, fontWeight: FontWeight.w600)),
   );
 }
