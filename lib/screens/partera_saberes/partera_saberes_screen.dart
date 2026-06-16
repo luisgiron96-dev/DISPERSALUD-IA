@@ -1,9 +1,16 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../database/database_helper.dart';
 import '../../services/ia_service.dart';
 import '../../services/connectivity_service.dart';
+import '../../services/pdf_service.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  partera_saberes_screen.dart — DISPERSALUD IA
@@ -221,8 +228,22 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   final _buscarPlantaCtrl = TextEditingController();
   String _buscarPlanta = '';
 
-  // Controles gestacionales realizados (simulado por semanas actuales)
-  int _semanasActuales = 32;
+  // Controles gestacionales realizados — calculado desde consultas reales
+  int _semanasActuales = 0;
+  List<Map<String, dynamic>> _consultasPaciente = [];
+
+  // Audio (notas de voz)
+  final _recorder = AudioRecorder();
+  final _audioPlayer = AudioPlayer();
+  bool _grabando = false;
+  bool _reproduciendo = false;
+  String? _audioPath;
+  Duration _audioPos = Duration.zero;
+  Duration _audioDur = Duration.zero;
+
+  // Foto evidencia
+  String? _fotoPath;
+  final _picker = ImagePicker();
 
   // IA
   String? _respuestaIA;
@@ -245,6 +266,16 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
       'texto': '🌿 Soy DISPERSALUD IA. Selecciona paciente, partera y motivo '
           'de consulta para un análisis integral.',
     });
+
+    _audioPlayer.onPositionChanged.listen((p) {
+      if (mounted) setState(() => _audioPos = p);
+    });
+    _audioPlayer.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _audioDur = d);
+    });
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() { _reproduciendo = false; _audioPos = Duration.zero; });
+    });
   }
 
   @override
@@ -253,6 +284,8 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     _notasCtrl.dispose();
     _chatCtrl.dispose();
     _buscarPlantaCtrl.dispose();
+    _recorder.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -343,23 +376,114 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   Future<void> _guardar() async {
     if (_pacienteSel == null) { _snack('Selecciona un paciente'); return; }
     setState(() => _guardando = true);
+    final pacienteId = _pacienteSel!['id'] as int;
     await DatabaseHelper.instance.insertarConsulta({
-      'paciente_id':   _pacienteSel!['id'],
+      'paciente_id':   pacienteId,
       'nombre':        _pacienteSel!['nombre'],
       'modulo':        'Salud Integral Ancestral',
       'diagnostico':   _desequilSel.isNotEmpty ? _desequilSel : _motivoSel,
       'observaciones': 'Partera: ${_parteraSel?['nombre'] ?? '-'}. '
                        'Motivo: $_motivoSel. Notas: ${_notasCtrl.text}. '
-                       'IA: ${_respuestaIA ?? 'Sin análisis'}',
+                       'IA: ${_respuestaIA ?? 'Sin análisis'}'
+                       '${_audioPath != null ? ' [Nota de voz adjunta]' : ''}'
+                       '${_fotoPath != null ? ' [Evidencia fotográfica adjunta]' : ''}',
       'nivel_riesgo':  _nivelRiesgo ?? 'estable',
+      'semanas':       _semanasActuales > 0 ? '$_semanasActuales' : null,
       'fecha':         DateTime.now().toIso8601String(),
     });
     if (mounted) {
-      setState(() => _guardando = false);
+      setState(() {
+        _guardando = false;
+        _audioPath = null;
+        _fotoPath  = null;
+        _notasCtrl.clear();
+      });
       _snack('✅ Atención integral registrada exitosamente');
+      await _cargarConsultasPaciente(pacienteId);
       _cargar();
     }
   }
+
+  Future<void> _generarReporte() async {
+    if (_pacienteSel == null) {
+      _snack('Selecciona un paciente para generar el reporte');
+      return;
+    }
+    final id = _pacienteSel!['id'];
+    if (id == null) {
+      _snack('Paciente sin identificador válido');
+      return;
+    }
+    _snack('Generando reporte PDF...');
+    await PdfService.generarYCompartir(
+      context: context,
+      pacienteId: id as int,
+      pacienteNombre: _pacienteSel!['nombre'] as String? ?? 'Paciente',
+    );
+  }
+
+  void _verPerfilPartera() {
+    if (_parteraSel == null) {
+      _snack('Selecciona una partera primero');
+      return;
+    }
+    final p = _parteraSel!;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kMorado.withOpacity(0.15),
+                border: Border.all(color: _kMoradoC.withOpacity(0.4), width: 2),
+              ),
+              child: const Icon(Icons.self_improvement_rounded, color: _kMoradoC, size: 36),
+            ),
+            const SizedBox(height: 12),
+            Text(p['nombre'] as String? ?? '-',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(p['especialidad'] as String? ?? '-',
+                style: const TextStyle(color: _kMoradoC, fontSize: 12)),
+            const SizedBox(height: 14),
+            _filaPerfilDialog(Icons.star_outline_rounded, 'Experiencia',
+                '${p['anios_exp'] ?? '-'} años'),
+            _filaPerfilDialog(Icons.location_on_outlined, 'Ubicación',
+                p['ciudad'] as String? ?? '-'),
+            _filaPerfilDialog(Icons.phone_outlined, 'Teléfono',
+                p['telefono'] as String? ?? '-'),
+            _filaPerfilDialog(Icons.star_rounded, 'Calificación',
+                '${p['calificacion'] ?? '-'} / 5.0'),
+            _filaPerfilDialog(Icons.circle, 'Disponibilidad',
+                (p['disponible'] == 1) ? 'Disponible' : 'No disponible'),
+            const SizedBox(height: 16),
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _kMoradoC,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            )),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _filaPerfilDialog(IconData icono, String label, String valor) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(children: [
+      Icon(icono, color: _kTextoH, size: 14),
+      const SizedBox(width: 8),
+      Text('$label: ', style: const TextStyle(color: _kTextoH, fontSize: 11.5)),
+      Expanded(child: Text(valor, style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600))),
+    ]),
+  );
 
   Future<void> _visitaDomiciliaria() async {
     if (_pacienteSel == null) { _snack('Selecciona un paciente primero'); return; }
@@ -444,6 +568,12 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kFondo,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: _kMorado,
+        tooltip: 'Chat con IA DISPERSALUD',
+        onPressed: _mostrarChatIA,
+        child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 24),
+      ),
       body: SafeArea(
         child: Column(children: [
           _header(),
@@ -459,13 +589,23 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── PACIENTE + PARTERA ──────────────────────────
-                          Row(crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 6, child: _cardPaciente()),
-                              const SizedBox(width: 10),
-                              Expanded(flex: 5, child: _cardPartera()),
-                            ]),
+                          // ── PACIENTE + PARTERA (apiladas en móvil) ───────
+                          LayoutBuilder(builder: (ctx, constraints) {
+                            final ancho = constraints.maxWidth;
+                            if (ancho < 600) {
+                              return Column(children: [
+                                _cardPaciente(),
+                                const SizedBox(height: 10),
+                                _cardPartera(),
+                              ]);
+                            }
+                            return Row(crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 6, child: _cardPaciente()),
+                                const SizedBox(width: 10),
+                                Expanded(flex: 5, child: _cardPartera()),
+                              ]);
+                          }),
                           const SizedBox(height: 12),
 
                           // ── RIESGO ACTUAL ────────────────────────────────
@@ -477,16 +617,27 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
                           const SizedBox(height: 12),
 
                           // ── CONTROL GESTACIONAL + EVOLUCIÓN ──────────────
-                          Row(crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 5, child: _cardControlGestacional()),
-                              const SizedBox(width: 10),
-                              Expanded(flex: 6, child: Column(children: [
+                          LayoutBuilder(builder: (ctx, constraints) {
+                            if (constraints.maxWidth < 600) {
+                              return Column(children: [
+                                _cardControlGestacional(),
+                                const SizedBox(height: 12),
                                 _cardEvolucion(),
                                 const SizedBox(height: 12),
                                 _cardBibliotecaPlantas(),
-                              ])),
-                            ]),
+                              ]);
+                            }
+                            return Row(crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 5, child: _cardControlGestacional()),
+                                const SizedBox(width: 10),
+                                Expanded(flex: 6, child: Column(children: [
+                                  _cardEvolucion(),
+                                  const SizedBox(height: 12),
+                                  _cardBibliotecaPlantas(),
+                                ])),
+                              ]);
+                          }),
                           const SizedBox(height: 12),
 
                           // ── RECOMENDACIONES PARTERA ──────────────────────
@@ -498,16 +649,27 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
                           const SizedBox(height: 12),
 
                           // ── IA + ALERTAS + HISTORIAL ─────────────────────
-                          Row(crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 5, child: _cardIA()),
-                              const SizedBox(width: 10),
-                              Expanded(flex: 6, child: Column(children: [
+                          LayoutBuilder(builder: (ctx, constraints) {
+                            if (constraints.maxWidth < 600) {
+                              return Column(children: [
+                                _cardIA(),
+                                const SizedBox(height: 12),
                                 _cardSignosAlarma(),
                                 const SizedBox(height: 12),
                                 _cardHistorial(),
-                              ])),
-                            ]),
+                              ]);
+                            }
+                            return Row(crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 5, child: _cardIA()),
+                                const SizedBox(width: 10),
+                                Expanded(flex: 6, child: Column(children: [
+                                  _cardSignosAlarma(),
+                                  const SizedBox(height: 12),
+                                  _cardHistorial(),
+                                ])),
+                              ]);
+                          }),
                           const SizedBox(height: 16),
 
                           // ── BOTÓN REGISTRAR ATENCIÓN ─────────────────────
@@ -530,59 +692,66 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     decoration: const BoxDecoration(
       border: Border(bottom: BorderSide(color: _kBorder)),
     ),
-    child: Row(children: [
-      IconButton(
-        onPressed: () => Navigator.of(context).pop(),
-        icon: const Icon(Icons.arrow_back_rounded, color: _kTexto, size: 22),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      ),
-      const SizedBox(width: 4),
-      const Icon(Icons.eco_rounded, color: _kVerdeBI, size: 22),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Salud Integral Materna y Ancestral',
-                style: TextStyle(color: Colors.white, fontSize: 16,
-                    fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-            Text('Atención integral con saberes ancestrales e IA DISPERSALUD',
-                style: const TextStyle(color: _kVerdeBI, fontSize: 10),
-                overflow: TextOverflow.ellipsis),
-          ],
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded, color: _kTexto, size: 22),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         ),
-      ),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: (_online ? _kVerdeBI : _kTextoH).withOpacity(0.12),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: (_online ? _kVerdeBI : _kTextoH).withOpacity(0.4)),
+        const SizedBox(width: 4),
+        const Icon(Icons.eco_rounded, color: _kVerdeBI, size: 20),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text('Salud Integral Materna y Ancestral',
+              maxLines: 2,
+              style: TextStyle(color: Colors.white, fontSize: 15,
+                  fontWeight: FontWeight.bold, height: 1.2)),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(
-              shape: BoxShape.circle, color: _online ? _kVerdeBI : _kTextoH)),
-          const SizedBox(width: 5),
-          Text(_online ? 'En línea' : 'Sin conexión',
-              style: TextStyle(color: _online ? _kVerdeBI : _kTextoH,
-                  fontSize: 10, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 6),
+        Stack(children: [
+          const Icon(Icons.notifications_none_rounded, color: _kTexto, size: 22),
+          if (_kSignosAlarma.isNotEmpty)
+            Positioned(right: 0, top: 0, child: Container(
+              width: 14, height: 14,
+              decoration: const BoxDecoration(color: _kRojo, shape: BoxShape.circle),
+              child: Center(child: Text('${_kSignosAlarma.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 8,
+                      fontWeight: FontWeight.bold))),
+            )),
+        ]),
+        const SizedBox(width: 6),
+        const Icon(Icons.more_vert_rounded, color: _kTexto, size: 20),
+      ]),
+      const SizedBox(height: 6),
+      Padding(
+        padding: const EdgeInsets.only(left: 42),
+        child: Row(children: [
+          const Expanded(
+            child: Text('Atención integral con saberes ancestrales e IA DISPERSALUD',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _kVerdeBI, fontSize: 10)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: (_online ? _kVerdeBI : _kTextoH).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: (_online ? _kVerdeBI : _kTextoH).withOpacity(0.4)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 6, height: 6, decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: _online ? _kVerdeBI : _kTextoH)),
+              const SizedBox(width: 5),
+              Text(_online ? 'En línea' : 'Sin conexión',
+                  style: TextStyle(color: _online ? _kVerdeBI : _kTextoH,
+                      fontSize: 9.5, fontWeight: FontWeight.w600)),
+            ]),
+          ),
         ]),
       ),
-      const SizedBox(width: 8),
-      Stack(children: [
-        const Icon(Icons.notifications_none_rounded, color: _kTexto, size: 22),
-        if (_kSignosAlarma.isNotEmpty)
-          Positioned(right: 0, top: 0, child: Container(
-            width: 14, height: 14,
-            decoration: const BoxDecoration(color: _kRojo, shape: BoxShape.circle),
-            child: Center(child: Text('${_kSignosAlarma.length}',
-                style: const TextStyle(color: Colors.white, fontSize: 8,
-                    fontWeight: FontWeight.bold))),
-          )),
-      ]),
-      const SizedBox(width: 6),
-      const Icon(Icons.more_vert_rounded, color: _kTexto, size: 20),
     ]),
   );
 
@@ -624,8 +793,8 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14,
+                Text(nombre, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 15,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 3),
                 _filaIcono(Icons.cake_outlined, '$edad años'),
@@ -685,8 +854,8 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14,
+                Text(nombre, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 15,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 3),
                 _filaIcono(Icons.star_outline_rounded, '$exp años de experiencia'),
@@ -704,7 +873,7 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
           const SizedBox(height: 6),
           SizedBox(width: double.infinity, child: _miniBoton(
               Icons.person_outline_rounded, 'Ver perfil', _kMoradoC,
-              () => _snack('Perfil de ${_parteraSel?['nombre'] ?? 'partera'}'))),
+              _verPerfilPartera)),
         ]),
       ),
     );
@@ -735,6 +904,12 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   Widget _cardRiesgoActual() {
     final color = _colorNivel(_nivelRiesgo ?? 'BAJO');
     final nivelTexto = _nivelRiesgo ?? 'BAJO RIESGO';
+    final subtitulo = switch (_nivelRiesgo) {
+      'URGENTE' => 'Requiere atención inmediata',
+      'ALTO'    => 'Requiere seguimiento cercano',
+      'MODERADO'=> 'Vigilar evolución de la gestante',
+      _         => 'Estado de la gestante estable',
+    };
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -754,8 +929,8 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
                 fontWeight: FontWeight.bold, letterSpacing: 0.5)),
             Text(nivelTexto.contains('RIESGO') ? nivelTexto : '$nivelTexto RIESGO',
                 style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
-            const Text('Estado de la gestante estable',
-                style: TextStyle(color: _kTextoS, fontSize: 10)),
+            Text(subtitulo,
+                style: const TextStyle(color: _kTextoS, fontSize: 10)),
           ]),
         ),
         const SizedBox(width: 8),
@@ -790,7 +965,7 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
       (Icons.home_outlined, 'Visita\ndomiciliaria', _kAzul, _visitaDomiciliaria),
       (Icons.eco_outlined, 'Nueva\nrecomendación', _kVerdeBI, () => _snack('Selecciona recomendaciones abajo')),
       (Icons.smart_toy_outlined, 'Análisis\nIA', _kMoradoC, _analizarIA),
-      (Icons.description_outlined, 'Generar\nreporte', _kTextoS, () => _snack('Generando reporte...')),
+      (Icons.description_outlined, 'Generar\nreporte', _kTextoS, _generarReporte),
     ];
     return SizedBox(
       height: 64,
@@ -836,13 +1011,15 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
           Expanded(child: _statBox(Icons.monitor_weight_outlined, 'Peso', '68 kg', 'Normal', _kVerdeBI)),
           const SizedBox(width: 8),
           Expanded(child: _statBox(Icons.favorite_outline_rounded, 'T. Arterial', '120/80', 'mmHg', _kAzul)),
-          const SizedBox(width: 8),
-          Expanded(child: _statBox(Icons.height_outlined, 'Altura uterina', '30 cm', 'Normal', _kVerdeBI)),
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(child: _statBox(Icons.directions_run_rounded, 'Mov. fetales', 'Normales', 'Activos', _kVerdeBI)),
+          Expanded(child: _statBox(Icons.height_outlined, 'Altura uterina', '30 cm', 'Normal', _kVerdeBI)),
           const SizedBox(width: 8),
+          Expanded(child: _statBox(Icons.directions_run_rounded, 'Mov. fetales', 'Normales', 'Activos', _kVerdeBI)),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
           Expanded(child: _statBox(Icons.favorite_rounded, 'Latidos fetales', '145 lpm', 'Normal', _kRosa)),
           const SizedBox(width: 8),
           Expanded(child: _statBox(Icons.water_drop_outlined, 'Edema', 'No', 'Sin edema', _kVerdeBI)),
@@ -882,6 +1059,8 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   Widget _cardEvolucion() {
     final realizados = _kSemanasControl.where((s) => s <= _semanasActuales).length;
+    final sinDatos = _pacienteSel == null;
+    final sinSemanas = _pacienteSel != null && _semanasActuales == 0;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -893,39 +1072,53 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
             style: TextStyle(color: _kVerdeBI, fontSize: 10,
                 fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 40,
-          child: Row(
-            children: List.generate(_kSemanasControl.length, (i) {
-              final sem = _kSemanasControl[i];
-              final hecho = sem <= _semanasActuales;
-              return Expanded(child: Row(children: [
-                if (i > 0) Expanded(child: Container(height: 1.5,
-                    color: hecho ? _kVerdeBI.withOpacity(0.5) : _kBorder)),
-                Container(
-                  width: 18, height: 18,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: hecho ? _kVerdeBI : Colors.transparent,
-                    border: Border.all(color: hecho ? _kVerdeBI : _kBorder, width: 1.5),
+        if (sinDatos)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Selecciona una paciente para ver su evolución',
+                style: TextStyle(color: _kTextoH, fontSize: 10.5)),
+          )
+        else if (sinSemanas)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Aún no hay controles con semanas de gestación registradas',
+                style: TextStyle(color: _kTextoH, fontSize: 10.5)),
+          )
+        else ...[
+          SizedBox(
+            height: 40,
+            child: Row(
+              children: List.generate(_kSemanasControl.length, (i) {
+                final sem = _kSemanasControl[i];
+                final hecho = sem <= _semanasActuales;
+                return Expanded(child: Row(children: [
+                  if (i > 0) Expanded(child: Container(height: 1.5,
+                      color: hecho ? _kVerdeBI.withOpacity(0.5) : _kBorder)),
+                  Container(
+                    width: 18, height: 18,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: hecho ? _kVerdeBI : Colors.transparent,
+                      border: Border.all(color: hecho ? _kVerdeBI : _kBorder, width: 1.5),
+                    ),
+                    child: hecho
+                        ? const Icon(Icons.check_rounded, color: Colors.white, size: 12)
+                        : null,
                   ),
-                  child: hecho
-                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 12)
-                      : null,
-                ),
-              ]));
-            }),
+                ]));
+              }),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: _kSemanasControl.map((s) => Expanded(child: Text(
-            '$s\nsem', textAlign: TextAlign.center,
-            style: const TextStyle(color: _kTextoH, fontSize: 7.5, height: 1.2)))).toList(),
-        ),
-        const SizedBox(height: 8),
-        Text('$realizados controles realizados',
-            style: const TextStyle(color: _kVerdeBI, fontSize: 10, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Row(
+            children: _kSemanasControl.map((s) => Expanded(child: Text(
+              '$s\nsem', textAlign: TextAlign.center,
+              style: const TextStyle(color: _kTextoH, fontSize: 7.5, height: 1.2)))).toList(),
+          ),
+          const SizedBox(height: 8),
+          Text('$realizados controles realizados · $_semanasActuales semanas actuales',
+              style: const TextStyle(color: _kVerdeBI, fontSize: 10, fontWeight: FontWeight.w600)),
+        ],
       ]),
     );
   }
@@ -1113,13 +1306,134 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
         )),
         const SizedBox(height: 6),
         Row(children: [
-          Expanded(child: _miniBoton(Icons.mic_none_rounded, 'Grabar audio', _kRosa,
-              () => _snack('Función de audio no disponible en esta versión'))),
+          Expanded(child: _miniBoton(
+              _grabando ? Icons.stop_circle_rounded : Icons.mic_none_rounded,
+              _grabando ? 'Detener' : 'Grabar audio',
+              _grabando ? _kRojo : _kRosa,
+              _toggleGrabacion)),
           const SizedBox(width: 8),
           Expanded(child: _miniBoton(Icons.camera_alt_outlined, 'Tomar foto', _kRosa,
-              () => _snack('Función de cámara no disponible en esta versión'))),
+              _tomarFoto)),
         ]),
+        if (_audioPath != null) ...[
+          const SizedBox(height: 10),
+          _reproductorAudio(),
+        ],
+        if (_fotoPath != null) ...[
+          const SizedBox(height: 10),
+          _vistaFotoEvidencia(),
+        ],
       ]),
+    );
+  }
+
+  // ── AUDIO ────────────────────────────────────────────────────────────────
+  Future<void> _toggleGrabacion() async {
+    if (_grabando) {
+      final path = await _recorder.stop();
+      setState(() { _grabando = false; _audioPath = path; });
+      if (path != null) _snack('🎙️ Audio guardado correctamente');
+      return;
+    }
+    final permiso = await _recorder.hasPermission();
+    if (!permiso) {
+      _snack('Permiso de micrófono denegado');
+      return;
+    }
+    final dir = kIsWeb ? null : await getApplicationDocumentsDirectory();
+    final filePath = kIsWeb
+        ? 'nota_${DateTime.now().millisecondsSinceEpoch}.m4a'
+        : '${dir!.path}/nota_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(), path: filePath);
+    setState(() { _grabando = true; _audioPath = null; });
+  }
+
+  Future<void> _toggleReproduccion() async {
+    if (_audioPath == null) return;
+    if (_reproduciendo) {
+      await _audioPlayer.pause();
+      setState(() => _reproduciendo = false);
+    } else {
+      await _audioPlayer.play(DeviceFileSource(_audioPath!));
+      setState(() => _reproduciendo = true);
+    }
+  }
+
+  Widget _reproductorAudio() {
+    final total = _audioDur.inMilliseconds == 0 ? 1 : _audioDur.inMilliseconds;
+    final progreso = (_audioPos.inMilliseconds / total).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kCardAlt, borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(children: [
+        GestureDetector(
+          onTap: _toggleReproduccion,
+          child: Icon(_reproduciendo ? Icons.pause_circle_filled_rounded
+              : Icons.play_circle_fill_rounded, color: _kRosa, size: 28),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ClipRRect(borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(value: progreso, minHeight: 4,
+                backgroundColor: _kBorder, color: _kRosa)),
+          const SizedBox(height: 3),
+          Text('${_fmtDur(_audioPos)} / ${_fmtDur(_audioDur)}',
+              style: const TextStyle(color: _kTextoH, fontSize: 9)),
+        ])),
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: () => setState(() { _audioPath = null; _reproduciendo = false; }),
+          child: const Icon(Icons.delete_outline_rounded, color: _kTextoH, size: 18),
+        ),
+      ]),
+    );
+  }
+
+  String _fmtDur(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(1, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  // ── CÁMARA ───────────────────────────────────────────────────────────────
+  Future<void> _tomarFoto() async {
+    try {
+      final XFile? foto = await _picker.pickImage(
+          source: ImageSource.camera, imageQuality: 70);
+      if (foto != null) {
+        setState(() => _fotoPath = foto.path);
+        _snack('📷 Foto capturada correctamente');
+      }
+    } catch (e) {
+      _snack('No se pudo acceder a la cámara: $e');
+    }
+  }
+
+  Widget _vistaFotoEvidencia() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(children: [
+          kIsWeb
+              ? Image.network(_fotoPath!, height: 140, width: double.infinity, fit: BoxFit.cover)
+              : Image.file(File(_fotoPath!), height: 140, width: double.infinity, fit: BoxFit.cover),
+          Positioned(right: 6, top: 6, child: GestureDetector(
+            onTap: () => setState(() => _fotoPath = null),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+              child: const Icon(Icons.close_rounded, color: Colors.white, size: 16),
+            ),
+          )),
+        ]),
+      ),
     );
   }
 
@@ -1199,7 +1513,9 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
           Text(_respuestaIA!, style: const TextStyle(color: _kTextoS, fontSize: 10.5, height: 1.5))
         else
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _itemIA('Embarazo: $_semanasActuales semanas'),
+            _itemIA(_semanasActuales > 0
+                ? 'Embarazo: $_semanasActuales semanas'
+                : 'Embarazo: semanas no registradas aún'),
             _itemIA('Signos vitales: Normales'),
             _itemIA('Riesgo materno: Bajo'),
             _itemIA('Riesgo fetal: Bajo'),
@@ -1333,10 +1649,27 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
         titulo: 'Selecciona paciente',
         items: _pacientes,
         labelBuilder: (p) => p['nombre'] as String? ?? '-',
-        subBuilder: (p) => '${p['edad'] ?? '-'} años · ${p['vereda'] ?? p['municipio'] ?? '-'}',
-        onSelect: (p) => setState(() => _pacienteSel = p),
+        subBuilder: (p) => '${p['edad'] ?? '-'} años · ${p['vereda']?.toString().isNotEmpty == true ? p['vereda'] : (p['municipio'] ?? '-')}',
+        onSelect: (p) {
+          setState(() => _pacienteSel = p);
+          _cargarConsultasPaciente(p['id'] as int);
+        },
       ),
     );
+  }
+
+  Future<void> _cargarConsultasPaciente(int pacienteId) async {
+    final consultas = await DatabaseHelper.instance.consultasPorPaciente(pacienteId);
+    int semanas = 0;
+    for (final c in consultas) {
+      final s = int.tryParse((c['semanas'] as String? ?? '').trim());
+      if (s != null && s > semanas) semanas = s;
+    }
+    if (mounted) setState(() {
+      _consultasPaciente = consultas;
+      _semanasActuales = semanas;
+      _historial = consultas.isNotEmpty ? consultas : _historial;
+    });
   }
 
   void _seleccionarPartera() {
