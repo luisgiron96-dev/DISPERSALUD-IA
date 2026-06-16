@@ -19,12 +19,12 @@ class DatabaseHelper {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -101,6 +101,23 @@ class DatabaseHelper {
         created_at       TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS fichas_epidemiologicas (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo_evento       TEXT NOT NULL,
+        nombre_evento       TEXT NOT NULL,
+        estado              TEXT DEFAULT 'borrador',
+        exportado           INTEGER DEFAULT 0,
+        datos_json          TEXT,
+        nombre_paciente     TEXT,
+        municipio           TEXT,
+        fecha_notificacion  TEXT,
+        nivel_urgencia      TEXT DEFAULT 'normal',
+        created_at          TEXT DEFAULT (datetime('now','localtime')),
+        updated_at          TEXT DEFAULT (datetime('now','localtime'))
+      )
+    ''');
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -139,6 +156,26 @@ class DatabaseHelper {
         ''');
       } catch (_) {}
       try { await db.execute('ALTER TABLE especialistas ADD COLUMN foto_path TEXT DEFAULT ""'); } catch (_) {}
+    }
+    if (oldVersion < 6) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS fichas_epidemiologicas (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_evento       TEXT NOT NULL,
+            nombre_evento       TEXT NOT NULL,
+            estado              TEXT DEFAULT 'borrador',
+            exportado           INTEGER DEFAULT 0,
+            datos_json          TEXT,
+            nombre_paciente     TEXT,
+            municipio           TEXT,
+            fecha_notificacion  TEXT,
+            nivel_urgencia      TEXT DEFAULT 'normal',
+            created_at          TEXT DEFAULT (datetime('now','localtime')),
+            updated_at          TEXT DEFAULT (datetime('now','localtime'))
+          )
+        ''');
+      } catch (_) {}
     }
   }
 
@@ -457,6 +494,57 @@ class DatabaseHelper {
     } catch (_) {
       return 0;
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // FICHAS EPIDEMIOLÓGICAS (SIVIGILA)
+  // ════════════════════════════════════════════════════════════════════
+
+  Future<int> insertarFicha(Map<String, dynamic> data) async {
+    final db = await database;
+    return await db.insert('fichas_epidemiologicas', data,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<int> actualizarFicha(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    data['updated_at'] = DateTime.now().toIso8601String();
+    return await db.update('fichas_epidemiologicas', data,
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<Map<String, dynamic>?> obtenerFicha(int id) async {
+    final db   = await database;
+    final rows = await db.query('fichas_epidemiologicas',
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerFichas({String? codigoEvento}) async {
+    final db = await database;
+    if (codigoEvento != null && codigoEvento.isNotEmpty) {
+      return await db.query('fichas_epidemiologicas',
+          where: 'codigo_evento = ?', whereArgs: [codigoEvento],
+          orderBy: 'created_at DESC');
+    }
+    return await db.query('fichas_epidemiologicas', orderBy: 'created_at DESC');
+  }
+
+  Future<int> eliminarFicha(int id) async {
+    final db = await database;
+    return await db.delete('fichas_epidemiologicas',
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> totalFichas({String? estado}) async {
+    final db = await database;
+    if (estado != null) {
+      return Sqflite.firstIntValue(await db.rawQuery(
+          'SELECT COUNT(*) FROM fichas_epidemiologicas WHERE estado = ?',
+          [estado])) ?? 0;
+    }
+    return Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM fichas_epidemiologicas')) ?? 0;
   }
 
   // ════════════════════════════════════════════════════════════════════

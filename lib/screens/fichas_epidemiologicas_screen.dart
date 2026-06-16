@@ -17,6 +17,9 @@ import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import '../core/app_theme.dart';
+import 'ficha_formulario_screen.dart';
+import 'historial_fichas_screen.dart';
+import 'fichas_reportes_screen.dart';
 
 // ── Acceso al tema ─────────────────────────────────────────────────────────
 DispersaludColors _c(BuildContext ctx) =>
@@ -199,7 +202,7 @@ const List<_Ficha> _kFichas = [
   ),
   _Ficha(
     codigo: 'RUBE', nombre: 'Rubéola / Síndrome rubéola congénita',
-    archivoAsset: 'assets/protocolos/Pro_Rubeola.pdf',
+    archivoAsset: 'assets/protocolos/Pro_Sarampión_Rubeola.pdf',
     categoria: 'inmuno', emoji: '🔴', color: _kAzul,
     descripcionCorta: 'Meta de eliminación en Colombia. Cualquier caso: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -243,7 +246,7 @@ const List<_Ficha> _kFichas = [
   ),
   _Ficha(
     codigo: 'SFILIS', nombre: 'Sífilis gestacional y congénita',
-    archivoAsset: 'assets/protocolos/Pro_Sifilis_gestacional_y_Congénita 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_Sífilis Gestacional y Congénita 2024.pdf',
     categoria: 'its', emoji: '🤰', color: Color(0xFF993556),
     descripcionCorta: 'Caso de sífilis congénita: notificación inmediata. Meta eliminación.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -435,21 +438,21 @@ const List<_Ficha> _kFichas = [
   ),
   _Ficha(
     codigo: 'CANCER', nombre: 'Cáncer de mama y cuello uterino',
-    archivoAsset: 'assets/protocolos/Pro_Cancer de mama y cuello uterino 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_Cáncer de mama y cuello uterino 2024.pdf',
     categoria: 'cronicas', emoji: '🎗️', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Tamizaje y vigilancia. Registro de casos confirmados.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'TETAN_A', nombre: 'Tétanos accidental',
-    archivoAsset: 'assets/protocolos/Pro_Tetanos accidental 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_tétanos accidental 2024.pdf',
     categoria: 'cronicas', emoji: '💉', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Inmunoprevenible. Cualquier caso confirmado: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'TETAN_N', nombre: 'Tétanos neonatal',
-    archivoAsset: 'assets/protocolos/Pro_Tetanos neonatal 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_tétanos neonatal 2024.pdf',
     categoria: 'cronicas', emoji: '👶', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Meta de eliminación. Todo caso es emergencia de salud pública.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -553,6 +556,19 @@ class _FichasEpidemiologicasScreenState
               style: TextStyle(color: _kVerde, fontSize: 10.5, fontWeight: FontWeight.w500)),
         ]),
         actions: [
+          IconButton(
+            tooltip: 'Fichas guardadas',
+            icon: const Icon(Icons.folder_open_rounded),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const FichasReportesScreen())),
+          ),
+          // Mis fichas guardadas
+          IconButton(
+            tooltip: 'Mis fichas guardadas',
+            icon: const Icon(Icons.folder_outlined, color: _kVerde),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const HistorialFichasScreen())),
+          ),
           // Filtro urgentes
           GestureDetector(
             onTap: () => setState(() => _soloUrgentes = !_soloUrgentes),
@@ -727,6 +743,17 @@ class _FichasEpidemiologicasScreenState
   );
 
   // ── Modal de detalle / info antes de abrir PDF ────────────────────
+  void _abrirFormulario(_Ficha ficha) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => FichaFormularioScreen(
+        codigoFicha: ficha.codigo,
+        nombreFicha: ficha.nombre,
+        colorFicha:  ficha.color,
+        emojiFicha:  ficha.emoji,
+      ),
+    ));
+  }
+
   void _mostrarDetalle(_Ficha ficha) {
     final dc  = _c(context);
     final clr = ficha.color;
@@ -832,26 +859,36 @@ class _FichasEpidemiologicasScreenState
           ),
           const SizedBox(height: 16),
 
-          // Botón abrir
+          // Botón llenar formulario
           SizedBox(
-            width: double.infinity,
-            height: 48,
+            width: double.infinity, height: 48,
             child: ElevatedButton.icon(
+              onPressed: () { Navigator.pop(context); _abrirFormulario(ficha); },
+              icon: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 20),
+              label: const Text('Llenar formulario SIVIGILA',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: clr, elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Botón ver PDF de referencia
+          SizedBox(
+            width: double.infinity, height: 44,
+            child: OutlinedButton.icon(
               onPressed: _abriendo == ficha.codigo
                   ? null
-                  : () {
-                      Navigator.pop(context);
-                      _abrirPDF(ficha);
-                    },
+                  : () { Navigator.pop(context); _abrirPDF(ficha); },
               icon: _abriendo == ficha.codigo
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 18),
-              label: Text(_abriendo == ficha.codigo ? 'Abriendo…' : 'Abrir ficha PDF',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: clr,
-                  elevation: 0,
+                  ? const SizedBox(width: 14, height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_rounded, size: 16),
+              label: Text(_abriendo == ficha.codigo ? 'Abriendo…' : 'Ver protocolo PDF (INS)',
+                  style: const TextStyle(fontWeight: FontWeight.w500)),
+              style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: clr),
+                  foregroundColor: clr,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),

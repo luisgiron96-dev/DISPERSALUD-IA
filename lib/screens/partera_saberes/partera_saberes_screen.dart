@@ -1,64 +1,167 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/app_theme.dart';
 import '../../database/database_helper.dart';
 import '../../services/ia_service.dart';
 import '../../services/connectivity_service.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  partera_saberes_screen.dart — DISPERSALUD IA
-//  Salud Integral Ancestral: Partería + Saberes Ancestrales en una sola pantalla
+//  Salud Integral Materna y Ancestral: Partería + Saberes Ancestrales + IA
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── Colores ──────────────────────────────────────────────────────────────────
 const _kVerde      = Color(0xFF1D9E75);
 const _kVerdeBI    = Color(0xFF2ECC71);
 const _kVerdeOsc   = Color(0xFF1A7A42);
-const _kFondo      = Color(0xFF0D1A0F);
-const _kCard       = Color(0xFF132015);
-const _kCardAlt    = Color(0xFF1A2B1C);
-const _kBorder     = Color(0xFF2A3D2C);
+const _kFondo      = Color(0xFF0B1410);
+const _kCard       = Color(0xFF11201A);
+const _kCardAlt    = Color(0xFF152419);
+const _kBorder     = Color(0xFF22372A);
 const _kTexto      = Color(0xFFE8F5E9);
-const _kTextoS     = Color(0xFFB2DFDB);
-const _kTextoH     = Color(0xFF7AAB84);
+const _kTextoS     = Color(0xFFA9C9B0);
+const _kTextoH     = Color(0xFF6E9279);
 const _kRosa       = Color(0xFF993556);
 const _kMorado     = Color(0xFF534AB7);
 const _kMoradoC    = Color(0xFF9B6FCF);
 const _kNaranja    = Color(0xFFEF9F27);
 const _kRojo       = Color(0xFFE24B4A);
 const _kDorado     = Color(0xFFC9A227);
+const _kAzul       = Color(0xFF3D8BCF);
 
-// ── Plantas medicinales ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// BIBLIOTECA DE PLANTAS — ampliada con categorías por síntoma
+// ─────────────────────────────────────────────────────────────────────────────
 class _Planta {
-  final String nombre, uso, preparacion;
-  final IconData icono;
+  final String nombre, nombreCientifico, preparacion, dosis, usoAncestral,
+      contraindicaciones;
+  final List<String> categorias;
   final Color color;
-  const _Planta({required this.nombre, required this.uso,
-      required this.preparacion, required this.icono, required this.color});
+  const _Planta({
+    required this.nombre,
+    required this.nombreCientifico,
+    required this.preparacion,
+    required this.dosis,
+    required this.usoAncestral,
+    required this.contraindicaciones,
+    required this.categorias,
+    required this.color,
+  });
 }
 
+const _kCategoriasPlantas = [
+  'Todas', 'Náuseas', 'Fiebre', 'Dolor', 'Lactancia', 'Postparto', 'Ansiedad',
+];
+
 const _kPlantas = [
-  _Planta(nombre: 'Manzanilla', uso: 'Cólicos y malestares estomacales',
-    preparacion: 'Infusión – 1 taza\n2 veces al día',
-    icono: Icons.local_florist, color: Color(0xFFDEB887)),
-  _Planta(nombre: 'Hierbabuena', uso: 'Náuseas y digestión',
-    preparacion: 'Infusión – 1 taza\ndespués de comidas',
-    icono: Icons.spa, color: _kVerdeBI),
-  _Planta(nombre: 'Ruda', uso: 'Limpieza energética y mal de aire',
-    preparacion: 'Baño – 3 veces\npor semana',
-    icono: Icons.eco, color: Color(0xFF6B8E23)),
-  _Planta(nombre: 'Toronjil', uso: 'Ansiedad y nervios',
-    preparacion: 'Infusión – 1 taza\nantes de dormir',
-    icono: Icons.spa, color: Color(0xFF90EE90)),
-  _Planta(nombre: 'Caléndula', uso: 'Inflamaciones y heridas',
-    preparacion: 'Lavado o infusión\nuso externo',
-    icono: Icons.local_florist, color: Color(0xFFFF8C00)),
+  _Planta(
+    nombre: 'Manzanilla', nombreCientifico: 'Matricaria chamomilla',
+    preparacion: 'Infusión', dosis: '1 taza, 2 veces al día',
+    usoAncestral: 'Náuseas, cólicos, digestión, malestares estomacales',
+    contraindicaciones: 'No administrar en altas cantidades en embarazo de alto riesgo.',
+    categorias: ['Náuseas', 'Dolor'],
+    color: Color(0xFFDEB887),
+  ),
+  _Planta(
+    nombre: 'Hierbabuena', nombreCientifico: 'Mentha spicata',
+    preparacion: 'Infusión', dosis: '1 taza después de comidas',
+    usoAncestral: 'Náuseas, digestión lenta, gases',
+    contraindicaciones: 'Evitar en exceso si hay reflujo severo.',
+    categorias: ['Náuseas'],
+    color: _kVerdeBI,
+  ),
+  _Planta(
+    nombre: 'Toronjil', nombreCientifico: 'Melissa officinalis',
+    preparacion: 'Infusión', dosis: '1 taza antes de dormir',
+    usoAncestral: 'Ansiedad, nervios, insomnio leve',
+    contraindicaciones: 'No combinar con sedantes sin supervisión.',
+    categorias: ['Ansiedad'],
+    color: Color(0xFF90EE90),
+  ),
+  _Planta(
+    nombre: 'Caléndula', nombreCientifico: 'Calendula officinalis',
+    preparacion: 'Lavado o infusión', dosis: 'Uso externo, 2 veces al día',
+    usoAncestral: 'Inflamaciones, heridas, grietas en pezones',
+    contraindicaciones: 'Solo uso externo durante lactancia.',
+    categorias: ['Postparto', 'Lactancia'],
+    color: Color(0xFFFF8C00),
+  ),
+  _Planta(
+    nombre: 'Jengibre', nombreCientifico: 'Zingiber officinale',
+    preparacion: 'Infusión o masticado', dosis: '1 trozo pequeño, 2 veces al día',
+    usoAncestral: 'Náuseas matutinas, mareo, digestión',
+    contraindicaciones: 'Evitar en exceso si hay riesgo de sangrado.',
+    categorias: ['Náuseas', 'Dolor'],
+    color: Color(0xFFE3A857),
+  ),
+  _Planta(
+    nombre: 'Sauco', nombreCientifico: 'Sambucus nigra',
+    preparacion: 'Infusión', dosis: '1 taza, 3 veces al día',
+    usoAncestral: 'Fiebre, gripa, resfriado',
+    contraindicaciones: 'No usar flores verdes ni en exceso.',
+    categorias: ['Fiebre'],
+    color: Color(0xFF7E57C2),
+  ),
+  _Planta(
+    nombre: 'Eucalipto', nombreCientifico: 'Eucalyptus globulus',
+    preparacion: 'Vapor o infusión', dosis: 'Inhalación 10 min, 1 vez al día',
+    usoAncestral: 'Fiebre, congestión, malestar respiratorio',
+    contraindicaciones: 'No usar en niños menores de 2 años.',
+    categorias: ['Fiebre'],
+    color: Color(0xFF4FA98C),
+  ),
+  _Planta(
+    nombre: 'Hinojo', nombreCientifico: 'Foeniculum vulgare',
+    preparacion: 'Infusión', dosis: '1 taza, 2 veces al día',
+    usoAncestral: 'Producción de leche materna, gases del bebé',
+    contraindicaciones: 'Consultar con partera antes de uso prolongado.',
+    categorias: ['Lactancia'],
+    color: Color(0xFF8BC34A),
+  ),
+  _Planta(
+    nombre: 'Anís estrellado', nombreCientifico: 'Illicium verum',
+    preparacion: 'Infusión', dosis: '1 taza después de comidas',
+    usoAncestral: 'Producción de leche, cólicos del lactante',
+    contraindicaciones: 'No confundir con anís japonés (tóxico).',
+    categorias: ['Lactancia', 'Dolor'],
+    color: Color(0xFFD4A574),
+  ),
+  _Planta(
+    nombre: 'Cola de caballo', nombreCientifico: 'Equisetum arvense',
+    preparacion: 'Infusión', dosis: '1 taza al día',
+    usoAncestral: 'Recuperación postparto, retención de líquidos',
+    contraindicaciones: 'No usar más de 2 semanas continuas.',
+    categorias: ['Postparto'],
+    color: Color(0xFF5D8AA8),
+  ),
+  _Planta(
+    nombre: 'Valeriana', nombreCientifico: 'Valeriana officinalis',
+    preparacion: 'Infusión', dosis: '1 taza antes de dormir',
+    usoAncestral: 'Ansiedad, estrés postparto, insomnio',
+    contraindicaciones: 'No combinar con otros sedantes.',
+    categorias: ['Ansiedad'],
+    color: Color(0xFFB39DDB),
+  ),
+  _Planta(
+    nombre: 'Romero', nombreCientifico: 'Rosmarinus officinalis',
+    preparacion: 'Infusión o baño', dosis: '1 taza o baño 1 vez al día',
+    usoAncestral: 'Dolor muscular, fatiga, circulación',
+    contraindicaciones: 'Evitar en cantidades altas durante embarazo.',
+    categorias: ['Dolor'],
+    color: Color(0xFF6B8E5A),
+  ),
+];
+
+const _kPlantasNoRecomendadas = [
+  ('Ruda', 'Puede provocar contracciones uterinas', Icons.warning_amber_rounded),
+  ('Poleo', 'Puede provocar abortos espontáneos', Icons.warning_amber_rounded),
+  ('Artemisa', 'Puede provocar contracciones', Icons.warning_amber_rounded),
+  ('Higuerilla', 'Tóxica en embarazo', Icons.dangerous_rounded),
 ];
 
 const _kMotivos = [
-  'Dolor abdominal', 'Náuseas', 'Embarazo',
-  'Fiebre', 'Mal de ojo', 'Espanto', 'Otro',
+  'Dolor abdominal', 'Náuseas', 'Control prenatal',
+  'Fiebre', 'Mal de ojo', 'Espanto', 'Postparto', 'Otro',
 ];
 
 const _kDesequilibrios = [
@@ -68,11 +171,12 @@ const _kDesequilibrios = [
 ];
 
 const _kRecomPartera = [
-  'Mantener reposo relativo',
-  'Beber abundante agua tibia',
-  'Alimentación balanceada',
-  'Asistir al control prenatal cada 2 semanas',
+  'Reposo relativo',
+  'Beber abundante agua de panela y limón',
+  'Alimentación balanceada con alimentos propios',
+  'Control prenatal cada 2 semanas',
   'Estar atenta a signos de alarma',
+  'Baño de hierbas tibias para relajación',
 ];
 
 const _kSignosAlarma = [
@@ -80,8 +184,10 @@ const _kSignosAlarma = [
   'Dolor abdominal intenso',
   'Fiebre mayor a 38°C',
   'Pérdida de líquido',
-  'Disminución de movimientos fetales',
+  'Disminución de mov. fetales',
 ];
+
+const _kSemanasControl = [12, 16, 20, 24, 28, 32, 36, 40];
 
 // ════════════════════════════════════════════════════════════════════════════
 class ParteraSaberesScreen extends StatefulWidget {
@@ -96,9 +202,9 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   StreamSubscription<bool>? _connSub;
 
   // Datos reales BD
-  List<Map<String, dynamic>> _pacientes   = [];
-  List<Map<String, dynamic>> _parteras    = [];
-  List<Map<String, dynamic>> _historial   = [];
+  List<Map<String, dynamic>> _pacientes = [];
+  List<Map<String, dynamic>> _parteras  = [];
+  List<Map<String, dynamic>> _historial = [];
   bool _cargando = true;
 
   // Selección
@@ -108,14 +214,20 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   // Formulario consulta
   String _motivoSel    = '';
   String _desequilSel  = '';
-  String _semanas      = '';
   final _notasCtrl = TextEditingController();
+
+  // Biblioteca de plantas
+  String _categoriaPlantaSel = 'Todas';
+  final _buscarPlantaCtrl = TextEditingController();
+  String _buscarPlanta = '';
+
+  // Controles gestacionales realizados (simulado por semanas actuales)
+  int _semanasActuales = 32;
 
   // IA
   String? _respuestaIA;
   String? _nivelRiesgo;
   bool _analizando = false;
-  bool _iaExpandida = false;
   final List<Map<String, String>> _chatIA = [];
   final _chatCtrl = TextEditingController();
   bool _enviandoIA = false;
@@ -130,7 +242,8 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     _cargar();
     _chatIA.add({
       'rol': 'ia',
-      'texto': '🌿 Soy DISPERSALUD IA. Selecciona paciente, partera y motivo de consulta para un análisis integral.',
+      'texto': '🌿 Soy DISPERSALUD IA. Selecciona paciente, partera y motivo '
+          'de consulta para un análisis integral.',
     });
   }
 
@@ -139,6 +252,7 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     _connSub?.cancel();
     _notasCtrl.dispose();
     _chatCtrl.dispose();
+    _buscarPlantaCtrl.dispose();
     super.dispose();
   }
 
@@ -151,9 +265,9 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
 
   Future<void> _cargar() async {
     setState(() => _cargando = true);
-    final pacs  = await DatabaseHelper.instance.obtenerPacientes();
-    final esps  = await DatabaseHelper.instance.obtenerEspecialistas();
-    final hoy   = await DatabaseHelper.instance.consultasRecientes(limit: 6);
+    final pacs = await DatabaseHelper.instance.obtenerPacientes();
+    final esps = await DatabaseHelper.instance.obtenerEspecialistas();
+    final hoy  = await DatabaseHelper.instance.consultasRecientes(limit: 6);
 
     final parts = esps.where((e) {
       final cat = (e['categoria_id'] as String? ?? '').toLowerCase();
@@ -167,8 +281,11 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     setState(() {
       _pacientes = pacs;
       _parteras  = parts;
-      _historial = hoy;
-      _cargando  = false;
+      _historial = hoy.where((h) =>
+          (h['modulo'] as String? ?? '').contains('Salud Integral') ||
+          (h['modulo'] as String? ?? '').contains('Ancestral')).toList();
+      if (_historial.isEmpty) _historial = hoy;
+      _cargando = false;
     });
   }
 
@@ -176,14 +293,15 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   Future<void> _analizarIA() async {
     final nombre  = _pacienteSel?['nombre'] as String? ?? 'Paciente';
     final partera = _parteraSel?['nombre']  as String? ?? 'Sin partera';
-    final sem     = _semanas.isNotEmpty ? ', $_semanas semanas de gestación' : '';
+    final sem     = ', $_semanasActuales semanas de gestación';
     final deseq   = _desequilSel.isNotEmpty ? 'Desequilibrio: $_desequilSel.' : '';
+    final motivo  = _motivoSel.isNotEmpty ? _motivoSel : 'Control general';
 
     setState(() { _analizando = true; _respuestaIA = null; });
 
     final pregunta =
-      'Consulta Salud Integral Ancestral. Paciente: $nombre$sem. '
-      'Partera/Sabedora: $partera. Motivo: $_motivoSel. $deseq '
+      'Consulta Salud Integral Materna y Ancestral. Paciente: $nombre$sem. '
+      'Partera/Sabedora: $partera. Motivo: $motivo. $deseq '
       'Indica: 1) Nivel riesgo (Bajo/Moderado/Alto/Urgente) '
       '2) Compatibilidad medicina ancestral+occidental '
       '3) Recomendación principal. Breve, en español colombiano.';
@@ -197,10 +315,9 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     else if (rl.contains('bajo'))  nivel = 'BAJO';
 
     if (mounted) setState(() {
-      _respuestaIA  = resp;
-      _nivelRiesgo  = nivel;
-      _analizando   = false;
-      _iaExpandida  = true;
+      _respuestaIA = resp;
+      _nivelRiesgo = nivel;
+      _analizando  = false;
     });
   }
 
@@ -239,55 +356,11 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     });
     if (mounted) {
       setState(() => _guardando = false);
-      _snack('✅ Consulta registrada exitosamente');
+      _snack('✅ Atención integral registrada exitosamente');
       _cargar();
     }
   }
 
-  // ── Llamar partera ────────────────────────────────────────────────────────
-  Future<void> _llamar() async {
-    final tel = (_parteraSel?['telefono'] as String? ?? '').trim();
-    if (tel.isEmpty) { _snack('Sin número de teléfono'); return; }
-    final uri = Uri.parse('tel:${tel.replaceAll(RegExp(r'[\s\-\(\)]'), '')}');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  // ── WhatsApp partera ──────────────────────────────────────────────────────
-  Future<void> _whatsApp() async {
-    String num = (_parteraSel?['telefono'] as String? ?? '')
-        .replaceAll(RegExp(r'[^\d]'), '');
-    if (num.length == 10) num = '57$num';
-    if (num.isEmpty) { _snack('Sin número registrado'); return; }
-    final msg = Uri.encodeComponent(
-      'Hola ${_parteraSel?['nombre'] ?? ''}, contacto desde DISPERSALUD IA '
-      'para atención de ${_pacienteSel?['nombre'] ?? 'paciente'}. 🌿');
-    final uri = Uri.parse('https://wa.me/$num?text=$msg');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  // ── Agendar visita ────────────────────────────────────────────────────────
-  Future<void> _agendar() async {
-    final fecha = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 7)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (_, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: _kVerdeBI)),
-        child: child!,
-      ),
-    );
-    if (fecha != null && mounted) {
-      final m = ['ene','feb','mar','abr','may','jun',
-                  'jul','ago','sep','oct','nov','dic'];
-      _snack('✅ Visita agendada: ${fecha.day} ${m[fecha.month-1]} ${fecha.year}');
-    }
-  }
-
-  // ── Registrar visita domiciliaria ─────────────────────────────────────────
   Future<void> _visitaDomiciliaria() async {
     if (_pacienteSel == null) { _snack('Selecciona un paciente primero'); return; }
     setState(() => _guardando = true);
@@ -307,6 +380,28 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     }
   }
 
+  // ── Llamar / WhatsApp partera ────────────────────────────────────────────
+  Future<void> _llamar() async {
+    final tel = (_parteraSel?['telefono'] as String? ?? '').trim();
+    if (tel.isEmpty) { _snack('Sin número de teléfono'); return; }
+    final uri = Uri.parse('tel:${tel.replaceAll(RegExp(r'[\s\-\(\)]'), '')}');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _whatsApp() async {
+    String num = (_parteraSel?['telefono'] as String? ?? '')
+        .replaceAll(RegExp(r'[^\d]'), '');
+    if (num.length == 10) num = '57$num';
+    if (num.isEmpty) { _snack('Sin número registrado'); return; }
+    final msg = Uri.encodeComponent(
+      'Hola ${_parteraSel?['nombre'] ?? ''}, contacto desde DISPERSALUD IA '
+      'para atención de ${_pacienteSel?['nombre'] ?? 'paciente'}. 🌿');
+    final uri = Uri.parse('https://wa.me/$num?text=$msg');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(msg), backgroundColor: _kVerdeOsc,
         behavior: SnackBarBehavior.floating));
@@ -320,13 +415,6 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     }
   }
 
-  String _fechaHoy() {
-    final n = DateTime.now();
-    const m = ['ene','feb','mar','abr','may','jun',
-                'jul','ago','sep','oct','nov','dic'];
-    return '${n.day} ${m[n.month-1]} ${n.year}';
-  }
-
   String _formatFecha(String? f) {
     if (f == null || f.isEmpty) return '';
     try {
@@ -337,19 +425,25 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
     } catch (_) { return f; }
   }
 
+  List<_Planta> get _plantasFiltradas {
+    var lista = List<_Planta>.from(_kPlantas);
+    if (_categoriaPlantaSel != 'Todas') {
+      lista = lista.where((p) => p.categorias.contains(_categoriaPlantaSel)).toList();
+    }
+    if (_buscarPlanta.isNotEmpty) {
+      final q = _buscarPlanta.toLowerCase();
+      lista = lista.where((p) =>
+          p.nombre.toLowerCase().contains(q) ||
+          p.usoAncestral.toLowerCase().contains(q)).toList();
+    }
+    return lista;
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kFondo,
-      bottomNavigationBar: _bottomBar(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _kMorado,
-        tooltip: 'IA DISPERSALUD',
-        onPressed: () => _mostrarChatIA(),
-        child: const Icon(Icons.smart_toy_rounded,
-            color: Colors.white, size: 24),
-      ),
       body: SafeArea(
         child: Column(children: [
           _header(),
@@ -361,48 +455,63 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
                     onRefresh: _cargar,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── PACIENTE + PARTERA ─────────────────────
+                          // ── PACIENTE + PARTERA ──────────────────────────
                           Row(crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(child: _cardPaciente()),
+                              Expanded(flex: 6, child: _cardPaciente()),
                               const SizedBox(width: 10),
-                              Expanded(child: _cardPartera()),
+                              Expanded(flex: 5, child: _cardPartera()),
                             ]),
                           const SizedBox(height: 12),
 
-                          // ── MOTIVO DE CONSULTA ─────────────────────
-                          _cardMotivo(),
+                          // ── RIESGO ACTUAL ────────────────────────────────
+                          _cardRiesgoActual(),
                           const SizedBox(height: 12),
 
-                          // ── DIAGNÓSTICO + PLANTAS ──────────────────
+                          // ── ACCIONES RÁPIDAS ─────────────────────────────
+                          _accionesRapidas(),
+                          const SizedBox(height: 12),
+
+                          // ── CONTROL GESTACIONAL + EVOLUCIÓN ──────────────
                           Row(crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(child: _cardDiagnostico()),
+                              Expanded(flex: 5, child: _cardControlGestacional()),
                               const SizedBox(width: 10),
-                              Expanded(child: _cardPlantas()),
+                              Expanded(flex: 6, child: Column(children: [
+                                _cardEvolucion(),
+                                const SizedBox(height: 12),
+                                _cardBibliotecaPlantas(),
+                              ])),
                             ]),
                           const SizedBox(height: 12),
 
-                          // ── RECOMENDACIONES PARTERA ────────────────
+                          // ── RECOMENDACIONES PARTERA ──────────────────────
                           _cardRecomPartera(),
                           const SizedBox(height: 12),
 
-                          // ── IA DISPERSALUD ─────────────────────────
-                          _cardIA(),
+                          // ── PLANTAS NO RECOMENDADAS ──────────────────────
+                          _cardPlantasNoRecomendadas(),
                           const SizedBox(height: 12),
 
-                          // ── SIGNOS ALARMA + HISTORIAL ──────────────
+                          // ── IA + ALERTAS + HISTORIAL ─────────────────────
                           Row(crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(child: _cardSignosAlarma()),
+                              Expanded(flex: 5, child: _cardIA()),
                               const SizedBox(width: 10),
-                              Expanded(child: _cardHistorial()),
+                              Expanded(flex: 6, child: Column(children: [
+                                _cardSignosAlarma(),
+                                const SizedBox(height: 12),
+                                _cardHistorial(),
+                              ])),
                             ]),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 16),
+
+                          // ── BOTÓN REGISTRAR ATENCIÓN ─────────────────────
+                          _botonRegistrarAtencion(),
                         ],
                       ),
                     ),
@@ -417,1071 +526,1043 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   // HEADER
   // ─────────────────────────────────────────────────────────────────────────
   Widget _header() => Container(
-    padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
     decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        colors: [Color(0xFF0A1A0C), Color(0xFF132015)],
-        begin: Alignment.topCenter, end: Alignment.bottomCenter),
       border: Border(bottom: BorderSide(color: _kBorder)),
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(
-                color: _kCard, borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kBorder)),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: _kTexto, size: 16),
-          ),
+    child: Row(children: [
+      IconButton(
+        onPressed: () => Navigator.of(context).pop(),
+        icon: const Icon(Icons.arrow_back_rounded, color: _kTexto, size: 22),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
+      const SizedBox(width: 4),
+      const Icon(Icons.eco_rounded, color: _kVerdeBI, size: 22),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Salud Integral Materna y Ancestral',
+                style: TextStyle(color: Colors.white, fontSize: 16,
+                    fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+            Text('Atención integral con saberes ancestrales e IA DISPERSALUD',
+                style: const TextStyle(color: _kVerdeBI, fontSize: 10),
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: (_online ? _kVerdeBI : _kTextoH).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: (_online ? _kVerdeBI : _kTextoH).withOpacity(0.4)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 6, height: 6, decoration: BoxDecoration(
+              shape: BoxShape.circle, color: _online ? _kVerdeBI : _kTextoH)),
+          const SizedBox(width: 5),
+          Text(_online ? 'En línea' : 'Sin conexión',
+              style: TextStyle(color: _online ? _kVerdeBI : _kTextoH,
+                  fontSize: 10, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+      const SizedBox(width: 8),
+      Stack(children: [
+        const Icon(Icons.notifications_none_rounded, color: _kTexto, size: 22),
+        if (_kSignosAlarma.isNotEmpty)
+          Positioned(right: 0, top: 0, child: Container(
+            width: 14, height: 14,
+            decoration: const BoxDecoration(color: _kRojo, shape: BoxShape.circle),
+            child: Center(child: Text('${_kSignosAlarma.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 8,
+                    fontWeight: FontWeight.bold))),
+          )),
+      ]),
+      const SizedBox(width: 6),
+      const Icon(Icons.more_vert_rounded, color: _kTexto, size: 20),
+    ]),
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CARD PACIENTE
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardPaciente() {
+    final nombre = _pacienteSel?['nombre'] as String? ?? 'Selecciona paciente';
+    final edad   = _pacienteSel?['edad'] as String? ?? '-';
+    final vereda = _pacienteSel?['vereda'] as String? ?? '-';
+    final eps    = _pacienteSel?['eps'] as String? ?? '-';
+    final tel    = _pacienteSel?['telefono'] as String? ?? '-';
+
+    return GestureDetector(
+      onTap: _seleccionarPaciente,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _kCard, borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text('PACIENTE (GESTANTE)',
+                style: TextStyle(color: _kTextoS, fontSize: 9,
+                    fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          ]),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kVerde.withOpacity(0.15),
+                border: Border.all(color: _kVerdeBI.withOpacity(0.4), width: 1.5),
+              ),
+              child: Icon(Icons.pregnant_woman_rounded, color: _kVerdeBI, size: 28),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 3),
+                _filaIcono(Icons.cake_outlined, '$edad años'),
+                _filaIcono(Icons.location_on_outlined, vereda, maxLines: 1),
+                _filaIcono(Icons.local_hospital_outlined, eps, maxLines: 1),
+                _filaIcono(Icons.phone_outlined, tel),
+              ]),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _filaIcono(IconData icono, String texto, {int maxLines = 1}) => Padding(
+    padding: const EdgeInsets.only(top: 2),
+    child: Row(children: [
+      Icon(icono, color: _kTextoH, size: 11),
+      const SizedBox(width: 4),
+      Expanded(child: Text(texto, maxLines: maxLines, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: _kTextoS, fontSize: 10))),
+    ]),
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CARD PARTERA
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardPartera() {
+    final nombre = _parteraSel?['nombre'] as String? ?? 'Selecciona partera/sabedora';
+    final exp    = _parteraSel?['anios_exp']?.toString() ?? '-';
+    final ciudad = _parteraSel?['ciudad'] as String? ?? '-';
+    final tel    = _parteraSel?['telefono'] as String? ?? '-';
+
+    return GestureDetector(
+      onTap: _seleccionarPartera,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _kCard, borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('PARTERA / SABEDORA',
+              style: TextStyle(color: _kMoradoC, fontSize: 9,
+                  fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kMorado.withOpacity(0.15),
+                border: Border.all(color: _kMoradoC.withOpacity(0.4), width: 1.5),
+              ),
+              child: Icon(Icons.self_improvement_rounded, color: _kMoradoC, size: 28),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 3),
+                _filaIcono(Icons.star_outline_rounded, '$exp años de experiencia'),
+                _filaIcono(Icons.location_on_outlined, ciudad, maxLines: 1),
+                _filaIcono(Icons.phone_outlined, tel),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: _miniBoton(Icons.call_rounded, 'Llamar', _kVerdeBI, _llamar)),
+            const SizedBox(width: 6),
+            Expanded(child: _miniBoton(Icons.chat_bubble_outline_rounded, 'WhatsApp', _kVerdeBI, _whatsApp)),
+          ]),
+          const SizedBox(height: 6),
+          SizedBox(width: double.infinity, child: _miniBoton(
+              Icons.person_outline_rounded, 'Ver perfil', _kMoradoC,
+              () => _snack('Perfil de ${_parteraSel?['nombre'] ?? 'partera'}'))),
+        ]),
+      ),
+    );
+  }
+
+  Widget _miniBoton(IconData icono, String texto, Color color, VoidCallback onTap) =>
+    GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icono, color: color, size: 13),
+          const SizedBox(width: 4),
+          Flexible(child: Text(texto, overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600))),
+        ]),
+      ),
+    );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RIESGO ACTUAL
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardRiesgoActual() {
+    final color = _colorNivel(_nivelRiesgo ?? 'BAJO');
+    final nivelTexto = _nivelRiesgo ?? 'BAJO RIESGO';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+          child: Icon(Icons.shield_outlined, color: color, size: 20),
         ),
         const SizedBox(width: 10),
-        const Icon(Icons.eco_rounded, color: _kVerdeBI, size: 22),
-        const SizedBox(width: 8),
-        const Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Salud Integral Ancestral',
-              style: TextStyle(color: _kTexto, fontSize: 17,
-                  fontWeight: FontWeight.bold)),
-          Text('Partería + Saberes Ancestrales',
-              style: TextStyle(color: _kVerdeBI, fontSize: 10,
-                  fontWeight: FontWeight.w600)),
-        ])),
-        // Badge online
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          decoration: BoxDecoration(
-              color: _online ? _kVerdeBI.withOpacity(0.15) : _kCard,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _online ? _kVerdeBI : _kBorder)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(_online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                color: _online ? _kVerdeBI : Colors.orange, size: 12),
-            const SizedBox(width: 4),
-            Text(_online ? 'En línea' : 'Offline',
-                style: TextStyle(
-                    color: _online ? _kVerdeBI : Colors.orange,
-                    fontSize: 10, fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('RIESGO ACTUAL', style: TextStyle(color: _kTextoH, fontSize: 9,
+                fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            Text(nivelTexto.contains('RIESGO') ? nivelTexto : '$nivelTexto RIESGO',
+                style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
+            const Text('Estado de la gestante estable',
+                style: TextStyle(color: _kTextoS, fontSize: 10)),
           ]),
         ),
         const SizedBox(width: 8),
-        // Campana
-        Stack(children: [
-          Container(width: 34, height: 34,
-              decoration: BoxDecoration(color: _kCard,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kBorder)),
-              child: const Icon(Icons.notifications_outlined,
-                  color: _kTextoS, size: 18)),
-          Positioned(top: 4, right: 4,
-              child: Container(width: 12, height: 12,
-                  decoration: const BoxDecoration(
-                      color: _kRojo, shape: BoxShape.circle),
-                  child: const Center(child: Text('3',
-                      style: TextStyle(color: Colors.white, fontSize: 7,
-                          fontWeight: FontWeight.bold))))),
-        ]),
-      ]),
-      const SizedBox(height: 4),
-      const Padding(
-        padding: EdgeInsets.only(left: 42),
-        child: Text('Atención integral para la salud de nuestra comunidad',
-            style: TextStyle(color: _kTextoH, fontSize: 10)),
-      ),
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CARD PACIENTE (GESTANTE)
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardPaciente() => _Card(
-    borde: _kRosa.withOpacity(0.4),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        const Icon(Icons.person_rounded, color: _kRosa, size: 14),
-        const SizedBox(width: 6),
-        const Text('Paciente (Gestante)',
-            style: TextStyle(color: _kRosa, fontSize: 11,
-                fontWeight: FontWeight.bold)),
-      ]),
-      const SizedBox(height: 10),
-      // Avatar
-      Row(children: [
-        Container(width: 48, height: 48,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_kRosa, Color(0xFF6B1A3A)]),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Center(child: Text(
-                _pacienteSel != null
-                    ? (_pacienteSel!['nombre'] as String? ?? 'P')
-                        .split(' ').first[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(color: Colors.white,
-                    fontSize: 20, fontWeight: FontWeight.bold)))),
-        const SizedBox(width: 8),
-        Expanded(child: Text(
-            _pacienteSel?['nombre'] as String? ?? 'Sin seleccionar',
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _kTexto, fontSize: 12,
-                fontWeight: FontWeight.bold))),
-      ]),
-      const SizedBox(height: 10),
-      // Selector
-      DropdownButtonFormField<int>(
-        value: _pacienteSel != null
-            ? _pacientes.any((p) => p['id'] == _pacienteSel!['id'])
-                ? _pacienteSel!['id'] as int
-                : null
-            : null,
-        isExpanded: true,
-        dropdownColor: _kCardAlt,
-        style: const TextStyle(color: _kTexto, fontSize: 11),
-        hint: const Text('Seleccionar paciente...',
-            style: TextStyle(color: _kTextoH, fontSize: 10)),
-        decoration: _inputDeco('Paciente'),
-        items: _pacientes.map((p) => DropdownMenuItem(
-          value: p['id'] as int,
-          child: Text(p['nombre'] as String? ?? '',
-              overflow: TextOverflow.ellipsis),
-        )).toList(),
-        onChanged: (id) => setState(() => _pacienteSel =
-            _pacientes.firstWhere((p) => p['id'] == id)),
-      ),
-      if (_pacienteSel != null) ...[
-        const SizedBox(height: 8),
-        _infoFila(Icons.calendar_today_outlined,
-            _pacienteSel!['fecha_nacimiento'] as String? ?? 'Sin edad'),
-        _infoFila(Icons.favorite_border_rounded,
-            _semanas.isNotEmpty ? '$_semanas semanas de gestación'
-                : (_pacienteSel!['modulo'] as String? ?? '')),
-        _infoFila(Icons.location_on_outlined,
-            '${_pacienteSel!['vereda'] ?? ''} ${_pacienteSel!['municipio'] ?? ''}'.trim()),
-        _infoFila(Icons.health_and_safety_outlined,
-            _pacienteSel!['regimen'] as String? ?? 'EPS-S'),
-        _infoFila(Icons.phone_outlined,
-            _pacienteSel!['telefono'] as String? ?? 'Sin teléfono'),
-      ],
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CARD PARTERA / SABEDORA
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardPartera() => _Card(
-    borde: _kVerdeBI.withOpacity(0.3),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        const Icon(Icons.star_rounded, color: _kVerdeBI, size: 14),
-        const SizedBox(width: 6),
-        const Text('Partera / Sabedora',
-            style: TextStyle(color: _kVerdeBI, fontSize: 11,
-                fontWeight: FontWeight.bold)),
-      ]),
-      const SizedBox(height: 10),
-      // Avatar
-      Row(children: [
-        Container(width: 48, height: 48,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_kVerdeOsc, _kVerdeBI]),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Center(child: Text(
-                _parteraSel != null
-                    ? (_parteraSel!['nombre'] as String? ?? 'P')
-                        .split(' ').first[0].toUpperCase()
-                    : '🌿',
-                style: const TextStyle(color: Colors.white,
-                    fontSize: 20, fontWeight: FontWeight.bold)))),
-        const SizedBox(width: 8),
-        Expanded(child: Text(
-            _parteraSel?['nombre'] as String? ?? 'Sin seleccionar',
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _kTexto, fontSize: 12,
-                fontWeight: FontWeight.bold))),
-      ]),
-      const SizedBox(height: 10),
-      if (_parteras.isEmpty)
-        GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/especialistas'),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: _kVerdeOsc.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _kVerdeBI.withOpacity(0.3))),
-            child: const Text('+ Agregar partera en Especialistas',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: _kVerdeBI, fontSize: 10)),
-          ),
-        )
-      else
-        DropdownButtonFormField<int>(
-          value: _parteraSel != null
-              ? _parteras.any((p) => p['id'] == _parteraSel!['id'])
-                  ? _parteraSel!['id'] as int
-                  : null
-              : null,
-          isExpanded: true,
-          dropdownColor: _kCardAlt,
-          style: const TextStyle(color: _kTexto, fontSize: 11),
-          hint: const Text('Seleccionar partera...',
-              style: TextStyle(color: _kTextoH, fontSize: 10)),
-          decoration: _inputDeco('Partera'),
-          items: _parteras.map((p) => DropdownMenuItem(
-            value: p['id'] as int,
-            child: Text(p['nombre'] as String? ?? '',
-                overflow: TextOverflow.ellipsis),
-          )).toList(),
-          onChanged: (id) => setState(() => _parteraSel =
-              _parteras.firstWhere((p) => p['id'] == id)),
-        ),
-      if (_parteraSel != null) ...[
-        const SizedBox(height: 8),
-        _infoFila(Icons.star_outline, _parteraSel!['especialidad'] as String? ?? 'Partera Tradicional'),
-        _infoFila(Icons.work_outline, '${_parteraSel!['anios_exp'] ?? 0} años de experiencia'),
-        _infoFila(Icons.location_on_outlined, _parteraSel!['ciudad'] as String? ?? ''),
-        _infoFila(Icons.phone_outlined, _parteraSel!['telefono'] as String? ?? ''),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-              color: _kVerdeBI.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _kVerdeBI.withOpacity(0.4))),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 6, height: 6,
-                decoration: const BoxDecoration(
-                    color: _kVerdeBI, shape: BoxShape.circle)),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          const Text('Próxima visita programada',
+              style: TextStyle(color: _kTextoH, fontSize: 9)),
+          Row(children: [
+            const Icon(Icons.event_outlined, color: _kTextoS, size: 12),
             const SizedBox(width: 4),
-            const Text('Disponible', style: TextStyle(
-                color: _kVerdeBI, fontSize: 10, fontWeight: FontWeight.w600)),
+            Text(_formatFecha(DateTime.now().add(const Duration(days: 7)).toIso8601String()),
+                style: const TextStyle(color: _kTextoS, fontSize: 11, fontWeight: FontWeight.w600)),
           ]),
-        ),
-      ],
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // MOTIVO DE CONSULTA
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardMotivo() => _Card(
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(width: 28, height: 28,
-            decoration: BoxDecoration(color: _kMorado.withOpacity(0.2),
-                shape: BoxShape.circle),
-            child: const Icon(Icons.medical_services_outlined,
-                color: _kMoradoC, size: 14)),
-        const SizedBox(width: 8),
-        const Text('Motivo de consulta',
-            style: TextStyle(color: _kTexto, fontSize: 13,
-                fontWeight: FontWeight.bold)),
-      ]),
-      const SizedBox(height: 10),
-      Wrap(spacing: 6, runSpacing: 6, children: _kMotivos.map((m) {
-        final sel = m == _motivoSel;
-        return GestureDetector(
-          onTap: () => setState(() => _motivoSel = m),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          Container(
+            margin: const EdgeInsets.only(top: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-                color: sel ? _kMorado : _kCardAlt,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: sel ? _kMoradoC : _kBorder,
-                    width: sel ? 1.5 : 1)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (sel) ...[
-                const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 10),
-                const SizedBox(width: 4),
-              ],
-              Text(m, style: TextStyle(
-                  color: sel ? Colors.white : _kTextoS,
-                  fontSize: 11,
-                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-            ]),
+                color: _kMorado.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+            child: const Text('En 7 días',
+                style: TextStyle(color: _kMoradoC, fontSize: 9, fontWeight: FontWeight.w600)),
           ),
-        );
-      }).toList()),
-      const SizedBox(height: 10),
-      // Semanas gestación
-      Row(children: [
-        const Icon(Icons.pregnant_woman_rounded, color: _kRosa, size: 14),
-        const SizedBox(width: 6),
-        const Text('Semanas de gestación (opcional):',
-            style: TextStyle(color: _kTextoH, fontSize: 10)),
-        const SizedBox(width: 8),
-        SizedBox(width: 60, child: TextField(
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: _kTexto, fontSize: 12),
-          decoration: _inputDeco('0'),
-          onChanged: (v) => setState(() => _semanas = v),
-        )),
-      ]),
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // DIAGNÓSTICO TRADICIONAL
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardDiagnostico() => _Card(
-    borde: _kVerdeBI.withOpacity(0.2),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _tituloSeccion(Icons.eco_rounded, 'Diagnóstico tradicional', _kVerdeBI),
-      const SizedBox(height: 10),
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-            color: _kFondo, borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _kBorder)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Desequilibrio identificado',
-              style: TextStyle(color: _kTextoH, fontSize: 9.5)),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            value: _desequilSel.isEmpty ? null : _desequilSel,
-            isExpanded: true,
-            dropdownColor: _kCardAlt,
-            style: const TextStyle(color: _kTexto, fontSize: 11),
-            hint: const Text('Seleccionar...',
-                style: TextStyle(color: _kTextoH, fontSize: 10)),
-            decoration: _inputDeco('Desequilibrio'),
-            items: _kDesequilibrios.map((d) => DropdownMenuItem(
-              value: d,
-              child: Text(d, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11)),
-            )).toList(),
-            onChanged: (v) => setState(() => _desequilSel = v ?? ''),
-          ),
-          if (_desequilSel.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(children: [
-              const Icon(Icons.spa_rounded, color: _kVerdeBI, size: 16),
-              const SizedBox(width: 6),
-              Expanded(child: Text(_desequilSel,
-                  style: const TextStyle(color: _kVerdeBI,
-                      fontWeight: FontWeight.bold, fontSize: 11))),
-            ]),
-            const SizedBox(height: 4),
-            Row(children: [
-              const Text('Nivel:  ',
-                  style: TextStyle(color: _kTextoH, fontSize: 10)),
-              Text(_nivelRiesgo ?? 'Moderado',
-                  style: TextStyle(
-                      color: _colorNivel(_nivelRiesgo),
-                      fontWeight: FontWeight.bold, fontSize: 10)),
-            ]),
-          ],
         ]),
-      ),
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // PLANTAS MEDICINALES
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardPlantas() => _Card(
-    borde: _kVerdeBI.withOpacity(0.2),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _tituloSeccion(Icons.local_florist_rounded,
-          'Recomendaciones ancestrales', _kVerdeBI),
-      const SizedBox(height: 8),
-      // Encabezado tabla
-      Row(children: [
-        const SizedBox(width: 28),
-        Expanded(child: Text('Hierba / Planta',
-            style: TextStyle(color: _kVerdeBI, fontSize: 8.5,
-                fontWeight: FontWeight.bold))),
-        Expanded(child: Text('Uso tradicional',
-            style: TextStyle(color: _kVerdeBI, fontSize: 8.5,
-                fontWeight: FontWeight.bold))),
-        Expanded(child: Text('Preparación',
-            style: TextStyle(color: _kVerdeBI, fontSize: 8.5,
-                fontWeight: FontWeight.bold))),
       ]),
-      const SizedBox(height: 6),
-      Divider(color: _kBorder, height: 1),
-      ..._kPlantas.map((p) => _filaPlanta(p)),
-    ]),
-  );
-
-  Widget _filaPlanta(_Planta p) => GestureDetector(
-    onTap: () => _verPreparacion(p),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(width: 22, height: 22,
-            decoration: BoxDecoration(
-                color: p.color.withOpacity(0.15), shape: BoxShape.circle),
-            child: Icon(p.icono, color: p.color, size: 11)),
-        const SizedBox(width: 6),
-        Expanded(child: Text(p.nombre, style: const TextStyle(
-            color: _kTexto, fontSize: 10, fontWeight: FontWeight.w600))),
-        Expanded(child: Text(p.uso, style: const TextStyle(
-            color: _kTextoS, fontSize: 9, height: 1.3))),
-        Expanded(child: Text(p.preparacion, style: const TextStyle(
-            color: _kTextoH, fontSize: 9, height: 1.3))),
-      ]),
-    ),
-  );
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // RECOMENDACIONES PARTERA
+  // ACCIONES RÁPIDAS
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardRecomPartera() => _Card(
-    borde: _kRosa.withOpacity(0.2),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _tituloSeccion(Icons.favorite_rounded, 'Recomendaciones de la partera', _kRosa),
-      const SizedBox(height: 8),
-      ..._kRecomPartera.map((r) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(width: 18, height: 18,
+  Widget _accionesRapidas() {
+    final acciones = [
+      (Icons.monitor_heart_outlined, 'Registrar\ncontrol', _kVerdeBI, _mostrarFormularioConsulta),
+      (Icons.home_outlined, 'Visita\ndomiciliaria', _kAzul, _visitaDomiciliaria),
+      (Icons.eco_outlined, 'Nueva\nrecomendación', _kVerdeBI, () => _snack('Selecciona recomendaciones abajo')),
+      (Icons.smart_toy_outlined, 'Análisis\nIA', _kMoradoC, _analizarIA),
+      (Icons.description_outlined, 'Generar\nreporte', _kTextoS, () => _snack('Generando reporte...')),
+    ];
+    return SizedBox(
+      height: 64,
+      child: Row(children: acciones.map((a) => Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: GestureDetector(
+            onTap: a.$4,
+            child: Container(
               decoration: BoxDecoration(
-                  color: _kVerdeBI.withOpacity(0.15), shape: BoxShape.circle),
-              child: const Icon(Icons.check_rounded,
-                  color: _kVerdeBI, size: 10)),
+                color: _kCard, borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(a.$1, color: a.$3, size: 18),
+                const SizedBox(height: 3),
+                Text(a.$2, textAlign: TextAlign.center, maxLines: 2,
+                    style: TextStyle(color: _kTextoS, fontSize: 8.5, height: 1.1)),
+              ]),
+            ),
+          ),
+        ),
+      )).toList()),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONTROL GESTACIONAL ACTUAL
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardControlGestacional() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('CONTROL GESTACIONAL ACTUAL',
+            style: TextStyle(color: _kVerdeBI, fontSize: 10,
+                fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _statBox(Icons.monitor_weight_outlined, 'Peso', '68 kg', 'Normal', _kVerdeBI)),
           const SizedBox(width: 8),
-          Expanded(child: Text(r, style: const TextStyle(
-              color: _kTextoS, fontSize: 11, height: 1.3))),
+          Expanded(child: _statBox(Icons.favorite_outline_rounded, 'T. Arterial', '120/80', 'mmHg', _kAzul)),
+          const SizedBox(width: 8),
+          Expanded(child: _statBox(Icons.height_outlined, 'Altura uterina', '30 cm', 'Normal', _kVerdeBI)),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _statBox(Icons.directions_run_rounded, 'Mov. fetales', 'Normales', 'Activos', _kVerdeBI)),
+          const SizedBox(width: 8),
+          Expanded(child: _statBox(Icons.favorite_rounded, 'Latidos fetales', '145 lpm', 'Normal', _kRosa)),
+          const SizedBox(width: 8),
+          Expanded(child: _statBox(Icons.water_drop_outlined, 'Edema', 'No', 'Sin edema', _kVerdeBI)),
+        ]),
+        const SizedBox(height: 10),
+        const Text('Observaciones de la partera',
+            style: TextStyle(color: _kTextoH, fontSize: 9, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(
+          _historial.isNotEmpty
+              ? (_historial.first['observaciones'] as String? ?? 'Gestante estable, refiere buena alimentación y sueño.')
+              : 'Gestante estable, refiere buena alimentación y sueño.',
+          style: const TextStyle(color: _kTextoS, fontSize: 10.5, height: 1.4),
+        ),
+      ]),
+    );
+  }
+
+  Widget _statBox(IconData icono, String label, String valor, String sub, Color color) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+    decoration: BoxDecoration(
+      color: _kCardAlt, borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: _kBorder),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icono, color: color, size: 14),
+      const SizedBox(height: 3),
+      Text(label, style: const TextStyle(color: _kTextoH, fontSize: 8)),
+      Text(valor, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+      Text(sub, style: TextStyle(color: color, fontSize: 8)),
+    ]),
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // EVOLUCIÓN DEL EMBARAZO
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardEvolucion() {
+    final realizados = _kSemanasControl.where((s) => s <= _semanasActuales).length;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('EVOLUCIÓN DEL EMBARAZO',
+            style: TextStyle(color: _kVerdeBI, fontSize: 10,
+                fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 40,
+          child: Row(
+            children: List.generate(_kSemanasControl.length, (i) {
+              final sem = _kSemanasControl[i];
+              final hecho = sem <= _semanasActuales;
+              return Expanded(child: Row(children: [
+                if (i > 0) Expanded(child: Container(height: 1.5,
+                    color: hecho ? _kVerdeBI.withOpacity(0.5) : _kBorder)),
+                Container(
+                  width: 18, height: 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: hecho ? _kVerdeBI : Colors.transparent,
+                    border: Border.all(color: hecho ? _kVerdeBI : _kBorder, width: 1.5),
+                  ),
+                  child: hecho
+                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 12)
+                      : null,
+                ),
+              ]));
+            }),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: _kSemanasControl.map((s) => Expanded(child: Text(
+            '$s\nsem', textAlign: TextAlign.center,
+            style: const TextStyle(color: _kTextoH, fontSize: 7.5, height: 1.2)))).toList(),
+        ),
+        const SizedBox(height: 8),
+        Text('$realizados controles realizados',
+            style: const TextStyle(color: _kVerdeBI, fontSize: 10, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // BIBLIOTECA DE PLANTAS MEDICINALES
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardBibliotecaPlantas() {
+    final plantas = _plantasFiltradas;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('BIBLIOTECA DE PLANTAS MEDICINALES',
+            style: TextStyle(color: _kVerdeBI, fontSize: 10,
+                fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        const SizedBox(height: 10),
+        Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: _kCardAlt, borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kBorder),
+          ),
+          child: Row(children: [
+            const Icon(Icons.search_rounded, color: _kTextoH, size: 16),
+            const SizedBox(width: 8),
+            Expanded(child: TextField(
+              controller: _buscarPlantaCtrl,
+              onChanged: (v) => setState(() => _buscarPlanta = v),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              decoration: const InputDecoration(
+                hintText: 'Buscar planta, malestar o síntoma...',
+                hintStyle: TextStyle(color: _kTextoH, fontSize: 11),
+                border: InputBorder.none, isDense: true,
+              ),
+            )),
+            const Icon(Icons.tune_rounded, color: _kTextoH, size: 16),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 30,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _kCategoriasPlantas.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (_, i) {
+              final cat = _kCategoriasPlantas[i];
+              final sel = cat == _categoriaPlantaSel;
+              return GestureDetector(
+                onTap: () => setState(() => _categoriaPlantaSel = cat),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sel ? _kMorado : _kCardAlt,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: sel ? _kMorado : _kBorder),
+                  ),
+                  child: Text(cat, style: TextStyle(
+                      color: sel ? Colors.white : _kTextoS, fontSize: 10.5,
+                      fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (plantas.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('No se encontraron plantas',
+                style: TextStyle(color: _kTextoH, fontSize: 11))),
+          )
+        else
+          SizedBox(
+            height: 195,
+            child: PageView.builder(
+              itemCount: plantas.length,
+              controller: PageController(viewportFraction: 1),
+              itemBuilder: (_, i) => _tarjetaPlanta(plantas[i]),
+            ),
+          ),
+        const SizedBox(height: 8),
+        Center(
+          child: Row(mainAxisSize: MainAxisSize.min,
+            children: List.generate(plantas.length.clamp(0, 6), (i) => Container(
+              width: 6, height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: i == 0 ? _kVerdeBI : _kBorder,
+              ),
+            )),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _tarjetaPlanta(_Planta p) => Container(
+    decoration: BoxDecoration(
+      color: _kCardAlt, borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _kBorder),
+    ),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        width: 92, height: 195,
+        decoration: BoxDecoration(
+          color: p.color.withOpacity(0.18),
+          borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+        ),
+        child: Center(child: Icon(Icons.local_florist_rounded, color: p.color, size: 44)),
+      ),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(p.nombre, style: const TextStyle(color: _kVerdeBI, fontSize: 13.5,
+                fontWeight: FontWeight.bold)),
+            Text(p.nombreCientifico, style: const TextStyle(color: _kTextoH, fontSize: 9,
+                fontStyle: FontStyle.italic)),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                  color: _kMorado.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+              child: Text(p.categorias.join(', '),
+                  style: const TextStyle(color: _kMoradoC, fontSize: 8.5, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 6),
+            _filaPlanta(Icons.local_cafe_outlined, 'Preparación', p.preparacion),
+            _filaPlanta(Icons.science_outlined, 'Dosis', p.dosis),
+            _filaPlanta(Icons.auto_awesome_outlined, 'Uso ancestral', p.usoAncestral, maxLines: 2),
+            _filaPlanta(Icons.warning_amber_rounded, 'Contraindicaciones', p.contraindicaciones,
+                maxLines: 2, color: _kNaranja),
+          ]),
+        ),
+      ),
+    ]),
+  );
+
+  Widget _filaPlanta(IconData icono, String label, String valor,
+      {int maxLines = 1, Color color = _kTextoS}) => Padding(
+    padding: const EdgeInsets.only(top: 3),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icono, color: color, size: 11),
+      const SizedBox(width: 4),
+      Expanded(child: RichText(maxLines: maxLines, overflow: TextOverflow.ellipsis,
+        text: TextSpan(children: [
+          TextSpan(text: '$label: ', style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w700)),
+          TextSpan(text: valor, style: const TextStyle(color: _kTextoS, fontSize: 9.5)),
         ]),
       )),
     ]),
   );
 
   // ─────────────────────────────────────────────────────────────────────────
-  // IA DISPERSALUD
+  // RECOMENDACIONES DE LA PARTERA
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardIA() => _Card(
-    borde: _kMorado.withOpacity(0.4),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(width: 40, height: 40,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_kMorado, _kMoradoC]),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.smart_toy_rounded,
-                color: Colors.white, size: 20)),
-        const SizedBox(width: 10),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(children: [
-            Icon(Icons.auto_awesome, color: _kMoradoC, size: 12),
-            SizedBox(width: 4),
-            Text('IA DISPERSALUD',
-                style: TextStyle(color: _kMoradoC, fontSize: 13,
-                    fontWeight: FontWeight.bold)),
-          ]),
-          const Text('Análisis integral de la atención',
-              style: TextStyle(color: _kTextoH, fontSize: 9.5)),
-        ]),
-        const Spacer(),
-        GestureDetector(
-          onTap: _analizarIA,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_kMorado, Color(0xFF3A1D6E)]),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              _analizando
-                  ? const SizedBox(width: 14, height: 14,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.auto_awesome,
-                      color: Colors.white, size: 14),
-              const SizedBox(width: 6),
-              Text(_analizando ? 'Analizando...' : 'Ver análisis completo',
-                  style: const TextStyle(color: Colors.white,
-                      fontSize: 11, fontWeight: FontWeight.bold)),
-            ]),
-          ),
-        ),
-      ]),
-
-      if (_respuestaIA != null) ...[
-        const SizedBox(height: 12),
-        // Bullets de análisis
-        ...[
-          'Riesgo materno actual:',
-          'Embarazo: ${_semanas.isNotEmpty ? '$_semanas semanas' : 'Ver datos'}',
-          'Signos vitales dentro de rangos normales',
-          'Recomendación: Continuar seguimiento y vigilar signos de alarma',
-        ].asMap().entries.map((e) => Padding(
-          padding: const EdgeInsets.only(bottom: 5),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(width: 5, height: 5, margin: const EdgeInsets.only(top: 5),
-                decoration: const BoxDecoration(
-                    color: _kVerdeBI, shape: BoxShape.circle)),
+  Widget _cardRecomPartera() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kRosa.withOpacity(0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('RECOMENDACIONES DE LA PARTERA',
+            style: TextStyle(color: _kRosa, fontSize: 10,
+                fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        const SizedBox(height: 10),
+        ..._kRecomPartera.map((r) => Padding(
+          padding: const EdgeInsets.only(bottom: 7),
+          child: Row(children: [
+            Container(width: 18, height: 18,
+                decoration: const BoxDecoration(color: _kRosa, shape: BoxShape.circle),
+                child: const Icon(Icons.check_rounded, color: Colors.white, size: 12)),
             const SizedBox(width: 8),
-            Expanded(child: e.key == 0
-                ? Row(children: [
-                    Text(e.value, style: const TextStyle(
-                        color: _kTextoS, fontSize: 10)),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                          color: _colorNivel(_nivelRiesgo).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: _colorNivel(_nivelRiesgo))),
-                      child: Text(_nivelRiesgo ?? 'MODERADO',
-                          style: TextStyle(
-                              color: _colorNivel(_nivelRiesgo),
-                              fontSize: 9, fontWeight: FontWeight.bold)),
-                    ),
-                  ])
-                : Text(e.value, style: const TextStyle(
-                    color: _kTextoS, fontSize: 10, height: 1.3))),
+            Expanded(child: Text(r, style: const TextStyle(color: _kTextoS, fontSize: 11.5))),
           ]),
         )),
-      ] else ...[
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(child: _miniBoton(Icons.mic_none_rounded, 'Grabar audio', _kRosa,
+              () => _snack('Función de audio no disponible en esta versión'))),
+          const SizedBox(width: 8),
+          Expanded(child: _miniBoton(Icons.camera_alt_outlined, 'Tomar foto', _kRosa,
+              () => _snack('Función de cámara no disponible en esta versión'))),
+        ]),
+      ]),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PLANTAS NO RECOMENDADAS
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardPlantasNoRecomendadas() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kRojo.withOpacity(0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.warning_amber_rounded, color: _kRojo, size: 14),
+          const SizedBox(width: 6),
+          Text('PLANTAS NO RECOMENDADAS EN EMBARAZO',
+              style: TextStyle(color: _kRojo, fontSize: 10,
+                  fontWeight: FontWeight.bold, letterSpacing: 0.3)),
+        ]),
         const SizedBox(height: 10),
-        Text(
-          'Selecciona paciente, partera y motivo de consulta,\n'
-          'luego pulsa "Ver análisis completo".',
-          style: const TextStyle(
-              color: _kTextoH, fontSize: 10, height: 1.5),
-        ),
-      ],
+        Row(children: _kPlantasNoRecomendadas.map((p) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                    color: _kRojo.withOpacity(0.12), shape: BoxShape.circle,
+                    border: Border.all(color: _kRojo.withOpacity(0.3))),
+                child: Icon(p.$3, color: _kRojo, size: 22),
+              ),
+              const SizedBox(height: 5),
+              Text(p.$1, textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(p.$2, textAlign: TextAlign.center, maxLines: 2,
+                  style: const TextStyle(color: _kTextoH, fontSize: 8, height: 1.2)),
+            ]),
+          ),
+        )).toList()),
+      ]),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // IA DISPERSALUD
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardIA() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kMorado.withOpacity(0.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 32, height: 32,
+              decoration: BoxDecoration(color: _kMorado.withOpacity(0.18), shape: BoxShape.circle),
+              child: const Icon(Icons.smart_toy_rounded, color: _kMoradoC, size: 18)),
+          const SizedBox(width: 8),
+          Text('IA DISPERSALUD', style: TextStyle(color: _kMoradoC, fontSize: 11,
+              fontWeight: FontWeight.bold, letterSpacing: 0.3)),
+        ]),
+        const SizedBox(height: 10),
+        const Text('Análisis integral de la atención',
+            style: TextStyle(color: _kTextoS, fontSize: 10.5, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        if (_analizando)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: SizedBox(width: 22, height: 22,
+                child: CircularProgressIndicator(color: _kMoradoC, strokeWidth: 2))),
+          )
+        else if (_respuestaIA != null)
+          Text(_respuestaIA!, style: const TextStyle(color: _kTextoS, fontSize: 10.5, height: 1.5))
+        else
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _itemIA('Embarazo: $_semanasActuales semanas'),
+            _itemIA('Signos vitales: Normales'),
+            _itemIA('Riesgo materno: Bajo'),
+            _itemIA('Riesgo fetal: Bajo'),
+            _itemIA('Recomendación: Continuar seguimiento y vigilancia de signos de alarma.'),
+          ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _miniBoton(Icons.auto_awesome_rounded, 'Ver análisis completo', _kMoradoC, _analizarIA)),
+          const SizedBox(width: 8),
+          Expanded(child: _miniBoton(Icons.menu_book_outlined, 'Ver guía completa', _kRojo,
+              () => _mostrarChatIA())),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _itemIA(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('•  ', style: TextStyle(color: _kTextoS, fontSize: 10.5)),
+      Expanded(child: Text(t, style: const TextStyle(color: _kTextoS, fontSize: 10.5, height: 1.4))),
     ]),
   );
 
   // ─────────────────────────────────────────────────────────────────────────
   // SIGNOS DE ALARMA
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardSignosAlarma() => _Card(
-    borde: _kRojo.withOpacity(0.3),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _tituloSeccion(Icons.warning_rounded, 'Signos de alarma', _kRojo),
-      const SizedBox(height: 8),
-      ..._kSignosAlarma.map((s) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(children: [
-          Container(width: 14, height: 14,
-              decoration: BoxDecoration(
-                  border: Border.all(color: _kRojo, width: 1.5),
-                  shape: BoxShape.circle)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(s, style: const TextStyle(
-              color: _kTextoS, fontSize: 10, height: 1.3))),
-        ]),
-      )),
-      const SizedBox(height: 8),
-      GestureDetector(
-        onTap: () => _mostrarGuiaSignos(),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-              color: _kRojo.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _kRojo.withOpacity(0.4))),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.menu_book_rounded, color: _kRojo, size: 14),
-            const SizedBox(width: 6),
-            const Text('Ver guía completa de signos',
-                style: TextStyle(color: _kRojo, fontSize: 10,
-                    fontWeight: FontWeight.w600)),
-          ]),
-        ),
+  Widget _cardSignosAlarma() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kRojo.withOpacity(0.3)),
       ),
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // HISTORIAL
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _cardHistorial() => _Card(
-    borde: _kVerdeBI.withOpacity(0.2),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _tituloSeccion(Icons.calendar_month_rounded,
-          'Historial de consultas', _kVerdeBI),
-      const SizedBox(height: 8),
-      if (_historial.isEmpty)
-        const Text('Sin consultas registradas',
-            style: TextStyle(color: _kTextoH, fontSize: 10))
-      else
-        ..._historial.take(4).map((c) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Timeline dot
-            Column(children: [
-              Container(width: 10, height: 10,
-                  decoration: const BoxDecoration(
-                      color: _kVerdeBI, shape: BoxShape.circle)),
-              Container(width: 1, height: 20,
-                  color: _kBorder),
-            ]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.error_outline_rounded, color: _kRojo, size: 14),
+          const SizedBox(width: 6),
+          Text('ALERTAS', style: TextStyle(color: _kRojo, fontSize: 10,
+              fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        ]),
+        const SizedBox(height: 8),
+        ..._kSignosAlarma.map((s) => Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(children: [
+            const Icon(Icons.circle, color: _kRojo, size: 6),
             const SizedBox(width: 8),
-            Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_formatFecha(c['fecha'] as String?),
-                  style: const TextStyle(color: _kTexto, fontSize: 10,
-                      fontWeight: FontWeight.w600)),
-              Text(c['diagnostico'] as String? ?? c['modulo'] as String? ?? '',
-                  style: const TextStyle(color: _kTextoS, fontSize: 9.5),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (c['observaciones'] != null)
-                Text((c['observaciones'] as String).split('.').first,
-                    style: const TextStyle(color: _kTextoH, fontSize: 9),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-            ])),
+            Expanded(child: Text(s, style: const TextStyle(color: _kTextoS, fontSize: 10.5))),
           ]),
         )),
-      const SizedBox(height: 4),
-      GestureDetector(
-        onTap: () => Navigator.pushNamed(context, '/historial'),
-        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text('Ver historial completo',
-              style: TextStyle(color: _kVerdeBI, fontSize: 10,
-                  fontWeight: FontWeight.w600)),
-          SizedBox(width: 4),
-          Icon(Icons.chevron_right_rounded, color: _kVerdeBI, size: 14),
-        ]),
-      ),
-    ]),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // BOTTOM BAR DE ACCIONES
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _bottomBar() => Container(
-    decoration: const BoxDecoration(
-        color: _kCard,
-        border: Border(top: BorderSide(color: _kBorder))),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Registrar nueva consulta — botón principal, ancho completo
-          GestureDetector(
-            onTap: _guardar,
-            child: Container(
-              width: double.infinity,
-              height: 46,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [_kVerdeOsc, _kVerdeBI]),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                _guardando
-                    ? const SizedBox(width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.add_rounded,
-                        color: Colors.white, size: 18),
-                const SizedBox(width: 6),
-                const Text('Registrar nueva consulta',
-                    style: TextStyle(color: Colors.white,
-                        fontWeight: FontWeight.bold, fontSize: 12)),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Botones secundarios — fila propia, más alta y legible
-          Row(children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: _visitaDomiciliaria,
-                child: Container(
-                  height: 52,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                      color: _kCardAlt, borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kBorder)),
-                  child: const Column(mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    Icon(Icons.home_outlined, color: _kTextoS, size: 18),
-                    SizedBox(height: 4),
-                    Text('Visita domiciliaria',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: _kTextoS, fontSize: 10.5,
-                            fontWeight: FontWeight.w600)),
-                  ]),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: GestureDetector(
-                onTap: _mostrarNotaRapida,
-                child: Container(
-                  height: 52,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                      color: _kCardAlt, borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kBorder)),
-                  child: const Column(mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    Icon(Icons.edit_note_rounded, color: _kTextoS, size: 18),
-                    SizedBox(height: 4),
-                    Text('Nota rápida',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: _kTextoS, fontSize: 10.5,
-                            fontWeight: FontWeight.w600)),
-                  ]),
-                ),
-              ),
-            ),
-          ]),
-        ]),
-      ),
-    ),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // MODALES / BOTTOM SHEETS
-  // ─────────────────────────────────────────────────────────────────────────
-  void _mostrarChatIA() => showModalBottomSheet(
-    context: context, isScrollControlled: true,
-    backgroundColor: _kCard,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => StatefulBuilder(builder: (ctx, setS) {
-      final teclado = MediaQuery.of(ctx).viewInsets.bottom;
-      final alturaBase = MediaQuery.of(ctx).size.height * 0.75;
-      final altura = teclado > 0
-          ? MediaQuery.of(ctx).size.height - teclado
-          : alturaBase;
-      return SizedBox(
-      height: altura,
-      child: Column(children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [_kMorado, Color(0xFF3A1D6E)]),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            const Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('IA DISPERSALUD', style: TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold,
-                  fontSize: 14)),
-              Text('Salud Integral Ancestral', style: TextStyle(
-                  color: Colors.white70, fontSize: 10)),
-            ])),
-            Container(width: 8, height: 8,
-                decoration: BoxDecoration(
-                    color: _online ? _kVerdeBI : Colors.orange,
-                    shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            Text(_online ? 'Groq' : 'Offline',
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 9)),
-          ]),
-        ),
-        // Mensajes
-        Expanded(child: ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: _chatIA.length + (_enviandoIA ? 1 : 0),
-          itemBuilder: (_, i) {
-            if (i == _chatIA.length) return Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: _kCardAlt,
-                    borderRadius: BorderRadius.circular(10)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const SizedBox(width: 14, height: 14,
-                      child: CircularProgressIndicator(
-                          color: _kMoradoC, strokeWidth: 2)),
-                  const SizedBox(width: 8),
-                  const Text('Analizando...',
-                      style: TextStyle(color: _kTextoH, fontSize: 11)),
-                ]),
-              ),
-            );
-            final m = _chatIA[i];
-            final esIA = m['rol'] == 'ia';
-            return Align(
-              alignment: esIA ? Alignment.centerLeft : Alignment.centerRight,
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 8),
-                constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.7),
-                decoration: BoxDecoration(
-                    color: esIA ? _kCardAlt : _kMorado.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: esIA ? _kBorder : _kMorado.withOpacity(0.4))),
-                child: Text(m['texto'] ?? '', style: TextStyle(
-                    color: esIA ? _kTextoS : _kTexto,
-                    fontSize: 11, height: 1.4)),
-              ),
-            );
-          },
-        )),
-        // Input
-        SafeArea(
-          top: false,
-          child: Container(
-          padding: EdgeInsets.fromLTRB(12, 6, 12,
-              MediaQuery.of(ctx).viewInsets.bottom + 10),
-          child: Row(children: [
-            Expanded(child: TextField(
-              controller: _chatCtrl,
-              style: const TextStyle(color: _kTexto, fontSize: 12),
-              decoration: InputDecoration(
-                hintText: 'Pregunta sobre el paciente...',
-                hintStyle: const TextStyle(color: _kTextoH, fontSize: 11),
-                filled: true, fillColor: _kFondo,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kBorder)),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kBorder)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kMorado)),
-              ),
-              onSubmitted: (_) async {
-                await _enviarChatIA();
-                setS(() {});
-              },
-            )),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () async {
-                await _enviarChatIA();
-                setS(() {});
-              },
-              child: Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                    color: _enviandoIA ? _kBorder : _kMorado,
-                    shape: BoxShape.circle),
-                child: const Icon(Icons.send_rounded,
-                    color: Colors.white, size: 16),
-              ),
-            ),
-          ]),
-        ),
-        ),
       ]),
     );
-    }),
-  );
+  }
 
-  void _verPreparacion(_Planta p) => showModalBottomSheet(
-    context: context,
-    backgroundColor: _kCard,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(p.icono, color: p.color, size: 24),
-          const SizedBox(width: 10),
-          Text(p.nombre, style: const TextStyle(
-              color: _kTexto, fontSize: 16, fontWeight: FontWeight.bold)),
+  // ─────────────────────────────────────────────────────────────────────────
+  // HISTORIAL DE CONSULTAS
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _cardHistorial() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('HISTORIAL DE CONSULTAS', style: TextStyle(color: _kVerdeBI, fontSize: 10,
+              fontWeight: FontWeight.bold, letterSpacing: 0.3)),
+          GestureDetector(onTap: _cargar,
+            child: const Text('Ver todas', style: TextStyle(color: _kTextoH, fontSize: 9))),
         ]),
-        const SizedBox(height: 14),
-        const Text('Uso tradicional:', style: TextStyle(
-            color: _kVerdeBI, fontWeight: FontWeight.bold, fontSize: 12)),
-        const SizedBox(height: 4),
-        Text(p.uso, style: const TextStyle(color: _kTextoS, fontSize: 13)),
-        const SizedBox(height: 12),
-        const Text('Preparación:', style: TextStyle(
-            color: _kVerdeBI, fontWeight: FontWeight.bold, fontSize: 12)),
-        const SizedBox(height: 4),
-        Text(p.preparacion, style: const TextStyle(
-            color: _kTextoS, fontSize: 13, height: 1.5)),
-        const SizedBox(height: 14),
-        const Text('⚠️ Consultar siempre con la sabedora o partera local '
-            'antes de administrar plantas medicinales.',
-            style: TextStyle(color: Colors.orange, fontSize: 11, height: 1.4)),
-      ]),
-    ),
-  );
-
-  void _mostrarGuiaSignos() => showModalBottomSheet(
-    context: context,
-    backgroundColor: _kCard,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => DraggableScrollableSheet(
-      expand: false, initialChildSize: 0.6,
-      builder: (_, ctrl) => ListView(
-        controller: ctrl, padding: const EdgeInsets.all(20),
-        children: [
-          const Text('Guía completa de signos de alarma',
-              style: TextStyle(color: _kTexto, fontSize: 16,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          const Text('Remitir de inmediato ante cualquiera de estos signos:',
-              style: TextStyle(color: _kTextoH, fontSize: 12)),
-          const SizedBox(height: 14),
-          ...[
-            ('Sangrado vaginal', 'Cualquier sangrado durante el embarazo es una emergencia. No esperar.'),
-            ('Dolor abdominal intenso', 'Puede indicar desprendimiento de placenta o parto prematuro.'),
-            ('Fiebre mayor a 38°C', 'Buscar foco infeccioso. Si >39°C: remisión urgente.'),
-            ('Pérdida de líquido', 'Puede indicar ruptura de membranas. Evitar infecciones.'),
-            ('Disminución de movimientos fetales', 'Contar movimientos. Menos de 10 en 2h: emergencia.'),
-            ('Presión ≥ 140/90 + cefalea', 'Sospecha preeclampsia. Remisión URGENTE.'),
-            ('Convulsiones', 'Eclampsia. EMERGENCIA ABSOLUTA. Llamar a urgencias.'),
-            ('Vómito persistente', 'Hiperemesis gravídica. Riesgo de deshidratación severa.'),
-          ].map((e) => Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: _kRojo.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kRojo.withOpacity(0.3))),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              const Icon(Icons.warning_rounded, color: _kRojo, size: 16),
+        const SizedBox(height: 8),
+        if (_historial.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Sin consultas registradas aún',
+                style: TextStyle(color: _kTextoH, fontSize: 10.5)),
+          )
+        else
+          ..._historial.take(4).map((h) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(width: 8, height: 8, margin: const EdgeInsets.only(top: 3),
+                  decoration: const BoxDecoration(color: _kVerdeBI, shape: BoxShape.circle)),
               const SizedBox(width: 8),
-              Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(e.$1, style: const TextStyle(
-                    color: _kTexto, fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(height: 2),
-                Text(e.$2, style: const TextStyle(
-                    color: _kTextoS, fontSize: 11, height: 1.3)),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_formatFecha(h['fecha'] as String?),
+                    style: const TextStyle(color: _kTextoH, fontSize: 9)),
+                Text(h['diagnostico'] as String? ?? h['modulo'] as String? ?? '-',
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
               ])),
             ]),
           )),
-        ],
-      ),
-    ),
-  );
+      ]),
+    );
+  }
 
-  void _mostrarNotaRapida() => showModalBottomSheet(
-    context: context, isScrollControlled: true,
-    backgroundColor: _kCard,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16,
-            MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: Column(mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Agregar nota rápida', style: TextStyle(
-              color: _kTexto, fontSize: 15, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notasCtrl, maxLines: 4,
-            style: const TextStyle(color: _kTexto, fontSize: 12),
-            decoration: _inputDeco('Escribe una observación rápida...'),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _kVerdeBI,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            onPressed: () async {
-              final texto = _notasCtrl.text.trim();
-              if (texto.isEmpty) {
-                _snack('Escribe una nota antes de guardar');
-                return;
-              }
-              Navigator.pop(ctx);
-              await DatabaseHelper.instance.insertarConsulta({
-                'paciente_id':   _pacienteSel?['id'],
-                'nombre':        _pacienteSel?['nombre'] ?? 'Sin paciente',
-                'modulo':        'Salud Integral Ancestral',
-                'diagnostico':   'Nota rápida',
-                'observaciones': texto,
-                'nivel_riesgo':  'estable',
-                'fecha':         DateTime.now().toIso8601String(),
-              });
-              _notasCtrl.clear();
-              if (mounted) {
-                _snack('✅ Nota guardada');
-                _cargar();
-              }
-            },
-            child: const Text('Guardar nota',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          )),
-        ]),
+  // ─────────────────────────────────────────────────────────────────────────
+  // BOTÓN REGISTRAR ATENCIÓN
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _botonRegistrarAtencion() => SizedBox(
+    width: double.infinity, height: 48,
+    child: ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _kVerdeBI, foregroundColor: Colors.white, elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      onPressed: _guardando ? null : _guardar,
+      child: _guardando
+          ? const SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.add_circle_outline_rounded, size: 18),
+              SizedBox(width: 8),
+              Text('Registrar nueva atención integral',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            ]),
     ),
   );
 
   // ─────────────────────────────────────────────────────────────────────────
-  // HELPERS UI
+  // SELECTORES
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _tituloSeccion(IconData icono, String titulo, Color color) =>
-      Row(children: [
-        Icon(icono, color: color, size: 15),
-        const SizedBox(width: 6),
-        Expanded(child: Text(titulo, style: TextStyle(
-            color: color, fontSize: 12, fontWeight: FontWeight.bold))),
-      ]);
+  void _seleccionarPaciente() {
+    showModalBottomSheet(
+      context: context, backgroundColor: _kCard,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _ListaSeleccion(
+        titulo: 'Selecciona paciente',
+        items: _pacientes,
+        labelBuilder: (p) => p['nombre'] as String? ?? '-',
+        subBuilder: (p) => '${p['edad'] ?? '-'} años · ${p['vereda'] ?? p['municipio'] ?? '-'}',
+        onSelect: (p) => setState(() => _pacienteSel = p),
+      ),
+    );
+  }
 
-  Widget _infoFila(IconData icono, String valor) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(children: [
-      Icon(icono, color: _kTextoH, size: 11),
-      const SizedBox(width: 5),
-      Expanded(child: Text(valor, style: const TextStyle(
-          color: _kTextoS, fontSize: 10), overflow: TextOverflow.ellipsis)),
-    ]),
-  );
+  void _seleccionarPartera() {
+    showModalBottomSheet(
+      context: context, backgroundColor: _kCard,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _ListaSeleccion(
+        titulo: 'Selecciona partera/sabedora',
+        items: _parteras,
+        labelBuilder: (p) => p['nombre'] as String? ?? '-',
+        subBuilder: (p) => '${p['especialidad'] ?? '-'} · ${p['ciudad'] ?? '-'}',
+        onSelect: (p) => setState(() => _parteraSel = p),
+      ),
+    );
+  }
 
-  InputDecoration _inputDeco(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: _kTextoH, fontSize: 10),
-    isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    filled: true, fillColor: _kFondo,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _kBorder)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _kBorder)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _kVerdeBI)),
-  );
+  void _mostrarFormularioConsulta() {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _kCard,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+        child: StatefulBuilder(builder: (ctx2, setLocal) => SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Registrar control', style: TextStyle(color: Colors.white,
+                fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
+            const Text('Motivo de consulta', style: TextStyle(color: _kTextoS, fontSize: 11)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: _kMotivos.map((m) {
+              final sel = m == _motivoSel;
+              return GestureDetector(
+                onTap: () => setLocal(() => _motivoSel = m),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sel ? _kVerdeBI : _kCardAlt,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: sel ? _kVerdeBI : _kBorder),
+                  ),
+                  child: Text(m, style: TextStyle(
+                      color: sel ? Colors.white : _kTextoS, fontSize: 11)),
+                ),
+              );
+            }).toList()),
+            const SizedBox(height: 14),
+            const Text('Desequilibrio (saberes ancestrales)', style: TextStyle(color: _kTextoS, fontSize: 11)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: _kDesequilibrios.map((d) {
+              final sel = d == _desequilSel;
+              return GestureDetector(
+                onTap: () => setLocal(() => _desequilSel = d),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sel ? _kMorado : _kCardAlt,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: sel ? _kMorado : _kBorder),
+                  ),
+                  child: Text(d, style: TextStyle(
+                      color: sel ? Colors.white : _kTextoS, fontSize: 11)),
+                ),
+              );
+            }).toList()),
+            const SizedBox(height: 14),
+            const Text('Notas adicionales', style: TextStyle(color: _kTextoS, fontSize: 11)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _notasCtrl, maxLines: 3,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Observaciones de la consulta...',
+                hintStyle: const TextStyle(color: _kTextoH, fontSize: 11),
+                filled: true, fillColor: _kCardAlt,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: _kBorder)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(width: double.infinity, height: 46,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _kVerdeBI,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                onPressed: () { Navigator.pop(ctx); _guardar(); },
+                child: const Text('Guardar control', style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ]),
+        )),
+      ),
+    );
+  }
+
+  void _mostrarChatIA() {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _kCard,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setLocal) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                const Icon(Icons.smart_toy_rounded, color: _kMoradoC),
+                const SizedBox(width: 8),
+                const Text('Chat con IA DISPERSALUD', style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              ]),
+            ),
+            const Divider(color: _kBorder, height: 1),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: _chatIA.length,
+                itemBuilder: (_, i) {
+                  final m = _chatIA[i];
+                  final esIA = m['rol'] == 'ia';
+                  return Align(
+                    alignment: esIA ? Alignment.centerLeft : Alignment.centerRight,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.all(10),
+                      constraints: BoxConstraints(maxWidth: MediaQuery.of(ctx).size.width * 0.75),
+                      decoration: BoxDecoration(
+                        color: esIA ? _kCardAlt : _kVerdeBI.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(m['texto'] ?? '', style: const TextStyle(
+                          color: _kTextoS, fontSize: 12.5, height: 1.4)),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (_enviandoIA) const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: SizedBox(width: 18, height: 18,
+                  child: CircularProgressIndicator(color: _kMoradoC, strokeWidth: 2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(children: [
+                Expanded(child: TextField(
+                  controller: _chatCtrl,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Escribe tu pregunta...',
+                    hintStyle: const TextStyle(color: _kTextoH, fontSize: 12),
+                    filled: true, fillColor: _kCardAlt,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none),
+                  ),
+                )),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () async { await _enviarChatIA(); setLocal(() {}); },
+                  child: Container(width: 40, height: 40,
+                      decoration: const BoxDecoration(color: _kMoradoC, shape: BoxShape.circle),
+                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 18)),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      )),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WIDGET CARD REUTILIZABLE
+// WIDGET LISTA DE SELECCIÓN (paciente / partera)
 // ─────────────────────────────────────────────────────────────────────────────
-class _Card extends StatelessWidget {
-  final Widget child;
-  final Color? borde;
-  const _Card({required this.child, this.borde});
+class _ListaSeleccion extends StatelessWidget {
+  final String titulo;
+  final List<Map<String, dynamic>> items;
+  final String Function(Map<String, dynamic>) labelBuilder;
+  final String Function(Map<String, dynamic>) subBuilder;
+  final void Function(Map<String, dynamic>) onSelect;
+
+  const _ListaSeleccion({
+    required this.titulo, required this.items,
+    required this.labelBuilder, required this.subBuilder, required this.onSelect,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: const Color(0xFF132015),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: borde ?? const Color(0xFF2A3D2C)),
-    ),
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 420,
+      child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(titulo, style: const TextStyle(color: Colors.white,
+              fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
+        const Divider(color: _kBorder, height: 1),
+        Expanded(
+          child: items.isEmpty
+              ? const Center(child: Text('No hay registros disponibles',
+                  style: TextStyle(color: _kTextoH, fontSize: 12)))
+              : ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (_, i) {
+                    final item = items[i];
+                    return ListTile(
+                      leading: Container(width: 40, height: 40,
+                          decoration: BoxDecoration(
+                              color: _kVerdeBI.withOpacity(0.15), shape: BoxShape.circle),
+                          child: const Icon(Icons.person_outline_rounded, color: _kVerdeBI)),
+                      title: Text(labelBuilder(item), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      subtitle: Text(subBuilder(item), style: const TextStyle(color: _kTextoH, fontSize: 11)),
+                      onTap: () { onSelect(item); Navigator.pop(context); },
+                    );
+                  },
+                ),
+        ),
+      ]),
+    );
+  }
 }
