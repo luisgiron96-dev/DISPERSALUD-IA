@@ -1833,7 +1833,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
         // ── FICHAS EPIDEMIOLÓGICAS INS ─────────────────────────────────
         GestureDetector(
           onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const FichasEpidemiologicasScreen())),
+              MaterialPageRoute(builder: (_) => FichasEpidemiologicasScreen())),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(

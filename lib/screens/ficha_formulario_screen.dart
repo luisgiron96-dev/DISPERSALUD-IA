@@ -1,4 +1,15 @@
 // ignore_for_file: use_build_context_synchronously
+// lib/screens/ficha_formulario_screen.dart
+//
+// Formulario SIVIGILA — DISPERSALUD IA
+// Diseño fiel al formulario oficial del INS:
+//   • Encabezado institucional (Colombia Potencia de la Vida, Salud, INS, SIVIGILA)
+//   • Secciones con borde azul y cabecera gris tipo tabla
+//   • Campos de texto con línea inferior (estilo formulario papel)
+//   • Radio horizontal para opciones (1. Sí  2. No  3. No sabe)
+//   • Checkboxes para grupos poblacionales
+//   • Fondo blanco con tipografía formal
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -10,218 +21,230 @@ import '../database/database_helper.dart';
 DispersaludColors _c(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
 
-const _kVerde   = Color(0xFF1D9E75);
-const _kRojo    = Color(0xFFE24B4A);
-const _kAzul    = Color(0xFF185FA5);
+// ── Colores institucionales INS ──────────────────────────────────────────────
+const _kAzulINS    = Color(0xFF003A8C);   // azul oscuro INS
+const _kAzulClaro  = Color(0xFF1565C0);   // azul sección header
+const _kVerdeINS   = Color(0xFF1D9E75);   // verde DISPERSALUD
+const _kGrisHeader = Color(0xFFE8EAF0);   // gris cabecera sección
+const _kLinea      = Color(0xFFCCCCCC);   // línea campo
+const _kRojo       = Color(0xFFE24B4A);
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  MODELO DE CAMPO
+//  MODELO DE CAMPO (público para mme_secciones.dart)
 // ═══════════════════════════════════════════════════════════════════════════
-enum _TipoCampo { texto, numero, fecha, opciones, multiLinea, siNo }
+enum TipoCampo { texto, numero, fecha, opciones, multiLinea, siNo, radio3, checkboxes }
 
-class _Campo {
-  final String clave, etiqueta;
-  final _TipoCampo tipo;
+// Alias privado para compatibilidad interna
+typedef _TipoCampo = TipoCampo;
+
+class Campo {
+  final String       clave, etiqueta;
+  final TipoCampo    tipo;
   final List<String> opciones;
-  final bool requerido;
-  final String? hint;
-  const _Campo({
+  final bool         requerido;
+  final String?      hint;
+  const Campo({
     required this.clave,
     required this.etiqueta,
-    this.tipo = _TipoCampo.texto,
-    this.opciones = const [],
+    this.tipo      = TipoCampo.texto,
+    this.opciones  = const [],
     this.requerido = false,
     this.hint,
   });
 }
+// Alias privado
+typedef _Campo = Campo;
 
-class _Seccion {
-  final String titulo;
-  final List<_Campo> campos;
-  const _Seccion({required this.titulo, required this.campos});
+class Seccion {
+  final String       titulo;
+  final List<Campo>  campos;
+  const Seccion({required this.titulo, required this.campos});
 }
+typedef _Seccion = Seccion;
 
-// ── Secciones comunes ─────────────────────────────────────────────────────
-const _secPaciente = _Seccion(titulo: '1. Datos del Paciente', campos: [
-  _Campo(clave: 'nombre_paciente',    etiqueta: 'Nombre completo', requerido: true),
-  _Campo(clave: 'tipo_doc',           etiqueta: 'Tipo de documento',
-      tipo: _TipoCampo.opciones,
+// ── Secciones comunes ─────────────────────────────────────────────────────────
+const _secPaciente = Seccion(titulo: '1. Datos del Paciente', campos: [
+  Campo(clave: 'nombre_paciente',    etiqueta: 'Nombre completo', requerido: true),
+  Campo(clave: 'tipo_doc',           etiqueta: 'Tipo de documento',
+      tipo: TipoCampo.opciones,
       opciones: ['CC','TI','RC','CE','PA','NUI','MS','AS','CN','CD']),
-  _Campo(clave: 'num_doc',            etiqueta: 'Número de documento'),
-  _Campo(clave: 'fecha_nacimiento',   etiqueta: 'Fecha de nacimiento', tipo: _TipoCampo.fecha),
-  _Campo(clave: 'edad',               etiqueta: 'Edad', tipo: _TipoCampo.numero),
-  _Campo(clave: 'unidad_edad',        etiqueta: 'Unidad de edad',
-      tipo: _TipoCampo.opciones, opciones: ['Años','Meses','Días','Horas']),
-  _Campo(clave: 'sexo',               etiqueta: 'Sexo',
-      tipo: _TipoCampo.opciones, opciones: ['Masculino','Femenino','Indeterminado']),
-  _Campo(clave: 'pertenencia_etnica', etiqueta: 'Pertenencia étnica',
-      tipo: _TipoCampo.opciones,
+  Campo(clave: 'num_doc',            etiqueta: 'Número de documento'),
+  Campo(clave: 'fecha_nacimiento',   etiqueta: 'Fecha de nacimiento', tipo: TipoCampo.fecha),
+  Campo(clave: 'edad',               etiqueta: 'Edad', tipo: TipoCampo.numero),
+  Campo(clave: 'unidad_edad',        etiqueta: 'Unidad de edad',
+      tipo: TipoCampo.opciones, opciones: ['Años','Meses','Días','Horas']),
+  Campo(clave: 'sexo',               etiqueta: 'Sexo',
+      tipo: TipoCampo.opciones, opciones: ['Masculino','Femenino','Indeterminado']),
+  Campo(clave: 'pertenencia_etnica', etiqueta: 'Pertenencia étnica',
+      tipo: TipoCampo.opciones,
       opciones: ['Indígena','ROM','Raizal','Palenquero','Afrocolombiano','Otro']),
-  _Campo(clave: 'estrato',            etiqueta: 'Estrato',
-      tipo: _TipoCampo.opciones, opciones: ['0','1','2','3','4','5','6']),
-  _Campo(clave: 'departamento',       etiqueta: 'Departamento de residencia'),
-  _Campo(clave: 'municipio',          etiqueta: 'Municipio de residencia', requerido: true),
-  _Campo(clave: 'direccion',          etiqueta: 'Dirección / Barrio / Vereda'),
-  _Campo(clave: 'telefono',           etiqueta: 'Teléfono', tipo: _TipoCampo.numero),
-  _Campo(clave: 'ocupacion',          etiqueta: 'Ocupación'),
-  _Campo(clave: 'regimen_salud',      etiqueta: 'Régimen de salud',
-      tipo: _TipoCampo.opciones,
+  Campo(clave: 'estrato',            etiqueta: 'Estrato',
+      tipo: TipoCampo.opciones, opciones: ['0','1','2','3','4','5','6']),
+  Campo(clave: 'departamento',       etiqueta: 'Departamento de residencia'),
+  Campo(clave: 'municipio',          etiqueta: 'Municipio de residencia', requerido: true),
+  Campo(clave: 'direccion',          etiqueta: 'Dirección / Barrio / Vereda'),
+  Campo(clave: 'telefono',           etiqueta: 'Teléfono', tipo: TipoCampo.numero),
+  Campo(clave: 'ocupacion',          etiqueta: 'Ocupación'),
+  Campo(clave: 'regimen_salud',      etiqueta: 'Régimen de salud',
+      tipo: TipoCampo.opciones,
       opciones: ['Contributivo','Subsidiado','Excepción','Especial','No asegurado']),
-  _Campo(clave: 'nombre_aseguradora', etiqueta: 'Nombre aseguradora'),
+  Campo(clave: 'nombre_aseguradora', etiqueta: 'Nombre aseguradora'),
 ]);
 
-const _secNotificacion = _Seccion(titulo: '2. Datos de Notificación', campos: [
-  _Campo(clave: 'cod_ups',            etiqueta: 'Código UPS', tipo: _TipoCampo.numero),
-  _Campo(clave: 'nombre_ups',         etiqueta: 'Nombre UPS notificante', requerido: true),
-  _Campo(clave: 'tipo_ups',           etiqueta: 'Tipo UPS',
-      tipo: _TipoCampo.opciones, opciones: ['IPS','Laboratorio','Banco de sangre','Otro']),
-  _Campo(clave: 'fecha_consulta',     etiqueta: 'Fecha de consulta', tipo: _TipoCampo.fecha, requerido: true),
-  _Campo(clave: 'fecha_notificacion', etiqueta: 'Fecha de notificación', tipo: _TipoCampo.fecha, requerido: true),
-  _Campo(clave: 'semana_epidemiologica', etiqueta: 'Semana epidemiológica', tipo: _TipoCampo.numero),
-  _Campo(clave: 'nombre_notificador', etiqueta: 'Nombre del notificador'),
-  _Campo(clave: 'cargo_notificador',  etiqueta: 'Cargo del notificador'),
+const _secNotificacion = Seccion(titulo: '2. Datos de Notificación', campos: [
+  Campo(clave: 'cod_ups',               etiqueta: 'Código UPS', tipo: TipoCampo.numero),
+  Campo(clave: 'nombre_ups',            etiqueta: 'Nombre UPS notificante', requerido: true),
+  Campo(clave: 'tipo_ups',              etiqueta: 'Tipo UPS',
+      tipo: TipoCampo.opciones, opciones: ['IPS','Laboratorio','Banco de sangre','Otro']),
+  Campo(clave: 'fecha_consulta',        etiqueta: 'Fecha de consulta',    tipo: TipoCampo.fecha, requerido: true),
+  Campo(clave: 'fecha_notificacion',    etiqueta: 'Fecha de notificación',tipo: TipoCampo.fecha, requerido: true),
+  Campo(clave: 'semana_epidemiologica', etiqueta: 'Semana epidemiológica',tipo: TipoCampo.numero),
+  Campo(clave: 'nombre_notificador',    etiqueta: 'Nombre del notificador'),
+  Campo(clave: 'cargo_notificador',     etiqueta: 'Cargo del notificador'),
 ]);
 
-const _secClinica = _Seccion(titulo: '3. Datos Clínicos', campos: [
-  _Campo(clave: 'fecha_inicio_sintomas', etiqueta: 'Fecha inicio síntomas', tipo: _TipoCampo.fecha),
-  _Campo(clave: 'tipo_caso',          etiqueta: 'Tipo de caso',
-      tipo: _TipoCampo.opciones,
+const _secClinica = Seccion(titulo: '3. Datos Clínicos', campos: [
+  Campo(clave: 'fecha_inicio_sintomas',    etiqueta: 'Fecha inicio síntomas',   tipo: TipoCampo.fecha),
+  Campo(clave: 'tipo_caso',                etiqueta: 'Tipo de caso',
+      tipo: TipoCampo.opciones,
       opciones: ['Sospechoso','Probable','Confirmado laboratorio',
                  'Confirmado clínico','Confirmado nexo epidemiológico','Descartado']),
-  _Campo(clave: 'hospitalizacion',    etiqueta: '¿Hospitalizado?', tipo: _TipoCampo.siNo),
-  _Campo(clave: 'fecha_hospitalizacion', etiqueta: 'Fecha hospitalización', tipo: _TipoCampo.fecha),
-  _Campo(clave: 'condicion_final',    etiqueta: 'Condición final',
-      tipo: _TipoCampo.opciones, opciones: ['Vivo','Muerto']),
-  _Campo(clave: 'causa_muerte',       etiqueta: 'Causa de muerte (si aplica)'),
+  Campo(clave: 'hospitalizacion',          etiqueta: '¿Hospitalizado?',          tipo: TipoCampo.siNo),
+  Campo(clave: 'fecha_hospitalizacion',    etiqueta: 'Fecha hospitalización',    tipo: TipoCampo.fecha),
+  Campo(clave: 'condicion_final',          etiqueta: 'Condición final',
+      tipo: TipoCampo.opciones, opciones: ['Vivo','Muerto']),
+  Campo(clave: 'causa_muerte',             etiqueta: 'Causa de muerte (si aplica)'),
 ]);
 
-const _secLab = _Seccion(titulo: '4. Laboratorio', campos: [
-  _Campo(clave: 'muestra_tomada',     etiqueta: '¿Muestra tomada?', tipo: _TipoCampo.siNo),
-  _Campo(clave: 'tipo_muestra',       etiqueta: 'Tipo de muestra',
-      tipo: _TipoCampo.opciones,
+const _secLab = Seccion(titulo: '4. Laboratorio', campos: [
+  Campo(clave: 'muestra_tomada',   etiqueta: '¿Muestra tomada?',   tipo: TipoCampo.siNo),
+  Campo(clave: 'tipo_muestra',     etiqueta: 'Tipo de muestra',
+      tipo: TipoCampo.opciones,
       opciones: ['Sangre','Suero','Orina','Heces','LCR','Hisopado','Biopsia','Otra']),
-  _Campo(clave: 'fecha_muestra',      etiqueta: 'Fecha de muestra', tipo: _TipoCampo.fecha),
-  _Campo(clave: 'resultado_lab',      etiqueta: 'Resultado',
-      tipo: _TipoCampo.opciones,
+  Campo(clave: 'fecha_muestra',    etiqueta: 'Fecha de muestra',   tipo: TipoCampo.fecha),
+  Campo(clave: 'resultado_lab',    etiqueta: 'Resultado',
+      tipo: TipoCampo.opciones,
       opciones: ['Positivo','Negativo','En proceso','Indeterminado','No aplica']),
-  _Campo(clave: 'prueba_realizada',   etiqueta: 'Prueba realizada', hint: 'PCR, ELISA, cultivo...'),
-  _Campo(clave: 'laboratorio',        etiqueta: 'Laboratorio que procesó'),
+  Campo(clave: 'prueba_realizada', etiqueta: 'Prueba realizada',   hint: 'PCR, ELISA, cultivo...'),
+  Campo(clave: 'laboratorio',      etiqueta: 'Laboratorio que procesó'),
 ]);
 
-const _secTratamiento = _Seccion(titulo: '5. Tratamiento', campos: [
-  _Campo(clave: 'tratamiento',        etiqueta: 'Tratamiento instaurado', tipo: _TipoCampo.multiLinea),
-  _Campo(clave: 'fecha_inicio_tto',   etiqueta: 'Fecha inicio tratamiento', tipo: _TipoCampo.fecha),
-  _Campo(clave: 'seguimiento',        etiqueta: 'Plan de seguimiento', tipo: _TipoCampo.multiLinea),
-  _Campo(clave: 'nexo_epidemiologico',etiqueta: 'Nexo epidemiológico', tipo: _TipoCampo.multiLinea),
+const _secTratamiento = Seccion(titulo: '5. Tratamiento', campos: [
+  Campo(clave: 'tratamiento',         etiqueta: 'Tratamiento instaurado',   tipo: TipoCampo.multiLinea),
+  Campo(clave: 'fecha_inicio_tto',    etiqueta: 'Fecha inicio tratamiento', tipo: TipoCampo.fecha),
+  Campo(clave: 'seguimiento',         etiqueta: 'Plan de seguimiento',      tipo: TipoCampo.multiLinea),
+  Campo(clave: 'nexo_epidemiologico', etiqueta: 'Nexo epidemiológico',      tipo: TipoCampo.multiLinea),
 ]);
 
-const _secObs = _Seccion(titulo: '6. Observaciones', campos: [
-  _Campo(clave: 'observaciones', etiqueta: 'Observaciones generales', tipo: _TipoCampo.multiLinea),
+const _secObs = Seccion(titulo: '6. Observaciones', campos: [
+  Campo(clave: 'observaciones', etiqueta: 'Observaciones generales', tipo: TipoCampo.multiLinea),
 ]);
 
-// ── Campos específicos por evento ─────────────────────────────────────────
-const Map<String, _Seccion> _especificos = {
-  'DEN': _Seccion(titulo: 'Clínica Dengue', campos: [
-    _Campo(clave: 'fiebre',      etiqueta: 'Fiebre',              tipo: _TipoCampo.siNo),
-    _Campo(clave: 'cefalea',     etiqueta: 'Cefalea retrocular',  tipo: _TipoCampo.siNo),
-    _Campo(clave: 'mialgia',     etiqueta: 'Mialgia/Artralgia',   tipo: _TipoCampo.siNo),
-    _Campo(clave: 'exantema',    etiqueta: 'Exantema',            tipo: _TipoCampo.siNo),
-    _Campo(clave: 'sangrado',    etiqueta: 'Sangrado',            tipo: _TipoCampo.siNo),
-    _Campo(clave: 'tipo_dengue', etiqueta: 'Clasificación final',
-        tipo: _TipoCampo.opciones,
+// ── Campos específicos por evento ─────────────────────────────────────────────
+const Map<String, Seccion> _especificos = {
+  'DEN': Seccion(titulo: 'Clínica Dengue', campos: [
+    Campo(clave: 'fiebre',      etiqueta: 'Fiebre',             tipo: TipoCampo.siNo),
+    Campo(clave: 'cefalea',     etiqueta: 'Cefalea retrocular', tipo: TipoCampo.siNo),
+    Campo(clave: 'mialgia',     etiqueta: 'Mialgia/Artralgia',  tipo: TipoCampo.siNo),
+    Campo(clave: 'exantema',    etiqueta: 'Exantema',           tipo: TipoCampo.siNo),
+    Campo(clave: 'sangrado',    etiqueta: 'Sangrado',           tipo: TipoCampo.siNo),
+    Campo(clave: 'tipo_dengue', etiqueta: 'Clasificación final',
+        tipo: TipoCampo.opciones,
         opciones: ['Sin signos de alarma','Con signos de alarma','Grave']),
-    _Campo(clave: 'serotipo',    etiqueta: 'Serotipo',
-        tipo: _TipoCampo.opciones,
+    Campo(clave: 'serotipo',    etiqueta: 'Serotipo',
+        tipo: TipoCampo.opciones,
         opciones: ['DENV-1','DENV-2','DENV-3','DENV-4','No determinado']),
   ]),
-  'CHIK': _Seccion(titulo: 'Clínica Chikunguña', campos: [
-    _Campo(clave: 'fiebre_chik',   etiqueta: 'Fiebre > 38.5°C',   tipo: _TipoCampo.siNo),
-    _Campo(clave: 'artralgia',     etiqueta: 'Artralgia intensa',  tipo: _TipoCampo.siNo),
-    _Campo(clave: 'exantema_chik', etiqueta: 'Exantema',          tipo: _TipoCampo.siNo),
-    _Campo(clave: 'fase',          etiqueta: 'Fase',
-        tipo: _TipoCampo.opciones, opciones: ['Aguda','Subaguda','Crónica']),
+  'CHIK': Seccion(titulo: 'Clínica Chikunguña', campos: [
+    Campo(clave: 'fiebre_chik',   etiqueta: 'Fiebre > 38.5°C',  tipo: TipoCampo.siNo),
+    Campo(clave: 'artralgia',     etiqueta: 'Artralgia intensa', tipo: TipoCampo.siNo),
+    Campo(clave: 'exantema_chik', etiqueta: 'Exantema',         tipo: TipoCampo.siNo),
+    Campo(clave: 'fase',          etiqueta: 'Fase',
+        tipo: TipoCampo.opciones, opciones: ['Aguda','Subaguda','Crónica']),
   ]),
-  'ZIKA': _Seccion(titulo: 'Clínica Zika', campos: [
-    _Campo(clave: 'embarazada',    etiqueta: '¿Gestante?',         tipo: _TipoCampo.siNo),
-    _Campo(clave: 'sem_gestacion', etiqueta: 'Semanas gestación',  tipo: _TipoCampo.numero),
-    _Campo(clave: 'exantema_zika', etiqueta: 'Exantema pruriginoso', tipo: _TipoCampo.siNo),
-    _Campo(clave: 'microcefalia',  etiqueta: '¿Microcefalia RN?', tipo: _TipoCampo.siNo),
+  'ZIKA': Seccion(titulo: 'Clínica Zika', campos: [
+    Campo(clave: 'embarazada',    etiqueta: '¿Gestante?',             tipo: TipoCampo.siNo),
+    Campo(clave: 'sem_gestacion', etiqueta: 'Semanas gestación',      tipo: TipoCampo.numero),
+    Campo(clave: 'exantema_zika', etiqueta: 'Exantema pruriginoso',   tipo: TipoCampo.siNo),
+    Campo(clave: 'microcefalia',  etiqueta: '¿Microcefalia RN?',      tipo: TipoCampo.siNo),
   ]),
-  'MAL': _Seccion(titulo: 'Clínica Malaria', campos: [
-    _Campo(clave: 'especie',       etiqueta: 'Especie Plasmodium',
-        tipo: _TipoCampo.opciones,
+  'MAL': Seccion(titulo: 'Clínica Malaria', campos: [
+    Campo(clave: 'especie',      etiqueta: 'Especie Plasmodium',
+        tipo: TipoCampo.opciones,
         opciones: ['P. falciparum','P. vivax','P. malariae','Mixto','No determinado']),
-    _Campo(clave: 'parasitemia',   etiqueta: 'Parasitemia (parásitos/µL)', tipo: _TipoCampo.numero),
-    _Campo(clave: 'tipo_malaria',  etiqueta: 'Tipo de malaria',
-        tipo: _TipoCampo.opciones, opciones: ['No complicada','Complicada/Grave']),
-    _Campo(clave: 'antimalárico',  etiqueta: 'Antimalárico administrado'),
+    Campo(clave: 'parasitemia',  etiqueta: 'Parasitemia (parásitos/µL)', tipo: TipoCampo.numero),
+    Campo(clave: 'tipo_malaria', etiqueta: 'Tipo de malaria',
+        tipo: TipoCampo.opciones, opciones: ['No complicada','Complicada/Grave']),
+    Campo(clave: 'antimalárico', etiqueta: 'Antimalárico administrado'),
   ]),
-  'TUB': _Seccion(titulo: 'Clínica Tuberculosis', campos: [
-    _Campo(clave: 'tipo_tb',       etiqueta: 'Tipo de TB',
-        tipo: _TipoCampo.opciones, opciones: ['Pulmonar','Extrapulmonar','Miliar']),
-    _Campo(clave: 'baciloscopia',  etiqueta: 'Baciloscopia',
-        tipo: _TipoCampo.opciones, opciones: ['+1','+2','+3','Negativo','No realizada']),
-    _Campo(clave: 'cultivo_tb',    etiqueta: 'Cultivo',
-        tipo: _TipoCampo.opciones, opciones: ['Positivo','Negativo','No realizado']),
-    _Campo(clave: 'sensibilidad',  etiqueta: 'Sensibilidad (DST)',
-        tipo: _TipoCampo.opciones, opciones: ['Sensible','MDR','XDR','No realizada']),
-    _Campo(clave: 'vih_tb',        etiqueta: 'Coinfección VIH',
-        tipo: _TipoCampo.opciones, opciones: ['Positivo','Negativo','Desconocido']),
-    _Campo(clave: 'contactos',     etiqueta: 'N° contactos', tipo: _TipoCampo.numero),
+  'TUB': Seccion(titulo: 'Clínica Tuberculosis', campos: [
+    Campo(clave: 'tipo_tb',      etiqueta: 'Tipo de TB',
+        tipo: TipoCampo.opciones, opciones: ['Pulmonar','Extrapulmonar','Miliar']),
+    Campo(clave: 'baciloscopia', etiqueta: 'Baciloscopia',
+        tipo: TipoCampo.opciones, opciones: ['+1','+2','+3','Negativo','No realizada']),
+    Campo(clave: 'cultivo_tb',   etiqueta: 'Cultivo',
+        tipo: TipoCampo.opciones, opciones: ['Positivo','Negativo','No realizado']),
+    Campo(clave: 'sensibilidad', etiqueta: 'Sensibilidad (DST)',
+        tipo: TipoCampo.opciones, opciones: ['Sensible','MDR','XDR','No realizada']),
+    Campo(clave: 'vih_tb',       etiqueta: 'Coinfección VIH',
+        tipo: TipoCampo.opciones, opciones: ['Positivo','Negativo','Desconocido']),
+    Campo(clave: 'contactos',    etiqueta: 'N° contactos', tipo: TipoCampo.numero),
   ]),
-  'VIH': _Seccion(titulo: 'Clínica VIH/SIDA', campos: [
-    _Campo(clave: 'estadio',       etiqueta: 'Estadio OMS',
-        tipo: _TipoCampo.opciones, opciones: ['I','II','III','IV']),
-    _Campo(clave: 'cd4',           etiqueta: 'CD4 (cel/mm³)',      tipo: _TipoCampo.numero),
-    _Campo(clave: 'carga_viral',   etiqueta: 'Carga viral (copias/mL)', tipo: _TipoCampo.numero),
-    _Campo(clave: 'via_transmision', etiqueta: 'Vía de transmisión',
-        tipo: _TipoCampo.opciones, opciones: ['Sexual','Parenteral','Vertical','Desconocida']),
-    _Campo(clave: 'tar',           etiqueta: '¿En TAR?',           tipo: _TipoCampo.siNo),
-    _Campo(clave: 'esquema_tar',   etiqueta: 'Esquema TAR'),
+  'VIH': Seccion(titulo: 'Clínica VIH/SIDA', campos: [
+    Campo(clave: 'estadio',        etiqueta: 'Estadio OMS',
+        tipo: TipoCampo.opciones, opciones: ['I','II','III','IV']),
+    Campo(clave: 'cd4',            etiqueta: 'CD4 (cel/mm³)',         tipo: TipoCampo.numero),
+    Campo(clave: 'carga_viral',    etiqueta: 'Carga viral (copias/mL)', tipo: TipoCampo.numero),
+    Campo(clave: 'via_transmision',etiqueta: 'Vía de transmisión',
+        tipo: TipoCampo.opciones,
+        opciones: ['Sexual','Parenteral','Vertical','Desconocida']),
+    Campo(clave: 'tar',            etiqueta: '¿En TAR?',              tipo: TipoCampo.siNo),
+    Campo(clave: 'esquema_tar',    etiqueta: 'Esquema TAR'),
   ]),
-  'IRA': _Seccion(titulo: 'Clínica IRA', campos: [
-    _Campo(clave: 'tipo_ira',      etiqueta: 'Tipo IRA',
-        tipo: _TipoCampo.opciones,
+  'IRA': Seccion(titulo: 'Clínica IRA', campos: [
+    Campo(clave: 'tipo_ira',     etiqueta: 'Tipo IRA',
+        tipo: TipoCampo.opciones,
         opciones: ['IRA alta','Neumonía','Bronquiolitis','Influenza','COVID-19','Otra']),
-    _Campo(clave: 'fr_minuto',     etiqueta: 'Frecuencia respiratoria/min', tipo: _TipoCampo.numero),
-    _Campo(clave: 'saturacion',    etiqueta: 'Saturación O₂ (%)',  tipo: _TipoCampo.numero),
-    _Campo(clave: 'requirio_uci',  etiqueta: '¿Requirió UCI?',    tipo: _TipoCampo.siNo),
-    _Campo(clave: 'ventilacion',   etiqueta: '¿Ventilación mecánica?', tipo: _TipoCampo.siNo),
+    Campo(clave: 'fr_minuto',    etiqueta: 'Frecuencia respiratoria/min', tipo: TipoCampo.numero),
+    Campo(clave: 'saturacion',   etiqueta: 'Saturación O₂ (%)',           tipo: TipoCampo.numero),
+    Campo(clave: 'requirio_uci', etiqueta: '¿Requirió UCI?',              tipo: TipoCampo.siNo),
+    Campo(clave: 'ventilacion',  etiqueta: '¿Ventilación mecánica?',      tipo: TipoCampo.siNo),
   ]),
-  'EDA': _Seccion(titulo: 'Clínica EDA', campos: [
-    _Campo(clave: 'num_deposiciones', etiqueta: 'N° deposiciones/día', tipo: _TipoCampo.numero),
-    _Campo(clave: 'tipo_deposicion', etiqueta: 'Tipo de deposición',
-        tipo: _TipoCampo.opciones,
+  'EDA': Seccion(titulo: 'Clínica EDA', campos: [
+    Campo(clave: 'num_deposiciones', etiqueta: 'N° deposiciones/día', tipo: TipoCampo.numero),
+    Campo(clave: 'tipo_deposicion',  etiqueta: 'Tipo de deposición',
+        tipo: TipoCampo.opciones,
         opciones: ['Líquida','Con moco','Con sangre','Con moco y sangre']),
-    _Campo(clave: 'deshidratacion', etiqueta: 'Deshidratación',
-        tipo: _TipoCampo.opciones,
+    Campo(clave: 'deshidratacion',   etiqueta: 'Deshidratación',
+        tipo: TipoCampo.opciones,
         opciones: ['Sin deshidratación','Leve-moderada','Grave']),
-    _Campo(clave: 'vomito',         etiqueta: '¿Vómito?',          tipo: _TipoCampo.siNo),
-    _Campo(clave: 'brote',          etiqueta: '¿Asociado a brote?',tipo: _TipoCampo.siNo),
+    Campo(clave: 'vomito',           etiqueta: '¿Vómito?',            tipo: TipoCampo.siNo),
+    Campo(clave: 'brote',            etiqueta: '¿Asociado a brote?',  tipo: TipoCampo.siNo),
   ]),
-  'MME': _Seccion(titulo: 'Mortalidad Materna', campos: [
-    _Campo(clave: 'momento_muerte', etiqueta: 'Momento de la muerte',
-        tipo: _TipoCampo.opciones,
-        opciones: ['Durante embarazo','Durante parto','Dentro de 42 días puerperio','Entre 43 días y 1 año']),
-    _Campo(clave: 'sem_gest_mm',    etiqueta: 'Semanas de gestación', tipo: _TipoCampo.numero),
-    _Campo(clave: 'num_controles',  etiqueta: 'N° controles prenatales', tipo: _TipoCampo.numero),
-    _Campo(clave: 'causa_directa',  etiqueta: 'Causa directa',
-        tipo: _TipoCampo.opciones,
+  'MME': Seccion(titulo: 'Mortalidad Materna', campos: [
+    Campo(clave: 'momento_muerte',  etiqueta: 'Momento de la muerte',
+        tipo: TipoCampo.opciones,
+        opciones: ['Durante embarazo','Durante parto',
+                   'Dentro de 42 días puerperio','Entre 43 días y 1 año']),
+    Campo(clave: 'sem_gest_mm',     etiqueta: 'Semanas de gestación',     tipo: TipoCampo.numero),
+    Campo(clave: 'num_controles',   etiqueta: 'N° controles prenatales',  tipo: TipoCampo.numero),
+    Campo(clave: 'causa_directa',   etiqueta: 'Causa directa',
+        tipo: TipoCampo.opciones,
         opciones: ['Hemorragia','Hipertensión/Eclampsia','Sepsis','Aborto','Otra']),
-    _Campo(clave: 'evitabilidad',   etiqueta: '¿Muerte evitable?',
-        tipo: _TipoCampo.opciones, opciones: ['Evitable','No evitable','No determinado']),
+    Campo(clave: 'evitabilidad',    etiqueta: '¿Muerte evitable?',
+        tipo: TipoCampo.opciones, opciones: ['Evitable','No evitable','No determinado']),
   ]),
-  'SFILIS': _Seccion(titulo: 'Sífilis Gestacional/Congénita', campos: [
-    _Campo(clave: 'tipo_sifilis',   etiqueta: 'Tipo',
-        tipo: _TipoCampo.opciones, opciones: ['Gestacional','Congénita']),
-    _Campo(clave: 'sem_diagnos',    etiqueta: 'Semanas al diagnóstico', tipo: _TipoCampo.numero),
-    _Campo(clave: 'trat_prenatal',  etiqueta: '¿Tratamiento prenatal?', tipo: _TipoCampo.siNo),
-    _Campo(clave: 'tto_pareja',     etiqueta: '¿Pareja tratada?',      tipo: _TipoCampo.siNo),
-    _Campo(clave: 'vdrl_titulo',    etiqueta: 'Título VDRL'),
+  'SFILIS': Seccion(titulo: 'Sífilis Gestacional/Congénita', campos: [
+    Campo(clave: 'tipo_sifilis',  etiqueta: 'Tipo',
+        tipo: TipoCampo.opciones, opciones: ['Gestacional','Congénita']),
+    Campo(clave: 'sem_diagnos',   etiqueta: 'Semanas al diagnóstico',   tipo: TipoCampo.numero),
+    Campo(clave: 'trat_prenatal', etiqueta: '¿Tratamiento prenatal?',   tipo: TipoCampo.siNo),
+    Campo(clave: 'tto_pareja',    etiqueta: '¿Pareja tratada?',         tipo: TipoCampo.siNo),
+    Campo(clave: 'vdrl_titulo',   etiqueta: 'Título VDRL'),
   ]),
 };
 
-List<_Seccion> _seccionesParaFicha(String codigo) {
+List<Seccion> _seccionesParaFicha(String codigo) {
   final base = [_secPaciente, _secNotificacion, _secClinica, _secLab, _secTratamiento];
   final esp  = _especificos[codigo];
   if (esp != null) return [...base.sublist(0,2), esp, ...base.sublist(2), _secObs];
@@ -229,7 +252,7 @@ List<_Seccion> _seccionesParaFicha(String codigo) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  PANTALLA FORMULARIO
+//  PANTALLA — Formulario estilo INS
 // ═══════════════════════════════════════════════════════════════════════════
 class FichaFormularioScreen extends StatefulWidget {
   final String codigoFicha, nombreFicha, emojiFicha;
@@ -250,13 +273,13 @@ class FichaFormularioScreen extends StatefulWidget {
 }
 
 class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
-  final Map<String, TextEditingController> _ctrls     = {};
-  final Map<String, String>               _dropdowns  = {};
-  final Map<String, bool>                 _bools      = {};
+  final Map<String, TextEditingController> _ctrls    = {};
+  final Map<String, String>                _dropdowns = {};
+  final Map<String, String>                _radios    = {};   // clave → valor seleccionado
   bool  _guardando  = false;
   bool  _exportando = false;
   int   _seccionIdx = 0;
-  late  List<_Seccion> _secciones;
+  late  List<Seccion> _secciones;
 
   @override
   void initState() {
@@ -264,12 +287,15 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
     _secciones = _seccionesParaFicha(widget.codigoFicha);
     for (final sec in _secciones) {
       for (final c in sec.campos) {
-        if (c.tipo == _TipoCampo.opciones) {
-          _dropdowns[c.clave] = c.opciones.isNotEmpty ? c.opciones.first : '';
-        } else if (c.tipo == _TipoCampo.siNo) {
-          _bools[c.clave] = false;
-        } else {
-          _ctrls[c.clave] = TextEditingController();
+        switch (c.tipo) {
+          case TipoCampo.opciones:
+            _dropdowns[c.clave] = c.opciones.isNotEmpty ? c.opciones.first : '';
+          case TipoCampo.siNo:
+            _radios[c.clave] = '';          // vacío = sin marcar
+          case TipoCampo.radio3:
+            _radios[c.clave] = '';
+          default:
+            _ctrls[c.clave] = TextEditingController();
         }
       }
     }
@@ -291,16 +317,16 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
         final v = val.toString();
         if (_ctrls.containsKey(key))      _ctrls[key]!.text = v;
         else if (_dropdowns.containsKey(key)) _dropdowns[key] = v;
-        else if (_bools.containsKey(key)) _bools[key] = v == 'true';
+        else if (_radios.containsKey(key)) _radios[key] = v;
       });
     });
   }
 
   Map<String, dynamic> _recolectar() {
     final m = <String, dynamic>{};
-    _ctrls.forEach((k, v)    => m[k] = v.text.trim());
+    _ctrls.forEach((k, v)     => m[k] = v.text.trim());
     _dropdowns.forEach((k, v) => m[k] = v);
-    _bools.forEach((k, v)    => m[k] = v.toString());
+    _radios.forEach((k, v)    => m[k] = v);
     return m;
   }
 
@@ -336,59 +362,32 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
   Future<void> _exportarPDF() async {
     setState(() => _exportando = true);
     try {
-      final datos  = _recolectar();
-      final pdf    = pw.Document();
-      final color  = PdfColor.fromInt(widget.colorFicha.value);
+      final datos = _recolectar();
+      final pdf   = pw.Document();
 
       for (final sec in _secciones) {
         pdf.addPage(pw.Page(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(28),
+          margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           build: (_) => pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              _pdfEncabezado(),
+              pw.SizedBox(height: 10),
               pw.Container(
                 width: double.infinity,
-                padding: const pw.EdgeInsets.all(12),
-                decoration: pw.BoxDecoration(
-                    color: color, borderRadius: pw.BorderRadius.circular(6)),
-                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                  pw.Text('DISPERSALUD IA  •  Ficha Epidemiológica SIVIGILA',
-                      style: pw.TextStyle(color: PdfColors.white, fontSize: 9)),
-                  pw.SizedBox(height: 4),
-                  pw.Text('${widget.emojiFicha}  ${widget.nombreFicha}  [${widget.codigoFicha}]',
-                      style: pw.TextStyle(color: PdfColors.white, fontSize: 13,
-                          fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Impreso: ${DateTime.now().toString().substring(0,16)}',
-                      style: pw.TextStyle(color: PdfColors.white, fontSize: 8)),
-                ]),
+                padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                color: PdfColor.fromHex('003A8C'),
+                child: pw.Text(sec.titulo,
+                    style: pw.TextStyle(
+                        color: PdfColors.white, fontSize: 10,
+                        fontWeight: pw.FontWeight.bold)),
               ),
-              pw.SizedBox(height: 12),
-              pw.Text(sec.titulo,
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: color)),
-              pw.Divider(color: color, thickness: 1),
-              pw.SizedBox(height: 8),
-              ...(_agrupar2(sec.campos).map((par) => pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 6),
-                child: pw.Row(children: par.map((c) => pw.Expanded(child:
-                  pw.Container(
-                    margin: const pw.EdgeInsets.only(right: 6),
-                    padding: const pw.EdgeInsets.all(7),
-                    decoration: pw.BoxDecoration(
-                        color: PdfColors.grey100,
-                        borderRadius: pw.BorderRadius.circular(4)),
-                    child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                      pw.Text(c.etiqueta,
-                          style: pw.TextStyle(fontSize: 7, color: PdfColors.grey700)),
-                      pw.SizedBox(height: 2),
-                      pw.Text(_valCampo(c, datos),
-                          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                    ]),
-                  )
-                )).toList()),
-              ))),
+              pw.SizedBox(height: 6),
+              ...sec.campos.map((c) => _pdfCampo(c, datos)),
               pw.Spacer(),
-              pw.Text('Generado por DISPERSALUD IA — Protocolo SIVIGILA Colombia',
+              pw.Divider(color: PdfColors.grey400),
+              pw.Text('DISPERSALUD IA  •  Formulario SIVIGILA  •  Instituto Nacional de Salud — Colombia',
                   style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
             ],
           ),
@@ -403,270 +402,575 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
     }
   }
 
-  String _valCampo(_Campo c, Map<String, dynamic> datos) {
-    final v = datos[c.clave];
-    if (v == null || v.toString().isEmpty) return '—';
-    if (c.tipo == _TipoCampo.siNo) return v == 'true' ? 'Sí' : 'No';
-    return v.toString();
-  }
+  // ── PDF helpers ──────────────────────────────────────────────────────────
+  pw.Widget _pdfEncabezado() => pw.Container(
+    width: double.infinity,
+    decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
+    child: pw.Column(children: [
+      pw.Container(
+        color: PdfColor.fromHex('003A8C'),
+        padding: const pw.EdgeInsets.all(8),
+        child: pw.Row(children: [
+          pw.Text('🇨🇴  SISTEMA NACIONAL DE VIGILANCIA EN SALUD PÚBLICA',
+              style: pw.TextStyle(color: PdfColors.white, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+          pw.Spacer(),
+          pw.Text('SIVIGILA', style: pw.TextStyle(color: PdfColors.white, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        ]),
+      ),
+      pw.Padding(
+        padding: const pw.EdgeInsets.all(6),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+          pw.Text('Formulario de recolección', style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+          pw.SizedBox(height: 2),
+          pw.Text(widget.nombreFicha,
+              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+              textAlign: pw.TextAlign.center),
+          pw.Text('Código: ${widget.codigoFicha}  •  Generado: ${DateTime.now().toString().substring(0,16)}',
+              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+        ]),
+      ),
+    ]),
+  );
 
-  List<List<_Campo>> _agrupar2(List<_Campo> campos) {
-    final r = <List<_Campo>>[];
-    for (var i = 0; i < campos.length; i += 2) {
-      r.add(i + 1 < campos.length ? [campos[i], campos[i+1]] : [campos[i]]);
-    }
-    return r;
+  pw.Widget _pdfCampo(Campo c, Map<String, dynamic> datos) {
+    final val = datos[c.clave]?.toString() ?? '';
+    final displayVal = val.isEmpty ? '___________________________' : val;
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 5),
+      child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.SizedBox(
+          width: 200,
+          child: pw.Text(c.etiqueta,
+              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey800)),
+        ),
+        pw.Expanded(child: pw.Container(
+          decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey500, width: 0.5))),
+          child: pw.Text(
+            c.tipo == TipoCampo.siNo
+                ? (val == 'si' ? '☑ Sí  ☐ No' : val == 'no' ? '☐ Sí  ☑ No' : '☐ Sí  ☐ No')
+                : displayVal,
+            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          ),
+        )),
+      ]),
+    );
   }
 
   void _snack(String msg, {Color? color}) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg), backgroundColor: color ?? _kVerde,
+        content: Text(msg), backgroundColor: color ?? _kVerdeINS,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  BUILD
+  // ═══════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     final dc  = _c(context);
-    final col = widget.colorFicha;
+    // Usamos fondo blanco para simular el formulario de papel
+    const bgForm  = Colors.white;
+    const txtForm = Color(0xFF111111);
+    const borde   = Color(0xFFDDDDDD);
 
     return Scaffold(
-      backgroundColor: dc.bg,
+      backgroundColor: const Color(0xFFEEEEEE),
       appBar: AppBar(
-        backgroundColor: dc.bg, elevation: 0,
+        backgroundColor: _kAzulINS,
+        elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: dc.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.nombreFicha,
-              style: TextStyle(color: dc.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
               maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text('Código: ${widget.codigoFicha}  •  SIVIGILA',
-              style: TextStyle(color: col, fontSize: 10)),
+          Text('Formulario SIVIGILA  •  Código: ${widget.codigoFicha}',
+              style: const TextStyle(color: Colors.white70, fontSize: 10)),
         ]),
         actions: [
           IconButton(
             tooltip: 'Exportar PDF',
             icon: _exportando
-                ? SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(color: col, strokeWidth: 2))
-                : const Icon(Icons.picture_as_pdf_rounded, color: _kRojo),
+                ? const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
             onPressed: _exportando ? null : _exportarPDF,
           ),
           IconButton(
-            tooltip: 'Guardar',
+            tooltip: 'Guardar ficha',
             icon: _guardando
-                ? SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(color: col, strokeWidth: 2))
-                : Icon(Icons.save_rounded, color: col),
+                ? const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.save_rounded, color: Colors.white),
             onPressed: _guardando ? null : _guardar,
           ),
         ],
       ),
       body: Column(children: [
-        // Pestañas de secciones
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
+
+        // ── Encabezado institucional INS ──────────────────────────────────
+        _EncabezadoINS(
+          nombreFicha: widget.nombreFicha,
+          codigoFicha: widget.codigoFicha,
+        ),
+
+        // ── Tabs de secciones ─────────────────────────────────────────────
+        Container(
+          color: _kAzulINS,
+          height: 38,
+          child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             itemCount: _secciones.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 6),
             itemBuilder: (_, i) {
               final activo = i == _seccionIdx;
               return GestureDetector(
                 onTap: () => setState(() => _seccionIdx = i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
+                  margin: const EdgeInsets.only(right: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: activo ? col : dc.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: activo ? col : dc.border),
+                    color: activo ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                        color: activo ? Colors.white : Colors.white38),
                   ),
-                  child: Center(child: Text('${i+1}',
-                      style: TextStyle(
-                          color: activo ? Colors.white : dc.textHint,
-                          fontSize: 12, fontWeight: FontWeight.bold))),
+                  child: Center(child: Text(
+                    '${i + 1}',
+                    style: TextStyle(
+                        color: activo ? _kAzulINS : Colors.white,
+                        fontSize: 12, fontWeight: FontWeight.bold),
+                  )),
                 ),
               );
             },
           ),
         ),
-        // Título de sección
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-          child: Row(children: [
-            Container(width: 4, height: 18,
-                decoration: BoxDecoration(color: col, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 8),
-            Expanded(child: Text(_secciones[_seccionIdx].titulo,
-                style: TextStyle(color: dc.textPrimary, fontSize: 13, fontWeight: FontWeight.bold))),
-            Text('${_seccionIdx+1}/${_secciones.length}',
-                style: TextStyle(color: dc.textHint, fontSize: 11)),
-          ]),
-        ),
-        // Campos
+
+        // ── Cuerpo del formulario ─────────────────────────────────────────
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-            children: [
-              ..._secciones[_seccionIdx].campos.map((c) => _buildCampo(c, dc, col)),
-              const SizedBox(height: 16),
-              Row(children: [
-                if (_seccionIdx > 0) ...[
-                  Expanded(child: OutlinedButton.icon(
-                    icon: Icon(Icons.arrow_back_ios_rounded, size: 13, color: col),
-                    label: Text('Anterior', style: TextStyle(color: col)),
-                    style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: col),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                    onPressed: () => setState(() => _seccionIdx--),
-                  )),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(child: _seccionIdx < _secciones.length - 1
-                    ? ElevatedButton.icon(
-                        icon: const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Colors.white),
-                        label: const Text('Siguiente', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(backgroundColor: col,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                        onPressed: () => setState(() => _seccionIdx++),
-                      )
-                    : ElevatedButton.icon(
-                        icon: _guardando
-                            ? const SizedBox(width: 16, height: 16,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Icon(Icons.save_rounded, color: Colors.white, size: 18),
-                        label: Text(_guardando ? 'Guardando...' : 'Guardar ficha',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: col,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                        onPressed: _guardando ? null : _guardar,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: bgForm,
+                border: Border.all(color: borde),
+                boxShadow: [BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 6, offset: const Offset(0, 2))],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // Cabecera de sección (fondo azul oscuro)
+                Container(
+                  width: double.infinity,
+                  color: _kAzulINS,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(children: [
+                    Expanded(child: Text(
+                      _secciones[_seccionIdx].titulo.toUpperCase(),
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 11,
+                          fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                    )),
+                    Text(
+                      '${_seccionIdx + 1} / ${_secciones.length}',
+                      style: const TextStyle(color: Colors.white60, fontSize: 10),
+                    ),
+                  ]),
+                ),
+
+                // Campos de la sección
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _secciones[_seccionIdx].campos
+                        .map((c) => _buildCampoINS(c, txtForm))
+                        .toList(),
+                  ),
+                ),
+
+                // Navegación
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                  child: Row(children: [
+                    if (_seccionIdx > 0) ...[
+                      Expanded(child: OutlinedButton.icon(
+                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 13),
+                        label: const Text('Anterior'),
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: _kAzulINS,
+                            side: const BorderSide(color: _kAzulINS),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
+                        onPressed: () => setState(() => _seccionIdx--),
                       )),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(child: _seccionIdx < _secciones.length - 1
+                        ? ElevatedButton.icon(
+                            icon: const Icon(Icons.arrow_forward_ios_rounded,
+                                size: 13, color: Colors.white),
+                            label: const Text('Siguiente sección',
+                                style: TextStyle(color: Colors.white, fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: _kAzulINS,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
+                            onPressed: () => setState(() => _seccionIdx++),
+                          )
+                        : ElevatedButton.icon(
+                            icon: _guardando
+                                ? const SizedBox(width: 16, height: 16,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.save_rounded,
+                                    color: Colors.white, size: 18),
+                            label: Text(
+                              _guardando ? 'Guardando...' : 'Guardar ficha',
+                              style: const TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: _kVerdeINS,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4))),
+                            onPressed: _guardando ? null : _guardar,
+                          )),
+                  ]),
+                ),
               ]),
-            ],
+            ),
           ),
         ),
       ]),
     );
   }
 
-  Widget _buildCampo(_Campo c, DispersaludColors dc, Color col) {
+  // ════════════════════════════════════════════════════════════════════════════
+  //  BUILDERS DE CAMPO — estilo formulario oficial INS
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildCampoINS(Campo c, Color txtColor) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Etiqueta del campo
         Row(children: [
-          Text(c.etiqueta,
-              style: TextStyle(color: dc.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+          Expanded(child: Text(
+            c.etiqueta,
+            style: TextStyle(
+                color: txtColor,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600),
+          )),
           if (c.requerido)
-            Text(' *', style: const TextStyle(color: _kRojo, fontSize: 12, fontWeight: FontWeight.bold)),
+            const Text(' *', style: TextStyle(color: _kRojo, fontSize: 12, fontWeight: FontWeight.bold)),
         ]),
-        const SizedBox(height: 5),
-        if (c.tipo == _TipoCampo.siNo)     _buildSiNo(c, dc, col)
-        else if (c.tipo == _TipoCampo.opciones) _buildDropdown(c, dc)
-        else _buildTextField(c, dc, col),
+        const SizedBox(height: 4),
+
+        // Contenido según tipo
+        switch (c.tipo) {
+          TipoCampo.siNo     => _buildRadioSiNo(c, txtColor),
+          TipoCampo.radio3   => _buildRadio3(c, txtColor,
+              opciones: c.opciones.isNotEmpty ? c.opciones : ['1. Si','2. No','3. No sabe']),
+          TipoCampo.opciones => _buildOpcionesINS(c, txtColor),
+          TipoCampo.fecha    => _buildFechaINS(c, txtColor),
+          TipoCampo.multiLinea => _buildTextAreaINS(c, txtColor),
+          _                  => _buildTextoINS(c, txtColor),
+        },
       ]),
     );
   }
 
-  Widget _buildTextField(_Campo c, DispersaludColors dc, Color col) {
+  // ── Texto simple con línea inferior ────────────────────────────────────────
+  Widget _buildTextoINS(Campo c, Color txtColor) {
     final ctrl = _ctrls[c.clave] ??= TextEditingController();
     return TextField(
       controller: ctrl,
-      maxLines: c.tipo == _TipoCampo.multiLinea ? 3 : 1,
-      keyboardType: c.tipo == _TipoCampo.numero ? TextInputType.number : TextInputType.text,
-      style: TextStyle(color: dc.textPrimary, fontSize: 14),
+      keyboardType: c.tipo == TipoCampo.numero
+          ? TextInputType.number : TextInputType.text,
+      style: TextStyle(color: txtColor, fontSize: 13),
       decoration: InputDecoration(
-        hintText: c.hint ?? (c.tipo == _TipoCampo.fecha ? 'DD/MM/AAAA' : ''),
-        hintStyle: TextStyle(color: dc.textHint, fontSize: 12),
-        filled: true, fillColor: dc.card,
-        suffixIcon: c.tipo == _TipoCampo.fecha
-            ? GestureDetector(
-                onTap: () async {
-                  final d = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                    builder: (ctx, child) => Theme(
-                      data: Theme.of(ctx).copyWith(
-                          colorScheme: ColorScheme.dark(primary: col)),
-                      child: child!,
-                    ),
-                  );
-                  if (d != null) {
-                    ctrl.text =
-                        '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
-                  }
-                },
-                child: Icon(Icons.calendar_today_outlined, color: dc.textHint, size: 18),
-              )
-            : null,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: col, width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        hintText: c.hint ?? '',
+        hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 6),
+        enabledBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: _kLinea)),
+        focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: _kAzulINS, width: 1.5)),
       ),
     );
   }
 
-  Widget _buildDropdown(_Campo c, DispersaludColors dc) {
+  // ── Texto multilínea ───────────────────────────────────────────────────────
+  Widget _buildTextAreaINS(Campo c, Color txtColor) {
+    final ctrl = _ctrls[c.clave] ??= TextEditingController();
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: _kLinea)),
+      child: TextField(
+        controller: ctrl,
+        maxLines: 3,
+        style: TextStyle(color: txtColor, fontSize: 13),
+        decoration: const InputDecoration(
+          contentPadding: EdgeInsets.all(8),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  // ── Fecha con selector ─────────────────────────────────────────────────────
+  Widget _buildFechaINS(Campo c, Color txtColor) {
+    final ctrl = _ctrls[c.clave] ??= TextEditingController();
+    return GestureDetector(
+      onTap: () async {
+        final d = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+          builder: (ctx, child) => Theme(
+            data: Theme.of(ctx).copyWith(
+                colorScheme: const ColorScheme.light(primary: _kAzulINS)),
+            child: child!,
+          ),
+        );
+        if (d != null) {
+          ctrl.text =
+              '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
+        }
+      },
+      child: AbsorbPointer(
+        child: TextField(
+          controller: ctrl,
+          style: TextStyle(color: txtColor, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'dd/mm/aaaa',
+            hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+            suffixIcon: const Icon(Icons.calendar_today_outlined,
+                color: _kAzulINS, size: 16),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+            enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: _kLinea)),
+            focusedBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: _kAzulINS, width: 1.5)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Radio horizontal Sí / No (estilo INS) ─────────────────────────────────
+  Widget _buildRadioSiNo(Campo c, Color txtColor) {
+    final sel = _radios[c.clave] ?? '';
+    return Row(children: [
+      _RadioOpcion(label: '1. Si',  clave: c.clave, valor: 'si',  seleccion: sel,
+          color: _kAzulINS, txtColor: txtColor,
+          onTap: () => setState(() => _radios[c.clave] = 'si')),
+      const SizedBox(width: 20),
+      _RadioOpcion(label: '2. No',  clave: c.clave, valor: 'no',  seleccion: sel,
+          color: _kAzulINS, txtColor: txtColor,
+          onTap: () => setState(() => _radios[c.clave] = 'no')),
+    ]);
+  }
+
+  // ── Radio horizontal con 3+ opciones numeradas ─────────────────────────────
+  Widget _buildRadio3(Campo c, Color txtColor, {required List<String> opciones}) {
+    final sel = _radios[c.clave] ?? '';
+    return Wrap(
+      spacing: 16,
+      runSpacing: 6,
+      children: opciones.map((op) => _RadioOpcion(
+        label: op, clave: c.clave, valor: op, seleccion: sel,
+        color: _kAzulINS, txtColor: txtColor,
+        onTap: () => setState(() => _radios[c.clave] = op),
+      )).toList(),
+    );
+  }
+
+  // ── Dropdown estilo línea inferior ─────────────────────────────────────────
+  Widget _buildOpcionesINS(Campo c, Color txtColor) {
     final val = _dropdowns[c.clave] ?? c.opciones.first;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(10)),
-      child: DropdownButton<String>(
-        value: c.opciones.contains(val) ? val : c.opciones.first,
-        isExpanded: true, underline: const SizedBox(),
-        dropdownColor: dc.card,
-        style: TextStyle(color: dc.textPrimary, fontSize: 14),
-        icon: Icon(Icons.keyboard_arrow_down_rounded, color: dc.textHint),
-        items: c.opciones.map((o) =>
-            DropdownMenuItem(value: o, child: Text(o, overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: (v) => setState(() => _dropdowns[c.clave] = v ?? ''),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: _kLinea))),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: c.opciones.contains(val) ? val : c.opciones.first,
+          isExpanded: true,
+          isDense: true,
+          style: TextStyle(color: txtColor, fontSize: 13),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _kAzulINS),
+          items: c.opciones.map((o) => DropdownMenuItem(
+              value: o,
+              child: Text(o, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: txtColor, fontSize: 13)))).toList(),
+          onChanged: (v) => setState(() => _dropdowns[c.clave] = v ?? ''),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildSiNo(_Campo c, DispersaludColors dc, Color col) {
-    final val = _bools[c.clave] ?? false;
-    return Row(children: [
-      Expanded(child: GestureDetector(
-        onTap: () => setState(() => _bools[c.clave] = true),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-              color: val ? col.withOpacity(0.15) : dc.card,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: val ? col : dc.border)),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.check_circle_rounded, size: 16, color: val ? col : dc.textHint),
-            const SizedBox(width: 6),
-            Text('Sí', style: TextStyle(color: val ? col : dc.textHint, fontWeight: FontWeight.w600)),
+// ═══════════════════════════════════════════════════════════════════════════
+//  ENCABEZADO INSTITUCIONAL INS
+// ═══════════════════════════════════════════════════════════════════════════
+class _EncabezadoINS extends StatelessWidget {
+  final String nombreFicha, codigoFicha;
+  const _EncabezadoINS({required this.nombreFicha, required this.codigoFicha});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: Column(children: [
+        // Franja superior azul con logos institucionales
+        Container(
+          color: _kAzulINS,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(children: [
+            // Texto "Colombia Potencia de la Vida"
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4)),
+              child: const Column(children: [
+                Text('🇨🇴', style: TextStyle(fontSize: 16)),
+                Text('COLOMBIA', style: TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold)),
+                Text('POTENCIA', style: TextStyle(color: Colors.white, fontSize: 6)),
+                Text('DE LA VIDA', style: TextStyle(color: Colors.white, fontSize: 6)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            // Salud
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: const Text('Salud', style: TextStyle(
+                  color: _kAzulINS, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 8),
+            // INS
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: const Column(children: [
+                Text('INS', style: TextStyle(
+                    color: _kAzulINS, fontSize: 10, fontWeight: FontWeight.bold)),
+                Text('INSTITUTO\nNACIONAL\nDE SALUD',
+                    style: TextStyle(color: _kAzulINS, fontSize: 5),
+                    textAlign: TextAlign.center),
+              ]),
+            ),
+            const Spacer(),
+            // SIVIGILA
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: const Column(children: [
+                Text('SIVIGILA', style: TextStyle(
+                    color: _kAzulINS, fontSize: 11, fontWeight: FontWeight.bold,
+                    letterSpacing: 1)),
+                Text('S U I T E', style: TextStyle(
+                    color: _kAzulClaro, fontSize: 7, letterSpacing: 2)),
+              ]),
+            ),
           ]),
         ),
-      )),
-      const SizedBox(width: 8),
-      Expanded(child: GestureDetector(
-        onTap: () => setState(() => _bools[c.clave] = false),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-              color: !val ? _kRojo.withOpacity(0.12) : dc.card,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: !val ? _kRojo : dc.border)),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.cancel_rounded, size: 16, color: !val ? _kRojo : dc.textHint),
-            const SizedBox(width: 6),
-            Text('No', style: TextStyle(color: !val ? _kRojo : dc.textHint, fontWeight: FontWeight.w600)),
-          ]),
+
+        // Subtítulo del sistema
+        Container(
+          width: double.infinity,
+          color: const Color(0xFFF0F4FF),
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: const Text(
+            'SISTEMA NACIONAL DE VIGILANCIA EN SALUD PÚBLICA – Subsistema de información Sivigila\nFormulario de recolección',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _kAzulINS, fontSize: 9.5, fontWeight: FontWeight.w500, height: 1.4),
+          ),
         ),
-      )),
-    ]);
+
+        // Nombre de la ficha
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          color: Colors.white,
+          child: Text(
+            nombreFicha,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Color(0xFF111111), fontSize: 14,
+                fontWeight: FontWeight.bold),
+          ),
+        ),
+
+        // Código FOR
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.only(bottom: 6),
+          color: Colors.white,
+          child: Text(
+            'Código: SIVIGILA-$codigoFicha  •  Versión: 2024',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF666666), fontSize: 9),
+          ),
+        ),
+
+        const Divider(height: 1, color: Color(0xFFCCCCCC)),
+      ]),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  WIDGET: Radio opción estilo INS (○ 1. Si)
+// ═══════════════════════════════════════════════════════════════════════════
+class _RadioOpcion extends StatelessWidget {
+  final String  label, clave, valor, seleccion;
+  final Color   color, txtColor;
+  final VoidCallback onTap;
+
+  const _RadioOpcion({
+    required this.label,    required this.clave,
+    required this.valor,    required this.seleccion,
+    required this.color,    required this.txtColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = seleccion == valor;
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 16, height: 16,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: sel ? color : const Color(0xFF888888), width: 1.5),
+            color: sel ? color : Colors.transparent,
+          ),
+          child: sel
+              ? const Center(child: Icon(Icons.circle, size: 6, color: Colors.white))
+              : null,
+        ),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(
+            color: sel ? color : txtColor,
+            fontSize: 12,
+            fontWeight: sel ? FontWeight.w700 : FontWeight.normal)),
+      ]),
+    );
   }
 }

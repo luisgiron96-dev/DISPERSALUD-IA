@@ -202,7 +202,7 @@ const List<_Ficha> _kFichas = [
   ),
   _Ficha(
     codigo: 'RUBE', nombre: 'Rubéola / Síndrome rubéola congénita',
-    archivoAsset: 'assets/protocolos/Pro_Sarampión_Rubeola.pdf',
+    archivoAsset: 'assets/protocolos/Pro_Sarampion_Rubeola.pdf',
     categoria: 'inmuno', emoji: '🔴', color: _kAzul,
     descripcionCorta: 'Meta de eliminación en Colombia. Cualquier caso: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -246,7 +246,7 @@ const List<_Ficha> _kFichas = [
   ),
   _Ficha(
     codigo: 'SFILIS', nombre: 'Sífilis gestacional y congénita',
-    archivoAsset: 'assets/protocolos/Pro_Sífilis Gestacional y Congénita 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_Sifilis Gestacional y Congenita 2024.pdf',
     categoria: 'its', emoji: '🤰', color: Color(0xFF993556),
     descripcionCorta: 'Caso de sífilis congénita: notificación inmediata. Meta eliminación.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -438,21 +438,21 @@ const List<_Ficha> _kFichas = [
   ),
   _Ficha(
     codigo: 'CANCER', nombre: 'Cáncer de mama y cuello uterino',
-    archivoAsset: 'assets/protocolos/Pro_Cáncer de mama y cuello uterino 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_Cancer de mama y cuello uterino 2024.pdf',
     categoria: 'cronicas', emoji: '🎗️', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Tamizaje y vigilancia. Registro de casos confirmados.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'TETAN_A', nombre: 'Tétanos accidental',
-    archivoAsset: 'assets/protocolos/Pro_tétanos accidental 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_tetanos accidental 2024.pdf',
     categoria: 'cronicas', emoji: '💉', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Inmunoprevenible. Cualquier caso confirmado: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'TETAN_N', nombre: 'Tétanos neonatal',
-    archivoAsset: 'assets/protocolos/Pro_tétanos neonatal 2024.pdf',
+    archivoAsset: 'assets/protocolos/Pro_tetanos neonatal 2024.pdf',
     categoria: 'cronicas', emoji: '👶', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Meta de eliminación. Todo caso es emergencia de salud pública.',
     notificacion: 'Inmediata', esUrgente: true,
