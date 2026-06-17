@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
+import '../widgets/firma_panel.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  seguimiento_screen.dart  —  DISPERSALUD IA  (datos reales BD)
@@ -215,6 +218,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     final pesoCtrl   = TextEditingController();
     final presCtrl   = TextEditingController();
     String nivelSel  = 'estable';
+    Uint8List? firmaBytes;
 
     await showModalBottomSheet(
       context: context,
@@ -225,7 +229,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         return StatefulBuilder(builder: (ctx2, setSt) {
           return Container(
             padding: EdgeInsets.fromLTRB(
-                16, 16, 16, MediaQuery.of(ctx2).viewInsets.bottom + 16),
+                16, 16, 16,
+                MediaQuery.of(ctx2).viewInsets.bottom +
+                MediaQuery.of(ctx2).padding.bottom + 16),
             decoration: BoxDecoration(
                 color: dc.bg,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
@@ -340,6 +346,52 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Firma del profesional
+                Text('Firma del profesional',
+                    style: TextStyle(color: dc.textPrimary, fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () async {
+                    final bytes = await mostrarDialogoFirma(
+                      context: ctx2,
+                      titulo: 'Firma del profesional',
+                    );
+                    if (bytes != null) {
+                      setSt(() => firmaBytes = bytes);
+                    }
+                  },
+                  child: firmaBytes == null
+                      ? Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                              color: dc.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: dc.border)),
+                          child: Row(children: [
+                            const SizedBox(width: 14),
+                            Icon(Icons.draw_outlined, color: dc.textHint, size: 18),
+                            const SizedBox(width: 10),
+                            Text('Tocar para firmar',
+                                style: TextStyle(color: dc.textHint, fontSize: 12.5)),
+                          ]),
+                        )
+                      : Container(
+                          height: 70,
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _verde, width: 1.4)),
+                          child: Row(children: [
+                            Expanded(child: Image.memory(firmaBytes!, fit: BoxFit.contain)),
+                            const SizedBox(width: 6),
+                            Icon(Icons.check_circle_rounded, color: _verde, size: 18),
+                          ]),
+                        ),
+                ),
+                const SizedBox(height: 16),
+
                 // Botón guardar
                 SizedBox(
                   width: double.infinity,
@@ -352,6 +404,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                         peso: pesoCtrl.text.trim(),
                         presion: presCtrl.text.trim(),
                         nivelRiesgo: nivelSel,
+                        firmaBytes: firmaBytes,
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -382,6 +435,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     required String peso,
     required String presion,
     required String nivelRiesgo,
+    Uint8List? firmaBytes,
   }) async {
     await DatabaseHelper.instance.insertarConsulta({
       'paciente_id':  paciente['id'],
@@ -392,6 +446,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       'presion':      presion,
       'nivel_riesgo': nivelRiesgo,
       'diagnostico':  'Visita de seguimiento',
+      if (firmaBytes != null) 'firma_png': base64Encode(firmaBytes),
+      if (firmaBytes != null) 'firma_fecha': DateTime.now().toIso8601String(),
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

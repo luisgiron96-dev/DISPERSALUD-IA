@@ -13,7 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
-import '../main.dart' show temaNotifier, temaDesdeString;
+import '../main.dart' show temaNotifier, temaDesdeString, fontSizeNotifier;
 
 const Color _kVerde = Color(0xFF1D9E75);
 
@@ -871,6 +871,7 @@ class _ConfigScreenState extends State<ConfigScreen>
   bool   _vozActiva = true;
   bool   _alertas   = true;
   String _tema      = 'Sistema';
+  double _fuente    = 1.0; // escala de texto
 
   // Conectividad
   bool _online = false;
@@ -922,6 +923,7 @@ class _ConfigScreenState extends State<ConfigScreen>
       _vozActiva    = p.getBool('voz_activa')              ?? true;
       _alertas      = p.getBool('alertas_activas')         ?? true;
       _tema         = p.getString('tema_app')              ?? 'Sistema';
+      _fuente       = p.getDouble('fuente_escala')          ?? 1.0;
     });
   }
 
@@ -1207,6 +1209,156 @@ class _ConfigScreenState extends State<ConfigScreen>
             );
           }),
         ]),
+      ),
+    );
+  }
+
+  // ── Tamaño de fuente ────────────────────────────────────────────────────
+  void _abrirFuente() {
+    // Opciones predefinidas: etiqueta, escala, descripción
+    const opciones = [
+      ('Pequeña',  0.85, 'Cabe más contenido en pantalla'),
+      ('Normal',   1.0,  'Tamaño predeterminado de la app'),
+      ('Grande',   1.15, 'Más fácil de leer'),
+      ('Muy grande',1.3, 'Accesibilidad máxima'),
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, ss) {
+          final dc = _c(ctx);
+          return Container(
+            decoration: BoxDecoration(
+              color: dc.card,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Handle
+              Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: dc.border,
+                      borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+
+              // Título
+              Row(children: [
+                Container(width: 38, height: 38,
+                  decoration: BoxDecoration(color: _kVerde.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.text_fields_rounded, color: _kVerde, size: 20)),
+                const SizedBox(width: 10),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Tamaño de fuente', style: TextStyle(
+                      color: dc.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Ajusta el texto de toda la aplicación',
+                      style: TextStyle(color: dc.textHint, fontSize: 11)),
+                ]),
+              ]),
+              const SizedBox(height: 20),
+
+              // Vista previa del texto
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: dc.bg, borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: dc.border)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Vista previa',
+                      style: TextStyle(color: dc.textHint, fontSize: 11)),
+                  const SizedBox(height: 6),
+                  Text('DISPERSALUD IA',
+                      style: TextStyle(color: _kVerde,
+                          fontSize: 14 * _fuente,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 2),
+                  Text('Salud rural sin internet · Cauca, Colombia',
+                      style: TextStyle(color: dc.textSecondary,
+                          fontSize: 12 * _fuente)),
+                ]),
+              ),
+              const SizedBox(height: 16),
+
+              // Opciones de tamaño
+              ...opciones.map((op) {
+                final sel = (_fuente - op.$2).abs() < 0.01;
+                return GestureDetector(
+                  onTap: () async {
+                    ss(() {});
+                    setState(() => _fuente = op.$2);
+                    fontSizeNotifier.value = op.$2;
+                    final p = await SharedPreferences.getInstance();
+                    await p.setDouble('fuente_escala', op.$2);
+                    _snack('Fuente ${op.$1.toLowerCase()} aplicada ✓');
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: sel ? _kVerde.withOpacity(0.10) : dc.bg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: sel ? _kVerde : dc.border,
+                          width: sel ? 1.5 : 1)),
+                    child: Row(children: [
+                      // Preview "A" con el tamaño correspondiente
+                      SizedBox(
+                        width: 40,
+                        child: Text('A',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: sel ? _kVerde : dc.textSecondary,
+                                fontSize: 12 + (op.$2 - 0.85) * 20,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text(op.$1, style: TextStyle(
+                            color: sel ? _kVerde : dc.textPrimary,
+                            fontSize: 14,
+                            fontWeight: sel ? FontWeight.bold : FontWeight.w500)),
+                        Text(op.$3, style: TextStyle(
+                            color: dc.textHint, fontSize: 11)),
+                      ])),
+                      // Badge seleccionado
+                      if (sel)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                              color: _kVerde.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Activo',
+                              style: TextStyle(color: _kVerde,
+                                  fontSize: 11, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        Icon(Icons.radio_button_unchecked,
+                            color: dc.border, size: 18),
+                    ]),
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 8),
+              SizedBox(width: double.infinity, height: 48,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: dc.border),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))),
+                  child: Text('Cerrar',
+                      style: TextStyle(color: dc.textSecondary,
+                          fontWeight: FontWeight.w600)),
+                )),
+            ]),
+          );
+        },
       ),
     );
   }
@@ -1526,6 +1678,12 @@ class _ConfigScreenState extends State<ConfigScreen>
             _label('Aplicación'),
             _grupo([
               _tile(Icons.dark_mode_outlined, 'Tema', _tema, dc, onTap: _abrirTema),
+              _tile(Icons.text_fields_rounded, 'Tamaño de fuente',
+                  _fuente == 0.85 ? 'Pequeña'
+                  : _fuente == 1.0 ? 'Normal'
+                  : _fuente == 1.15 ? 'Grande'
+                  : 'Muy grande',
+                  dc, onTap: _abrirFuente, iconColor: const Color(0xFF534AB7)),
               _tile(Icons.language_rounded, 'Idioma', 'Español', dc, onTap: _abrirIdioma),
               _tile(Icons.notifications_outlined, 'Notificaciones', 'Personalizadas', dc, onTap: _abrirNotificaciones, last: true),
             ], dc),

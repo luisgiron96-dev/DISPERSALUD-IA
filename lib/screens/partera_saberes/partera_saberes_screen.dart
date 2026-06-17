@@ -568,11 +568,15 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kFondo,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _kMorado,
-        tooltip: 'Chat con IA DISPERSALUD',
-        onPressed: _mostrarChatIA,
-        child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 24),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom > 0 ? 8 : 0),
+        child: FloatingActionButton(
+          backgroundColor: _kMorado,
+          tooltip: 'Chat con IA DISPERSALUD',
+          onPressed: _mostrarChatIA,
+          child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 24),
+        ),
       ),
       body: SafeArea(
         child: Column(children: [
@@ -1775,7 +1779,9 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(builder: (ctx2, setLocal) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                MediaQuery.of(ctx).padding.bottom),
         child: SizedBox(
           height: MediaQuery.of(ctx).size.height * 0.7,
           child: Column(children: [

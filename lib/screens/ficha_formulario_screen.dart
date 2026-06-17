@@ -375,174 +375,286 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
     try {
       final datos = _recolectar();
       final pdf   = pw.Document();
+      final now   = DateTime.now();
+      final fechaGen =
+          '${now.day.toString().padLeft(2,"0")}/${now.month.toString().padLeft(2,"0")}/${now.year} '
+          '${now.hour.toString().padLeft(2,"0")}:${now.minute.toString().padLeft(2,"0")}';
 
-      // Cargar logos como imágenes reales para el PDF
-      final logoDispersalud = pw.MemoryImage(
-          (await rootBundle.load('assets/logo_dispersalud.png')).buffer.asUint8List());
-      final logoColombia = pw.MemoryImage(
-          (await rootBundle.load('assets/logos_ins/logo_colombia.png')).buffer.asUint8List());
-      final logoSalud = pw.MemoryImage(
-          (await rootBundle.load('assets/logos_ins/logo_salud.png')).buffer.asUint8List());
-      final logoIns = pw.MemoryImage(
-          (await rootBundle.load('assets/logos_ins/logo_ins.png')).buffer.asUint8List());
-      final logoSivigila = pw.MemoryImage(
-          (await rootBundle.load('assets/logos_ins/logo_sivigila.png')).buffer.asUint8List());
+      // ── Cargar logos ───────────────────────────────────────────────────
+      pw.MemoryImage? logoDisper, logoColombia, logoSalud, logoIns, logoSivigila;
+      try {
+        logoDisper   = pw.MemoryImage((await rootBundle.load('assets/logo_dispersalud.png')).buffer.asUint8List());
+        logoColombia = pw.MemoryImage((await rootBundle.load('assets/logos_ins/logo_colombia.png')).buffer.asUint8List());
+        logoSalud    = pw.MemoryImage((await rootBundle.load('assets/logos_ins/logo_salud.png')).buffer.asUint8List());
+        logoIns      = pw.MemoryImage((await rootBundle.load('assets/logos_ins/logo_ins.png')).buffer.asUint8List());
+        logoSivigila = pw.MemoryImage((await rootBundle.load('assets/logos_ins/logo_sivigila.png')).buffer.asUint8List());
+      } catch (_) {}
 
-      final azulINS   = PdfColor.fromHex('003A8C');
-      final azulBanda = PdfColor.fromHex('EEF2FB');
-      final verdePDF  = PdfColor.fromHex('1D9E75');
+      // ── Colores ────────────────────────────────────────────────────────
+      final azul      = PdfColor.fromHex('003A8C');
+      final verdeAcc  = PdfColor.fromHex('1D9E75');
+      final grisLinea = PdfColor.fromHex('E0E4EC');
+      final grisTexto = PdfColor.fromHex('555555');
+      final grisClaro = PdfColor.fromHex('F7F8FA');
       final rojoPDF   = PdfColor.fromHex('E24B4A');
-      final grisLinea = PdfColor.fromHex('CCCCCC');
       final bold      = pw.Font.helveticaBold();
       final regular   = pw.Font.helvetica();
 
+      // ── Generar una página por sección ────────────────────────────────
       for (int si = 0; si < _secciones.length; si++) {
         final sec = _secciones[si];
+
         pdf.addPage(pw.Page(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.fromLTRB(28, 22, 28, 20),
-          build: (_) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // ── Encabezado institucional ─────────────────────────────
-              pw.Container(
-                decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: azulINS, width: 1.5)),
-                child: pw.Column(children: [
-                  pw.Container(
-                    color: azulINS,
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(2),
-                        decoration: const pw.BoxDecoration(color: PdfColors.white),
-                        child: pw.Image(logoDispersalud, height: 18, width: 18),
-                      ),
-                      pw.SizedBox(width: 6),
-                      pw.Text('SISTEMA NACIONAL DE VIGILANCIA EN SALUD PÚBLICA',
-                          style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 8.5)),
-                      pw.Spacer(),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        color: PdfColors.white,
-                        child: pw.Image(logoSivigila, height: 14),
-                      ),
-                    ]),
-                  ),
-                  pw.Container(
-                    color: PdfColor.fromHex('F0F4FF'),
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                      pw.Image(logoColombia, height: 22),
+          margin: const pw.EdgeInsets.fromLTRB(32, 28, 32, 24),
+          build: (_) {
+            // ── ENCABEZADO estilo imagen 2 ──────────────────────────────
+            // Fila 1: Logo DISPERSALUD grande | línea | "Formulario de Recolección" + nombre ficha + código
+            final encabezado = pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColor.fromHex('DDDDDD'), width: 0.5),
+              ),
+              child: pw.Column(children: [
+                // Banda superior: logos izquierda + info derecha
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      // Logo DISPERSALUD IA grande
+                      if (logoDisper != null)
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(4),
+                          child: pw.Image(logoDisper, height: 38, width: 38, fit: pw.BoxFit.contain),
+                        )
+                      else
+                        pw.Container(
+                          width: 38, height: 38,
+                          decoration: pw.BoxDecoration(color: verdeAcc, borderRadius: pw.BorderRadius.circular(6)),
+                          child: pw.Center(
+                            child: pw.Text('D', style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 20)),
+                          ),
+                        ),
                       pw.SizedBox(width: 8),
-                      pw.Image(logoSalud, height: 18),
-                      pw.SizedBox(width: 8),
-                      pw.Image(logoIns, height: 22),
-                      pw.Spacer(),
-                      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-                        pw.Text('Formulario de Recolección',
-                            style: pw.TextStyle(font: regular, color: PdfColors.grey700, fontSize: 7)),
-                        pw.Text(widget.nombreFicha,
-                            style: pw.TextStyle(font: bold, color: azulINS, fontSize: 8.5)),
-                        pw.Text('Código: SIVIGILA-${widget.codigoFicha}  •  Versión 2024',
-                            style: pw.TextStyle(font: regular, color: PdfColors.grey600, fontSize: 6)),
+                      // Texto DISPERSALUD IA
+                      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                        pw.Text('DISPERSALUD', style: pw.TextStyle(font: bold, fontSize: 14, color: azul, letterSpacing: 1)),
+                        pw.Row(children: [
+                          pw.Text('IA', style: pw.TextStyle(font: bold, fontSize: 14, color: verdeAcc)),
+                        ]),
+                        pw.Text('SALUD INTELIGENTE. DONDE MÁS SE NECESITA.',
+                            style: pw.TextStyle(font: regular, fontSize: 5.5, color: grisTexto, letterSpacing: 0.3)),
                       ]),
-                    ]),
-                  ),
-                ]),
-              ),
-              pw.SizedBox(height: 8),
-              // ── Cabecera sección ─────────────────────────────────────
-              pw.Container(
-                width: double.infinity,
-                color: azulINS,
-                padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                child: pw.Row(children: [
-                  pw.Text(sec.titulo.toUpperCase(),
-                      style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 8.5, letterSpacing: 0.5)),
-                  pw.Spacer(),
-                  pw.Text('${si + 1} / ${_secciones.length}',
-                      style: pw.TextStyle(font: regular, color: const PdfColor(1, 1, 1, 0.7), fontSize: 7.5)),
-                ]),
-              ),
-              // ── Tabla de campos ──────────────────────────────────────
-              pw.Container(
-                decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: grisLinea, width: 0.8)),
-                child: pw.Table(
-                  columnWidths: {
-                    0: const pw.FlexColumnWidth(2.2),
-                    1: const pw.FlexColumnWidth(3.8),
-                  },
-                  children: sec.campos.asMap().entries.map((entry) {
-                    final idx   = entry.key;
-                    final campo = entry.value;
-                    final val   = datos[campo.clave]?.toString() ?? '';
-                    final bgRow = idx.isEven ? azulBanda : PdfColors.white;
-                    String display;
-                    if (campo.tipo == TipoCampo.siNo) {
-                      display = val == 'si' ? '☑  Sí      ☐  No'
-                              : val == 'no' ? '☐  Sí      ☑  No'
-                              : '☐  Sí      ☐  No';
-                    } else {
-                      display = val.isEmpty ? '—' : val;
-                    }
-                    final esVacio     = val.isEmpty;
-                    final esRequerido = campo.requerido && esVacio;
-                    return pw.TableRow(
-                      decoration: pw.BoxDecoration(color: bgRow),
-                      children: [
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                          decoration: pw.BoxDecoration(
-                              border: pw.Border(
-                                  right: pw.BorderSide(color: grisLinea, width: 0.5),
-                                  bottom: pw.BorderSide(color: grisLinea, width: 0.3))),
-                          child: pw.Row(children: [
-                            pw.Expanded(child: pw.Text(campo.etiqueta,
-                                style: pw.TextStyle(font: bold, fontSize: 7.5, color: PdfColors.grey800))),
-                            if (campo.requerido)
-                              pw.Text(' *', style: pw.TextStyle(font: bold, fontSize: 8, color: rojoPDF)),
+                      pw.SizedBox(width: 20),
+                      // Línea vertical divisoria
+                      pw.Container(width: 0.8, height: 44, color: PdfColor.fromHex('CCCCCC')),
+                      pw.SizedBox(width: 20),
+                      // Info: "Formulario de Recolección" + nombre + código
+                      pw.Expanded(child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        mainAxisAlignment: pw.MainAxisAlignment.center,
+                        children: [
+                          pw.Text('Formulario de Recolección',
+                              style: pw.TextStyle(font: regular, fontSize: 8, color: grisTexto)),
+                          pw.SizedBox(height: 3),
+                          pw.Text(widget.nombreFicha,
+                              style: pw.TextStyle(font: bold, fontSize: 15, color: azul)),
+                          pw.SizedBox(height: 4),
+                          pw.Row(children: [
+                            pw.Text('Código: ', style: pw.TextStyle(font: regular, fontSize: 7.5, color: grisTexto)),
+                            pw.Text(widget.codigoFicha, style: pw.TextStyle(font: bold, fontSize: 7.5, color: PdfColors.black)),
+                            pw.SizedBox(width: 12),
+                            pw.Text('|', style: pw.TextStyle(font: regular, fontSize: 7.5, color: grisTexto)),
+                            pw.SizedBox(width: 12),
+                            pw.Text('Versión: 2024', style: pw.TextStyle(font: regular, fontSize: 7.5, color: grisTexto)),
                           ]),
+                        ],
+                      )),
+                      // Logo SIVIGILA
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(color: PdfColor.fromHex('BBBBBB'), width: 0.5),
+                          borderRadius: pw.BorderRadius.circular(4),
                         ),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                          decoration: pw.BoxDecoration(
-                              border: pw.Border(
-                                  bottom: pw.BorderSide(color: grisLinea, width: 0.3))),
-                          child: pw.Text(display,
-                              style: pw.TextStyle(
-                                font: esVacio ? regular : bold,
-                                fontSize: 8,
-                                color: esRequerido ? rojoPDF : esVacio ? PdfColors.grey400 : PdfColors.black,
-                              )),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+                        child: pw.Row(children: [
+                          if (logoSivigila != null)
+                            pw.Image(logoSivigila, height: 18, fit: pw.BoxFit.contain)
+                          else
+                            pw.Text('SIVIGILA', style: pw.TextStyle(font: bold, fontSize: 8, color: azul)),
+                        ]),
+                      ),
+                    ],
+                  ),
                 ),
+                // Línea separadora
+                pw.Divider(color: PdfColor.fromHex('DDDDDD'), height: 0.5),
+                // Fila 2: logos institucionales Colombia + Salud + INS
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      if (logoColombia != null) ...[
+                        pw.Image(logoColombia, height: 22, fit: pw.BoxFit.contain),
+                        pw.SizedBox(width: 14),
+                      ],
+                      if (logoSalud != null) ...[
+                        pw.Image(logoSalud, height: 20, fit: pw.BoxFit.contain),
+                        pw.SizedBox(width: 14),
+                      ],
+                      if (logoIns != null) ...[
+                        pw.Container(width: 0.6, height: 22, color: PdfColor.fromHex('CCCCCC')),
+                        pw.SizedBox(width: 14),
+                        pw.Image(logoIns, height: 22, fit: pw.BoxFit.contain),
+                      ],
+                    ],
+                  ),
+                ),
+              ]),
+            );
+
+            // ── CABECERA SECCIÓN (verde oscuro) ─────────────────────────
+            final cabSeccion = pw.Container(
+              margin: const pw.EdgeInsets.only(top: 14),
+              decoration: pw.BoxDecoration(color: verdeAcc),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              child: pw.Row(children: [
+                pw.Expanded(child: pw.Text(
+                  sec.titulo.toUpperCase(),
+                  style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 9, letterSpacing: 0.4),
+                )),
+                pw.Text(
+                  '${si + 1} / ${_secciones.length}',
+                  style: pw.TextStyle(font: regular, color: const PdfColor(1, 1, 1, 0.85), fontSize: 8),
+                ),
+              ]),
+            );
+
+            // ── TABLA DE CAMPOS ──────────────────────────────────────────
+            final tabla = pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColor.fromHex('CCCCCC'), width: 0.6),
               ),
-              pw.Spacer(),
-              // ── Pie de página ────────────────────────────────────────
-              pw.Divider(color: grisLinea, height: 8),
+              child: pw.Table(
+                columnWidths: const {
+                  0: pw.FlexColumnWidth(2.5),
+                  1: pw.FlexColumnWidth(4.5),
+                },
+                children: sec.campos.asMap().entries.map((entry) {
+                  final idx   = entry.key;
+                  final campo = entry.value;
+                  final val   = datos[campo.clave]?.toString() ?? '';
+                  final bgRow = idx.isEven ? grisClaro : PdfColors.white;
+
+                  String display;
+                  if (campo.tipo == TipoCampo.siNo) {
+                    display = val == 'si' ? '✓  Sí'
+                            : val == 'no' ? '✗  No'
+                            : '—';
+                  } else {
+                    display = val.isEmpty ? '—' : val;
+                  }
+
+                  final esVacio     = val.isEmpty;
+                  final esRequerido = campo.requerido && esVacio;
+
+                  return pw.TableRow(
+                    decoration: pw.BoxDecoration(color: bgRow),
+                    children: [
+                      // Columna etiqueta
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            right: pw.BorderSide(color: PdfColor.fromHex('DDDDDD'), width: 0.5),
+                            bottom: pw.BorderSide(color: PdfColor.fromHex('EEEEEE'), width: 0.3),
+                          ),
+                        ),
+                        child: pw.Row(children: [
+                          pw.Expanded(child: pw.Text(
+                            campo.etiqueta,
+                            style: pw.TextStyle(font: regular, fontSize: 8, color: PdfColors.grey800),
+                          )),
+                          if (campo.requerido)
+                            pw.Text(' *', style: pw.TextStyle(font: bold, fontSize: 9, color: rojoPDF)),
+                        ]),
+                      ),
+                      // Columna valor
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            bottom: pw.BorderSide(color: PdfColor.fromHex('EEEEEE'), width: 0.3),
+                          ),
+                        ),
+                        child: pw.Text(
+                          display,
+                          style: pw.TextStyle(
+                            font: (esVacio || esRequerido) ? regular : bold,
+                            fontSize: 8.5,
+                            color: esRequerido
+                                ? rojoPDF
+                                : esVacio
+                                    ? PdfColors.grey400
+                                    : PdfColors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            );
+
+            // ── PIE DE PÁGINA ────────────────────────────────────────────
+            final pie = pw.Column(children: [
+              pw.SizedBox(height: 6),
+              pw.Divider(color: PdfColor.fromHex('DDDDDD'), height: 0.5),
+              pw.SizedBox(height: 5),
               pw.Row(children: [
-                pw.Container(width: 6, height: 6,
-                    decoration: pw.BoxDecoration(color: verdePDF, borderRadius: pw.BorderRadius.circular(3))),
+                pw.Container(
+                  width: 7, height: 7,
+                  decoration: pw.BoxDecoration(color: verdeAcc, borderRadius: pw.BorderRadius.circular(4)),
+                ),
                 pw.SizedBox(width: 5),
                 pw.Text('DISPERSALUD IA',
-                    style: pw.TextStyle(font: bold, fontSize: 7, color: verdePDF)),
-                pw.SizedBox(width: 5),
-                pw.Text('Formulario SIVIGILA  •  Instituto Nacional de Salud  •  Colombia',
-                    style: pw.TextStyle(font: regular, fontSize: 7, color: PdfColors.grey600)),
+                    style: pw.TextStyle(font: bold, fontSize: 7, color: verdeAcc)),
+                pw.SizedBox(width: 6),
+                pw.Text('  Formulario SIVIGILA',
+                    style: pw.TextStyle(font: regular, fontSize: 7, color: grisTexto)),
+                pw.SizedBox(width: 4),
+                pw.Text('  Instituto Nacional de Salud',
+                    style: pw.TextStyle(font: regular, fontSize: 7, color: grisTexto)),
+                pw.SizedBox(width: 4),
+                pw.Text('  Colombia',
+                    style: pw.TextStyle(font: regular, fontSize: 7, color: grisTexto)),
                 pw.Spacer(),
-                pw.Text('Pág. ${si + 1} / ${_secciones.length}  •  Generado: ${DateTime.now().toString().substring(0, 16)}',
-                    style: pw.TextStyle(font: regular, fontSize: 6.5, color: PdfColors.grey500)),
+                pw.Text(
+                  'Pág. ${si + 1} de ${_secciones.length}  |  Generado: $fechaGen',
+                  style: pw.TextStyle(font: regular, fontSize: 6.5, color: grisTexto),
+                ),
               ]),
-            ],
-          ),
+            ]);
+
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                encabezado,
+                cabSeccion,
+                tabla,
+                pw.Spacer(),
+                pie,
+              ],
+            );
+          },
         ));
       }
-      await Printing.layoutPdf(onLayout: (_) => pdf.save());
+
+      await Printing.layoutPdf(
+        onLayout: (_) => pdf.save(),
+        name: 'SIVIGILA_${widget.codigoFicha}_${now.year}${now.month.toString().padLeft(2,"0")}${now.day.toString().padLeft(2,"0")}.pdf',
+      );
       if (mounted) _snack('✅ PDF generado correctamente');
     } catch (e) {
       if (mounted) _snack('Error PDF: $e', color: _kRojo);
@@ -558,159 +670,320 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
 
+  // ── Iconos por sección (para los tabs) ──────────────────────────────────
+  static const List<IconData> _kTabIconos = [
+    Icons.person_outline_rounded,
+    Icons.business_rounded,
+    Icons.medical_information_outlined,
+    Icons.history_edu_rounded,
+    Icons.biotech_outlined,
+    Icons.monitor_heart_outlined,
+    Icons.check_circle_outline_rounded,
+  ];
+
+  IconData _iconoSeccion(int i) {
+    if (i < _kTabIconos.length) return _kTabIconos[i];
+    return Icons.article_outlined;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
-  //  BUILD
+  //  BUILD — nuevo diseño profesional
   // ═══════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    final dc  = _c(context);
-    const bgForm  = Colors.white;
-    const txtForm = Color(0xFF111111);
-    const borde   = Color(0xFFDDDDDD);
+    const bgForm   = Colors.white;
+    const txtForm  = Color(0xFF1A1A2E);
+    const borde    = Color(0xFFE0E4F0);
+    final progress = (_seccionIdx + 1) / _secciones.length;
+    final pct      = ((progress) * 100).toInt();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEEEEEE),
+      backgroundColor: const Color(0xFFF3F5FB),
       appBar: AppBar(
         backgroundColor: _kAzulINS,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.nombreFicha,
-              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text('Formulario SIVIGILA  •  Código: ${widget.codigoFicha}',
-              style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8)),
+            child: Image.asset('assets/logo_dispersalud.png',
+                height: 24, width: 24, fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.local_hospital_rounded,
+                    color: Colors.white, size: 20)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Formulario de Recolección',
+                style: const TextStyle(color: Colors.white60, fontSize: 9.5,
+                    fontWeight: FontWeight.w500)),
+            Text(widget.nombreFicha,
+                style: const TextStyle(color: Colors.white, fontSize: 13,
+                    fontWeight: FontWeight.bold),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ])),
         ]),
         actions: [
+          // Logo SIVIGILA en AppBar
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.verified_rounded, color: _kAzulINS, size: 13),
+              const SizedBox(width: 3),
+              const Text('SIVIGILA', style: TextStyle(
+                  color: _kAzulINS, fontSize: 9, fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          // PDF
           IconButton(
             tooltip: 'Exportar PDF',
             icon: _exportando
-                ? const SizedBox(width: 20, height: 20,
+                ? const SizedBox(width: 18, height: 18,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
+                : const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 20),
             onPressed: _exportando ? null : _exportarPDF,
           ),
+          // Guardar
           IconButton(
-            tooltip: 'Guardar ficha',
+            tooltip: 'Guardar',
             icon: _guardando
-                ? const SizedBox(width: 20, height: 20,
+                ? const SizedBox(width: 18, height: 18,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.save_rounded, color: Colors.white),
+                : const Icon(Icons.save_rounded, color: Colors.white, size: 20),
             onPressed: _guardando ? null : _guardar,
           ),
         ],
       ),
       body: Column(children: [
+
+        // ── Encabezado institucional con logos ───────────────────────────
         _EncabezadoINS(
-          nombreFicha: widget.nombreFicha,
-          codigoFicha: widget.codigoFicha,
-        ),
+            nombreFicha: widget.nombreFicha,
+            codigoFicha: widget.codigoFicha),
+
+        // ── Barra de progreso ────────────────────────────────────────────
         Container(
-          color: _kAzulINS,
-          height: 38,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            itemCount: _secciones.length,
-            itemBuilder: (_, i) {
-              final activo = i == _seccionIdx;
-              return GestureDetector(
-                onTap: () => setState(() => _seccionIdx = i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: activo ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: activo ? Colors.white : Colors.white38),
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(children: [
+            Row(children: [
+              Text('Paso ${_seccionIdx + 1} de ${_secciones.length}',
+                  style: const TextStyle(color: Color(0xFF555555),
+                      fontSize: 11, fontWeight: FontWeight.w500)),
+              const Spacer(),
+              Text('$pct% completado',
+                  style: TextStyle(color: _kAzulINS,
+                      fontSize: 11, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: const Color(0xFFE0E4F0),
+                valueColor: const AlwaysStoppedAnimation<Color>(_kAzulINS),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ]),
+        ),
+
+        // ── Tabs con íconos ──────────────────────────────────────────────
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          child: SizedBox(
+            height: 64,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _secciones.length,
+              itemBuilder: (_, i) {
+                final activo = i == _seccionIdx;
+                final completado = i < _seccionIdx;
+                final titulo = _secciones[i].titulo
+                    .replaceAll(RegExp(r'^\d+\.\s*'), '')
+                    .replaceAll('Datos del ', '')
+                    .replaceAll('Datos de ', '');
+                return GestureDetector(
+                  onTap: () => setState(() => _seccionIdx = i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: activo
+                          ? _kAzulINS
+                          : completado
+                              ? const Color(0xFFE8F5EE)
+                              : const Color(0xFFF5F6FA),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: activo
+                            ? _kAzulINS
+                            : completado
+                                ? _kVerdeINS
+                                : const Color(0xFFDDE2F0),
+                        width: activo ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(_iconoSeccion(i),
+                          color: activo
+                              ? Colors.white
+                              : completado ? _kVerdeINS : const Color(0xFF8898B8),
+                          size: 18),
+                      const SizedBox(height: 3),
+                      Text(titulo,
+                          style: TextStyle(
+                              color: activo
+                                  ? Colors.white
+                                  : completado ? _kVerdeINS : const Color(0xFF6677A0),
+                              fontSize: 8.5,
+                              fontWeight: activo ? FontWeight.bold : FontWeight.normal),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ]),
                   ),
-                  child: Center(child: Text('${i + 1}',
-                      style: TextStyle(
-                          color: activo ? _kAzulINS : Colors.white,
-                          fontSize: 12, fontWeight: FontWeight.bold))),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
+
+        // ── Formulario ───────────────────────────────────────────────────
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 80),
             child: Container(
               decoration: BoxDecoration(
                 color: bgForm,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: borde),
                 boxShadow: [BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 6, offset: const Offset(0, 2))],
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10, offset: const Offset(0, 3))],
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // Header sección
                 Container(
                   width: double.infinity,
-                  color: _kAzulINS,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _kAzulINS,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(children: [
+                    Icon(_iconoSeccion(_seccionIdx), color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
                     Expanded(child: Text(
                       _secciones[_seccionIdx].titulo.toUpperCase(),
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 11,
-                          fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                      style: const TextStyle(color: Colors.white, fontSize: 11,
+                          fontWeight: FontWeight.bold, letterSpacing: 0.5),
                     )),
-                    Text('${_seccionIdx + 1} / ${_secciones.length}',
-                        style: const TextStyle(color: Colors.white60, fontSize: 10)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Text('${_seccionIdx + 1} / ${_secciones.length}',
+                          style: const TextStyle(color: Colors.white,
+                              fontSize: 9.5, fontWeight: FontWeight.w600)),
+                    ),
                   ]),
                 ),
+
+                // Campos
                 Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _secciones[_seccionIdx].campos
-                        .map((c) => _buildCampoINS(c, txtForm))
-                        .toList(),
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _secciones[_seccionIdx].campos
+                          .map((c) => _buildCampoModerno(c))
+                          .toList()),
                 ),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+
+                // Guardado automático hint
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Row(children: [
+                    const Icon(Icons.check_circle_rounded,
+                        color: Color(0xFF4CAF50), size: 13),
+                    const SizedBox(width: 5),
+                    Text('Cambios guardados',
+                        style: const TextStyle(color: Color(0xFF4CAF50),
+                            fontSize: 10, fontWeight: FontWeight.w500)),
+                    const Spacer(),
+                    Text('Guardado automático',
+                        style: const TextStyle(color: Color(0xFF9AA5BE),
+                            fontSize: 10)),
+                  ]),
+                ),
+
+                // Botones anterior / siguiente
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Row(children: [
                     if (_seccionIdx > 0) ...[
                       Expanded(child: OutlinedButton.icon(
-                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 13),
-                        label: const Text('Anterior'),
+                        icon: const Icon(Icons.arrow_back_ios_rounded,
+                            size: 13, color: _kAzulINS),
+                        label: const Text('Anterior',
+                            style: TextStyle(color: _kAzulINS, fontWeight: FontWeight.w600)),
                         style: OutlinedButton.styleFrom(
-                            foregroundColor: _kAzulINS,
-                            side: const BorderSide(color: _kAzulINS),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            side: const BorderSide(color: _kAzulINS, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10))),
                         onPressed: () => setState(() => _seccionIdx--),
                       )),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                     ],
-                    Expanded(child: _seccionIdx < _secciones.length - 1
-                        ? ElevatedButton.icon(
-                            icon: const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Colors.white),
-                            label: const Text('Siguiente sección',
-                                style: TextStyle(color: Colors.white, fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: _kAzulINS,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-                            onPressed: () => setState(() => _seccionIdx++),
-                          )
-                        : ElevatedButton.icon(
-                            icon: _guardando
-                                ? const SizedBox(width: 16, height: 16,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.save_rounded, color: Colors.white, size: 18),
-                            label: Text(_guardando ? 'Guardando...' : 'Guardar ficha',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: _kVerdeINS,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-                            onPressed: _guardando ? null : _guardar,
-                          )),
+                    Expanded(
+                      flex: 2,
+                      child: _seccionIdx < _secciones.length - 1
+                          ? ElevatedButton.icon(
+                              icon: const Icon(Icons.arrow_forward_ios_rounded,
+                                  size: 13, color: Colors.white),
+                              label: const Text('Siguiente →',
+                                  style: TextStyle(color: Colors.white,
+                                      fontWeight: FontWeight.bold, fontSize: 14)),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: _kAzulINS, elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10))),
+                              onPressed: () => setState(() => _seccionIdx++),
+                            )
+                          : ElevatedButton.icon(
+                              icon: _guardando
+                                  ? const SizedBox(width: 16, height: 16,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2))
+                                  : const Icon(Icons.save_rounded,
+                                      color: Colors.white, size: 16),
+                              label: Text(_guardando ? 'Guardando...' : 'Guardar ficha',
+                                  style: const TextStyle(color: Colors.white,
+                                      fontWeight: FontWeight.bold, fontSize: 14)),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: _kVerdeINS, elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10))),
+                              onPressed: _guardando ? null : _guardar,
+                            ),
+                    ),
                   ]),
                 ),
               ]),
@@ -719,6 +992,269 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
         ),
       ]),
     );
+  }
+
+  // ── Campo moderno con bordes redondeados ─────────────────────────────────
+  Widget _buildCampoModerno(Campo c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Etiqueta
+        Row(children: [
+          Expanded(child: Text(c.etiqueta,
+              style: const TextStyle(color: Color(0xFF3A4A6B),
+                  fontSize: 12, fontWeight: FontWeight.w600))),
+          if (c.requerido)
+            const Text(' *', style: TextStyle(color: _kRojo,
+                fontSize: 12, fontWeight: FontWeight.bold)),
+        ]),
+        const SizedBox(height: 6),
+        // Campo según tipo
+        switch (c.tipo) {
+          TipoCampo.siNo       => _buildSiNoModerno(c),
+          TipoCampo.radio3     => _buildRadio3Moderno(c),
+          TipoCampo.opciones   => _buildDropdownModerno(c),
+          TipoCampo.fecha      => _buildFechaModerna(c),
+          TipoCampo.multiLinea => _buildTextAreaModerno(c),
+          _                    => _buildTextoModerno(c),
+        },
+      ]),
+    );
+  }
+
+  static const _borderModerno = OutlineInputBorder(
+    borderRadius: BorderRadius.all(Radius.circular(8)),
+    borderSide: BorderSide(color: Color(0xFFDDE2F0)),
+  );
+  static const _borderFocus = OutlineInputBorder(
+    borderRadius: BorderRadius.all(Radius.circular(8)),
+    borderSide: BorderSide(color: _kAzulINS, width: 1.5),
+  );
+
+  Widget _buildTextoModerno(Campo c) {
+    final ctrl = _ctrls[c.clave] ??= TextEditingController();
+    return TextField(
+      controller: ctrl,
+      keyboardType: c.tipo == TipoCampo.numero
+          ? TextInputType.number : TextInputType.text,
+      style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 13),
+      decoration: InputDecoration(
+        hintText: c.hint ?? 'Ingrese ${c.etiqueta.toLowerCase()}',
+        hintStyle: const TextStyle(color: Color(0xFFBCC4D8), fontSize: 12),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        filled: true,
+        fillColor: const Color(0xFFFAFBFD),
+        border: _borderModerno,
+        enabledBorder: _borderModerno,
+        focusedBorder: _borderFocus,
+      ),
+    );
+  }
+
+  Widget _buildTextAreaModerno(Campo c) {
+    final ctrl = _ctrls[c.clave] ??= TextEditingController();
+    return TextField(
+      controller: ctrl,
+      maxLines: 3,
+      style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 13),
+      decoration: InputDecoration(
+        hintText: c.hint ?? 'Ingrese ${c.etiqueta.toLowerCase()}...',
+        hintStyle: const TextStyle(color: Color(0xFFBCC4D8), fontSize: 12),
+        isDense: true,
+        contentPadding: const EdgeInsets.all(12),
+        filled: true,
+        fillColor: const Color(0xFFFAFBFD),
+        border: _borderModerno,
+        enabledBorder: _borderModerno,
+        focusedBorder: _borderFocus,
+      ),
+    );
+  }
+
+  Widget _buildFechaModerna(Campo c) {
+    final ctrl = _ctrls[c.clave] ??= TextEditingController();
+    return GestureDetector(
+      onTap: () async {
+        final d = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime(1920),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+          builder: (ctx, child) => Theme(
+            data: Theme.of(ctx).copyWith(
+                colorScheme: const ColorScheme.light(primary: _kAzulINS)),
+            child: child!,
+          ),
+        );
+        if (d != null) {
+          ctrl.text = '${d.day.toString().padLeft(2,"0")}/${d.month.toString().padLeft(2,"0")}/${d.year}';
+          setState(() {});
+        }
+      },
+      child: AbsorbPointer(
+        child: TextField(
+          controller: ctrl,
+          style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'dd/mm/aaaa',
+            hintStyle: const TextStyle(color: Color(0xFFBCC4D8), fontSize: 12),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            filled: true,
+            fillColor: const Color(0xFFFAFBFD),
+            border: _borderModerno,
+            enabledBorder: _borderModerno,
+            focusedBorder: _borderFocus,
+            suffixIcon: const Icon(Icons.calendar_today_outlined,
+                color: _kAzulINS, size: 17),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownModerno(Campo c) {
+    // Campo sexo → botones especiales
+    if (c.clave == 'sexo') return _buildSexoModerno(c);
+    final val = _dropdowns[c.clave] ?? c.opciones.first;
+    return Theme(
+      data: ThemeData(brightness: Brightness.light, canvasColor: Colors.white),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAFBFD),
+          border: Border.all(color: const Color(0xFFDDE2F0)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: c.opciones.contains(val) ? val : c.opciones.first,
+            isExpanded: true,
+            isDense: true,
+            dropdownColor: Colors.white,
+            style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 13),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                color: _kAzulINS, size: 20),
+            selectedItemBuilder: (_) => c.opciones
+                .map((o) => Align(alignment: Alignment.centerLeft,
+                    child: Text(o, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 13))))
+                .toList(),
+            items: c.opciones
+                .map((o) => DropdownMenuItem(value: o,
+                    child: Text(o, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 13))))
+                .toList(),
+            onChanged: (v) => setState(() => _dropdowns[c.clave] = v ?? ''),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Sexo: botones tipo toggle como en la imagen
+  Widget _buildSexoModerno(Campo c) {
+    final sel = _dropdowns[c.clave] ?? '';
+    return Row(children: [
+      Expanded(child: GestureDetector(
+        onTap: () => setState(() => _dropdowns[c.clave] = 'Femenino'),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: sel == 'Femenino' ? _kAzulINS : const Color(0xFFFAFBFD),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: sel == 'Femenino' ? _kAzulINS : const Color(0xFFDDE2F0),
+                width: 1.5),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.person_rounded,
+                color: sel == 'Femenino' ? Colors.white : const Color(0xFF8898B8),
+                size: 16),
+            const SizedBox(width: 6),
+            Text('Femenino', style: TextStyle(
+                color: sel == 'Femenino' ? Colors.white : const Color(0xFF6677A0),
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      )),
+      const SizedBox(width: 8),
+      Expanded(child: GestureDetector(
+        onTap: () => setState(() => _dropdowns[c.clave] = 'Masculino'),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: sel == 'Masculino' ? _kAzulINS : const Color(0xFFFAFBFD),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: sel == 'Masculino' ? _kAzulINS : const Color(0xFFDDE2F0),
+                width: 1.5),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.person_outline_rounded,
+                color: sel == 'Masculino' ? Colors.white : const Color(0xFF8898B8),
+                size: 16),
+            const SizedBox(width: 6),
+            Text('Masculino', style: TextStyle(
+                color: sel == 'Masculino' ? Colors.white : const Color(0xFF6677A0),
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      )),
+    ]);
+  }
+
+  Widget _buildSiNoModerno(Campo c) {
+    final sel = _radios[c.clave] ?? '';
+    return Row(children: [
+      for (final op in [('si', '✓  Sí'), ('no', '✗  No')]) ...[
+        GestureDetector(
+          onTap: () => setState(() => _radios[c.clave] = op.$1),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+            decoration: BoxDecoration(
+              color: sel == op.$1 ? _kAzulINS : const Color(0xFFFAFBFD),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: sel == op.$1 ? _kAzulINS : const Color(0xFFDDE2F0),
+                  width: 1.5),
+            ),
+            child: Text(op.$2, style: TextStyle(
+                color: sel == op.$1 ? Colors.white : const Color(0xFF6677A0),
+                fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ],
+    ]);
+  }
+
+  Widget _buildRadio3Moderno(Campo c) {
+    final sel  = _radios[c.clave] ?? '';
+    final opts = c.opciones.isNotEmpty
+        ? c.opciones : ['1. Sí', '2. No', '3. No sabe'];
+    return Wrap(spacing: 8, runSpacing: 8,
+        children: opts.map((op) => GestureDetector(
+          onTap: () => setState(() => _radios[c.clave] = op),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: sel == op ? _kAzulINS : const Color(0xFFFAFBFD),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: sel == op ? _kAzulINS : const Color(0xFFDDE2F0),
+                  width: 1.5),
+            ),
+            child: Text(op, style: TextStyle(
+                color: sel == op ? Colors.white : const Color(0xFF6677A0),
+                fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+        )).toList());
   }
 
   Widget _buildCampoINS(Campo c, Color txtColor) {
@@ -897,55 +1433,22 @@ class _EncabezadoINS extends StatelessWidget {
       color: Colors.white,
       child: Column(children: [
         Container(
-          color: _kAzulINS,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(children: [
-            // Logo DISPERSALUD IA
-            Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(6)),
-              child: Image.asset('assets/logo_dispersalud.png',
-                  height: 30, width: 30, fit: BoxFit.contain),
-            ),
-            const SizedBox(width: 8),
-            // Logo Colombia
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: Image.asset('assets/logos_ins/logo_colombia.png',
-                  height: 26, fit: BoxFit.contain),
-            ),
-            const SizedBox(width: 6),
-            // Logo Salud
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: Image.asset('assets/logos_ins/logo_salud.png',
-                  height: 26, fit: BoxFit.contain),
-            ),
-            const SizedBox(width: 6),
-            // Logo INS
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: Image.asset('assets/logos_ins/logo_ins.png',
-                  height: 26, fit: BoxFit.contain),
-            ),
-            const Spacer(),
-            // Logo SIVIGILA
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: Image.asset('assets/logos_ins/logo_sivigila.png',
-                  height: 26, fit: BoxFit.contain),
-            ),
-          ]),
-        ),
+  color: Colors.white,
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  child: Row(children: [
+    Image.asset('assets/logo_dispersalud.png', height: 36, width: 36),
+    const SizedBox(width: 10),
+    Container(width: 1, height: 40, color: const Color(0xFFDDDDDD)),
+    const SizedBox(width: 14),
+    Image.asset('assets/logos_ins/logo_colombia.png', height: 26),
+    const SizedBox(width: 10),
+    Image.asset('assets/logos_ins/logo_salud.png', height: 22),
+    const SizedBox(width: 10),
+    Image.asset('assets/logos_ins/logo_ins.png', height: 26),
+    const Spacer(),
+    Image.asset('assets/logos_ins/logo_sivigila.png', height: 28),
+  ]),
+),
         Container(
           width: double.infinity,
           color: const Color(0xFFF0F4FF),

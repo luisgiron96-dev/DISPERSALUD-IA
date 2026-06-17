@@ -75,7 +75,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
     return Scaffold(
       backgroundColor: _c(context).bg,
       appBar: AppBar(
-        backgroundColor: _c(context).bg, foregroundColor: Colors.white,
+        backgroundColor: _c(context).bg, foregroundColor: _c(context).textPrimary,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.nombre,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
@@ -145,7 +145,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                         children: [
                       Text('👤 Datos del paciente',
                           style: TextStyle(
-                              color: Colors.white,
+                              color: _c(context).textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.bold)),
                       SizedBox(height: 12),
@@ -170,7 +170,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                 Row(children: [
                   Text('Consultas registradas',
                       style: TextStyle(
-                          color: Colors.white,
+                          color: _c(context).textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold)),
                   Spacer(),
@@ -199,7 +199,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     child: Center(
                         child: Text('Sin consultas registradas aún.',
                             style: TextStyle(
-                                color: Colors.white38, fontSize: 14))),
+                                color: _c(context).textHint, fontSize: 14))),
                   )
                 else
                   ..._consultas.map((c) {
@@ -237,7 +237,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                           Spacer(),
                           Text(_formatFecha(c['fecha']),
                               style: TextStyle(
-                                  color: Colors.white38, fontSize: 11)),
+                                  color: _c(context).textHint, fontSize: 11)),
                         ]),
                         if ((c['diagnostico'] ?? '').isNotEmpty) ...[
                           SizedBox(height: 10),
@@ -286,7 +286,7 @@ class _InfoRow extends StatelessWidget {
       Expanded(
           child: Text(value,
               style: TextStyle(
-                  color: Colors.white70, fontSize: 13))),
+                  color: _c(context).textPrimary, fontSize: 13))),
     ]),
   );
 }

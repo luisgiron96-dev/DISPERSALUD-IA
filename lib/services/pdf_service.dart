@@ -436,14 +436,38 @@ class PdfService {
               ),
             ),
           ],
+          // Firma del profesional (si existe)
+          if ((c['firma_png'] as String?)?.isNotEmpty == true) ...[
+            pw.SizedBox(height: 8),
+            pw.Container(
+              padding: const pw.EdgeInsets.only(top: 6),
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
+              ),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text('Firma del profesional:',
+                      style: pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600)),
+                  pw.SizedBox(width: 8),
+                  pw.Container(
+                    height: 32,
+                    width: 80,
+                    decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300, width: 0.4)),
+                    child: pw.Image(
+                      pw.MemoryImage(base64Decode(c['firma_png'] as String)),
+                      fit: pw.BoxFit.contain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
-
-  // ════════════════════════════════════════════════════════════════════════
-  // SECCIÓN ALERTAS SIVIGILA
-  // ════════════════════════════════════════════════════════════════════════
   static pw.Widget _seccionAlertas(List<Map<String, dynamic>> alertasSqlite) {
     final alertasPromotor = alertasSqlite
         .where((a) => (a['resuelta'] as int? ?? 0) == 0)

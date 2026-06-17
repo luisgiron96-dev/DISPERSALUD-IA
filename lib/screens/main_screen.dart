@@ -71,9 +71,9 @@ class _MainScreenState extends State<MainScreen> {
               label:      'Especialistas',
             ),
             BottomNavigationBarItem(
-              icon:       Icon(Icons.notifications_outlined),
-              activeIcon: Icon(Icons.notifications_rounded),
-              label:      'Alertas',
+              icon:       Icon(Icons.health_and_safety_outlined),
+              activeIcon: Icon(Icons.health_and_safety_rounded),
+              label:      'Salud Pública',
             ),
             BottomNavigationBarItem(
               icon:       Icon(Icons.settings_outlined),

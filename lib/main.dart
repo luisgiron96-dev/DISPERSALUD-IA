@@ -28,12 +28,16 @@ import 'services/security_service.dart';
 import 'services/connectivity_service.dart';
 import 'core/app_theme.dart';
 
-final temaNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
+final temaNotifier      = ValueNotifier<ThemeMode>(ThemeMode.system);
+final fontSizeNotifier  = ValueNotifier<double>(1.0); // 1.0 = normal
 
 Future<void> _cargarTemaGuardado() async {
   final prefs   = await SharedPreferences.getInstance();
   final guardado = prefs.getString('tema_app') ?? 'Sistema';
   temaNotifier.value = temaDesdeString(guardado);
+  // Cargar tamaño de fuente guardado
+  final escala = prefs.getDouble('fuente_escala') ?? 1.0;
+  fontSizeNotifier.value = escala.clamp(0.8, 1.4);
 }
 
 ThemeMode temaDesdeString(String s) {
@@ -88,12 +92,20 @@ class DispersaludApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: temaNotifier,
-      builder: (_, modo, __) => MaterialApp(
-        title: 'DISPERSALUD IA',
-        debugShowCheckedModeBanner: false,
-        theme:     AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: modo,
+      builder: (_, modo, __) => ValueListenableBuilder<double>(
+        valueListenable: fontSizeNotifier,
+        builder: (_, escala, __) => MaterialApp(
+          title: 'DISPERSALUD IA',
+          debugShowCheckedModeBanner: false,
+          theme:     AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: modo,
+          builder: (ctx, child) => MediaQuery(
+            data: MediaQuery.of(ctx).copyWith(
+              textScaler: TextScaler.linear(escala),
+            ),
+            child: child!,
+          ),
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -135,6 +147,7 @@ class DispersaludApp extends StatelessWidget {
           }
           return null;
         },
+      ),
       ),
     );
   }

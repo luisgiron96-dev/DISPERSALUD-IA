@@ -164,7 +164,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
                             style: TextStyle(color: _kPink, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        title: Text(p['nombre'] ?? '', style: TextStyle(color: Colors.white)),
+                        title: Text(p['nombre'] ?? '', style: TextStyle(color: _c(context).textPrimary)),
                         subtitle: Text('${p['vereda'] ?? ''} · ${p['municipio'] ?? ''}',
                             style: TextStyle(color: Theme.of(context).extension<DispersaludColors>()!.textHint, fontSize: 12)),
                         onTap: () {
@@ -499,7 +499,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
         backgroundColor: _c(context).card,
         title: Text(
           tieneUrgente ? '🚨 Remisión de emergencia' : 'Remitir a ginecobstetricia',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: _c(context).textPrimary),
         ),
         content: Text(
           tieneUrgente
@@ -566,9 +566,9 @@ class _GestacionScreenState extends State<GestacionScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Gestación', style: TextStyle(color: _c(context).textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-          Text('Control prenatal · Protocolos MINSALUD Colombia',
-              style: TextStyle(color: _c(context).textSecondary, fontSize: 11)),
+          const Text('Gestación', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Control prenatal · Protocolos MINSALUD Colombia',
+              style: TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
       ),
       body: SingleChildScrollView(
@@ -583,21 +583,21 @@ class _GestacionScreenState extends State<GestacionScreen> {
               decoration: BoxDecoration(
                 color: _pacienteId != null ? _kPink.withValues(alpha: 0.15) : _c(context).card,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _pacienteId != null ? _kPink : Colors.white24),
+                border: Border.all(color: _pacienteId != null ? _kPink : _c(context).border),
               ),
               child: Row(children: [
                 Icon(_pacienteId != null ? Icons.person_rounded : Icons.person_add_outlined,
-                    color: _pacienteId != null ? _kPink : Colors.white38, size: 22),
+                    color: _pacienteId != null ? _kPink : _c(context).textHint, size: 22),
                 SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_pacienteId != null ? 'Paciente seleccionada' : 'Seleccionar paciente',
-                      style: TextStyle(color: _pacienteId != null ? _kPink : Colors.white54, fontSize: 11)),
+                      style: TextStyle(color: _pacienteId != null ? _kPink : _c(context).textHint, fontSize: 11)),
                   Text(_pacienteNombre,
-                      style: TextStyle(color: _pacienteId != null ? Colors.white : Colors.white38,
+                      style: TextStyle(color: _pacienteId != null ? _c(context).textPrimary : _c(context).textSecondary,
                           fontSize: 14, fontWeight: FontWeight.w600)),
                 ])),
                 Icon(Icons.chevron_right,
-                    color: _pacienteId != null ? _kPink : Colors.white24, size: 20),
+                    color: _pacienteId != null ? _kPink : _c(context).textHint, size: 20),
               ]),
             ),
           ),
@@ -740,7 +740,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
             width: double.infinity, height: 52,
             child: OutlinedButton.icon(
               onPressed: _remitir,
-              icon: Icon(Icons.local_hospital_outlined, color: Colors.white70),
+              icon: Icon(Icons.local_hospital_outlined, color: _c(context).textSecondary),
               label: Text('Remitir a ginecobstetricia',
                   style: TextStyle(color: _c(context).textSecondary, fontSize: 15)),
               style: OutlinedButton.styleFrom(
@@ -749,7 +749,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
               ),
             ),
           ),
-          SizedBox(height: 28),
+          SizedBox(height: 12 + MediaQuery.of(context).padding.bottom),
         ]),
       ),
     );

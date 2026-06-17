@@ -19,12 +19,12 @@ class DatabaseHelper {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 7, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 7, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -69,6 +69,9 @@ class DatabaseHelper {
         datos_json    TEXT,
         datos_extra   TEXT,
         sincronizado  INTEGER DEFAULT 0,
+        firma_png        TEXT,
+        firma_profesional TEXT,
+        firma_fecha       TEXT,
         FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
       )
     ''');
@@ -114,6 +117,9 @@ class DatabaseHelper {
         municipio           TEXT,
         fecha_notificacion  TEXT,
         nivel_urgencia      TEXT DEFAULT 'normal',
+        firma_png           TEXT,
+        firma_profesional   TEXT,
+        firma_fecha         TEXT,
         created_at          TEXT DEFAULT (datetime('now','localtime')),
         updated_at          TEXT DEFAULT (datetime('now','localtime'))
       )
@@ -176,6 +182,14 @@ class DatabaseHelper {
           )
         ''');
       } catch (_) {}
+    }
+    if (oldVersion < 7) {
+      try { await db.execute('ALTER TABLE consultas ADD COLUMN firma_png TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE consultas ADD COLUMN firma_profesional TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE consultas ADD COLUMN firma_fecha TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_png TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_profesional TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_fecha TEXT'); } catch (_) {}
     }
   }
 

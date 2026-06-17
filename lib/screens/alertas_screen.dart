@@ -1129,7 +1129,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Centro de Alertas', style: TextStyle(
+                    Text('Salud Pública', style: TextStyle(
                         color: _c(context).textPrimary,
                         fontSize: 22, fontWeight: FontWeight.bold)),
                     Text('Vigilancia Epidemiológica',
@@ -1853,11 +1853,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 child: const Icon(Icons.picture_as_pdf_rounded, color: _kRojo, size: 24)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Fichas Epidemiológicas INS',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                Text('Fichas Epidemiológicas INS',
+                    style: TextStyle(color: _c(context).textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 2),
-                const Text('51 protocolos · Dengue, IRA, Malaria, MME y más',
-                    style: TextStyle(color: Colors.white60, fontSize: 10.5)),
+                Text('51 protocolos · Dengue, IRA, Malaria, MME y más',
+                    style: TextStyle(color: _c(context).textSecondary, fontSize: 10.5)),
                 const SizedBox(height: 5),
                 const Row(children: [
                   _FichaChip('🚨 Urgentes'),
@@ -1867,7 +1867,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                   _FichaChip('🔍 Buscador'),
                 ]),
               ])),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 22),
+              Icon(Icons.chevron_right_rounded, color: _c(context).textHint, size: 22),
             ]),
           ),
         ),
@@ -2381,9 +2381,9 @@ class _FichaChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
     decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
+        color: _c(context).border.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(6)),
     child: Text(texto,
-        style: const TextStyle(color: Colors.white70, fontSize: 9.5)),
+        style: TextStyle(color: _c(context).textSecondary, fontSize: 9.5)),
   );
 }
