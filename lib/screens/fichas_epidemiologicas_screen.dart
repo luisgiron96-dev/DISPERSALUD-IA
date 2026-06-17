@@ -4,22 +4,13 @@
 // Muestra el catálogo de protocolos del INS, permite buscar y filtrar,
 // y abre cada PDF desde los assets con open_filex.
 // ─────────────────────────────────────────────────────────────────────────────
-// SETUP REQUERIDO:
-//   1. Copiar los PDFs del RAR a:   assets/protocolos/  (ver lista _kFichas)
-//   2. En pubspec.yaml, bajo assets:
-//        - assets/protocolos/
-//   3. Dependencias ya presentes: open_filex, path_provider
-// ─────────────────────────────────────────────────────────────────────────────
 
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 import '../core/app_theme.dart';
 import 'ficha_formulario_screen.dart';
-import 'historial_fichas_screen.dart';
 import 'fichas_reportes_screen.dart';
+import 'historial_fichas_screen.dart';
+import '../database/database_helper.dart';
 
 // ── Acceso al tema ─────────────────────────────────────────────────────────
 DispersaludColors _c(BuildContext ctx) =>
@@ -38,18 +29,16 @@ const _kMorado  = Color(0xFF534AB7);
 class _Ficha {
   final String codigo;
   final String nombre;
-  final String archivoAsset;   // ruta dentro de assets/
   final String categoria;
   final String emoji;
   final Color  color;
   final String descripcionCorta;
-  final String notificacion;   // inmediata / 24h / semanal
+  final String notificacion;
   final bool   esUrgente;
 
   const _Ficha({
     required this.codigo,
     required this.nombre,
-    required this.archivoAsset,
     required this.categoria,
     required this.emoji,
     required this.color,
@@ -81,61 +70,52 @@ const List<_Cat> _kCategorias = [
 ];
 
 // ─── Catálogo completo de fichas ──────────────────────────────────────────
-//  archivoAsset = nombre exacto del PDF dentro de assets/protocolos/
 const List<_Ficha> _kFichas = [
   // ── VECTORES ─────────────────────────────────────────────────────────────
   _Ficha(
     codigo: 'DEN', nombre: 'Dengue / Dengue grave',
-    archivoAsset: 'assets/protocolos/Pro_Dengue.pdf',
     categoria: 'vectores', emoji: '🦟', color: Color(0xFF3B6D11),
     descripcionCorta: 'Enfermedad viral por Aedes aegypti. Notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'CHIK', nombre: 'Chikunguña',
-    archivoAsset: 'assets/protocolos/Pro_Chikungunya 2024.pdf',
     categoria: 'vectores', emoji: '🦟', color: Color(0xFF3B6D11),
     descripcionCorta: 'Arbovirus. Artralgia severa característica.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'ZIKA', nombre: 'Zika',
-    archivoAsset: 'assets/protocolos/Pro_Zika 2024.pdf',
     categoria: 'vectores', emoji: '🦟', color: Color(0xFF3B6D11),
     descripcionCorta: 'Riesgo de microcefalia en embarazadas. Notificación urgente.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MAL', nombre: 'Malaria',
-    archivoAsset: 'assets/protocolos/Pro_Malaria 2024.pdf',
     categoria: 'vectores', emoji: '🦠', color: Color(0xFF3B6D11),
     descripcionCorta: 'Parasitosis por Plasmodium. Alta mortalidad en forma grave.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'LEISH', nombre: 'Leishmaniasis',
-    archivoAsset: 'assets/protocolos/Pro_Leishmaniasis.pdf',
     categoria: 'vectores', emoji: '🦠', color: Color(0xFF3B6D11),
     descripcionCorta: 'Transmitida por flebótomos. Endémica en zonas selváticas.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'FIAM', nombre: 'Fiebre amarilla',
-    archivoAsset: 'assets/protocolos/Pro_Fiebre amarilla 2024.pdf',
     categoria: 'vectores', emoji: '🟡', color: Color(0xFF3B6D11),
     descripcionCorta: 'Arbovirus. Caso único es emergencia de salud pública.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'CHAG', nombre: 'Enfermedad de Chagas',
-    archivoAsset: 'assets/protocolos/Pro_Chagas 2022.pdf',
     categoria: 'vectores', emoji: '🐜', color: Color(0xFF3B6D11),
     descripcionCorta: 'Tripanosomiasis americana. Transmitida por pito/chipo.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'ENCEF', nombre: 'Encefalitis equina',
-    archivoAsset: 'assets/protocolos/Pro_Encefalitis equina 2024.pdf',
     categoria: 'vectores', emoji: '🐴', color: Color(0xFF3B6D11),
     descripcionCorta: 'Arbovirus transmitido por mosquitos. Vigilancia en equinos.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -144,49 +124,42 @@ const List<_Ficha> _kFichas = [
   // ── RESPIRATORIAS ─────────────────────────────────────────────────────────
   _Ficha(
     codigo: 'IRA', nombre: 'IRA — Infección Respiratoria Aguda',
-    archivoAsset: 'assets/protocolos/Pro_IRA 2024.pdf',
     categoria: 'respira', emoji: '🫁', color: _kMorado,
     descripcionCorta: 'Principal causa de mortalidad infantil en menores de 5 años.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'TUB', nombre: 'Tuberculosis',
-    archivoAsset: 'assets/protocolos/Pro_Tuberculosis 2022.pdf',
     categoria: 'respira', emoji: '🦠', color: _kMorado,
     descripcionCorta: 'Notificación individual obligatoria. Búsqueda activa de sintomáticos.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'TUBFR', nombre: 'Tuberculosis farmacorresistente',
-    archivoAsset: 'assets/protocolos/PRO_Tuberculosis_farmacorresistente.pdf',
     categoria: 'respira', emoji: '⚠️', color: _kMorado,
     descripcionCorta: 'TB-MDR y TB-XDR. Protocolo especial de manejo.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'COVID', nombre: 'COVID-19',
-    archivoAsset: 'assets/protocolos/PRO_COVID-19.pdf',
     categoria: 'respira', emoji: '😷', color: _kMorado,
     descripcionCorta: 'Vigilancia centinela y IRAG. Protocolo INS actualizado.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'TOS', nombre: 'Tos ferina (Pertussis)',
-    archivoAsset: 'assets/protocolos/Pro_Tos ferina 2024.pdf',
     categoria: 'respira', emoji: '😮', color: _kMorado,
     descripcionCorta: 'Alta mortalidad en menores de 1 año no vacunados.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'DIFT', nombre: 'Difteria',
-    archivoAsset: 'assets/protocolos/Pro_Difteria.pdf',
     categoria: 'respira', emoji: '🤒', color: _kMorado,
     descripcionCorta: 'Inmunoprevenible. Cualquier caso es emergencia epidemiológica.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MPOX', nombre: 'Mpox (Viruela del mono)',
-    archivoAsset: 'assets/protocolos/Pro_MPOX 2024.pdf',
     categoria: 'respira', emoji: '🔴', color: _kMorado,
     descripcionCorta: 'Vigilancia de casos sospechosos. Aislamiento de contactos.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -195,28 +168,24 @@ const List<_Ficha> _kFichas = [
   // ── INMUNOPREVENIBLES ─────────────────────────────────────────────────────
   _Ficha(
     codigo: 'VAR', nombre: 'Varicela',
-    archivoAsset: 'assets/protocolos/Pro_Varicela.pdf',
     categoria: 'inmuno', emoji: '💉', color: _kAzul,
     descripcionCorta: 'Vigilancia de brotes. Notificación de casos hospitalizados.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'RUBE', nombre: 'Rubéola / Síndrome rubéola congénita',
-    archivoAsset: 'assets/protocolos/Pro_Sarampion_Rubeola.pdf',
     categoria: 'inmuno', emoji: '🔴', color: _kAzul,
     descripcionCorta: 'Meta de eliminación en Colombia. Cualquier caso: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'PAROT', nombre: 'Parotiditis',
-    archivoAsset: 'assets/protocolos/Pro_Parotiditis 2024.pdf',
     categoria: 'inmuno', emoji: '🤒', color: _kAzul,
     descripcionCorta: 'Vigilancia de brotes en instituciones educativas y comunidades.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'EAPV', nombre: 'Eventos Adversos Post-Vacunación (EAPV)',
-    archivoAsset: 'assets/protocolos/298_EAPV_2024.pdf',
     categoria: 'inmuno', emoji: '⚕️', color: _kAzul,
     descripcionCorta: 'Reacciones adversas a biológicos del PAI. Notificación obligatoria.',
     notificacion: '24 horas',
@@ -225,28 +194,24 @@ const List<_Ficha> _kFichas = [
   // ── ITS / VIH ─────────────────────────────────────────────────────────────
   _Ficha(
     codigo: 'VIH', nombre: 'VIH/SIDA',
-    archivoAsset: 'assets/protocolos/Pro_VIH.pdf',
     categoria: 'its', emoji: '🔬', color: Color(0xFF993556),
     descripcionCorta: 'Notificación individual. Diagnóstico, tratamiento y adherencia.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'HEPATB', nombre: 'Hepatitis B y C',
-    archivoAsset: 'assets/protocolos/Pro Hepatitis B y C.pdf',
     categoria: 'its', emoji: '🫀', color: Color(0xFF993556),
     descripcionCorta: 'Vigilancia de hepatitis virales. Énfasis en gestantes y recién nacidos.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'HEPA', nombre: 'Hepatitis A',
-    archivoAsset: 'assets/protocolos/Pro_hepatitis A 2024.pdf',
     categoria: 'its', emoji: '🫀', color: Color(0xFF993556),
     descripcionCorta: 'Transmisión feco-oral. Vigilancia de brotes por agua y alimentos.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'SFILIS', nombre: 'Sífilis gestacional y congénita',
-    archivoAsset: 'assets/protocolos/Pro_Sifilis Gestacional y Congenita 2024.pdf',
     categoria: 'its', emoji: '🤰', color: Color(0xFF993556),
     descripcionCorta: 'Caso de sífilis congénita: notificación inmediata. Meta eliminación.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -255,28 +220,24 @@ const List<_Ficha> _kFichas = [
   // ── ALIMENTOS / AGUA ──────────────────────────────────────────────────────
   _Ficha(
     codigo: 'EDA', nombre: 'EDA — Enfermedad Diarreica Aguda',
-    archivoAsset: 'assets/protocolos/Pro_EDA 2024.pdf',
     categoria: 'alimentos', emoji: '💧', color: Color(0xFF0F6E56),
     descripcionCorta: 'Principal causa de consulta infantil. Vigilancia de brotes.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'ETA', nombre: 'ETA — Enfermedades Transmitidas por Alimentos',
-    archivoAsset: 'assets/protocolos/Pro_ETA 2022.pdf',
     categoria: 'alimentos', emoji: '🍽️', color: Color(0xFF0F6E56),
     descripcionCorta: 'Brotes por consumo de alimentos contaminados. Notificación de brotes.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'FIT', nombre: 'Fiebre tifoidea y paratifoidea',
-    archivoAsset: 'assets/protocolos/Pro_Fiebre tifoidea y paratifoidea.pdf',
     categoria: 'alimentos', emoji: '🌡️', color: Color(0xFF0F6E56),
     descripcionCorta: 'Salmonella typhi. Fuente hídrica o alimentaria. Notificación obligatoria.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'LEPR', nombre: 'Lepra',
-    archivoAsset: 'assets/protocolos/Pro_Lepra 2024.pdf',
     categoria: 'alimentos', emoji: '🦠', color: Color(0xFF0F6E56),
     descripcionCorta: 'Mycobacterium leprae. Vigilancia activa. Tratamiento multidroga.',
     notificacion: '24 horas',
@@ -285,28 +246,24 @@ const List<_Ficha> _kFichas = [
   // ── ZOONOSIS ──────────────────────────────────────────────────────────────
   _Ficha(
     codigo: 'RABIA', nombre: 'Rabia humana y animal',
-    archivoAsset: 'assets/protocolos/Pro_Vigilancia Integrada Rabia.pdf',
     categoria: 'zoonosis', emoji: '🐾', color: Color(0xFF854F0B),
     descripcionCorta: '100% letal sin tratamiento. Todo accidente ofídico: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'LEPT', nombre: 'Leptospirosis',
-    archivoAsset: 'assets/protocolos/Pro_Leptospirosis 2024.pdf',
     categoria: 'zoonosis', emoji: '🐀', color: Color(0xFF854F0B),
     descripcionCorta: 'Transmitida por orina de roedores. Alta mortalidad en forma ictérica.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'OFID', nombre: 'Accidente ofídico / Animales venenosos',
-    archivoAsset: 'assets/protocolos/Pro_AO_Venenosos_2024.pdf',
     categoria: 'zoonosis', emoji: '🐍', color: Color(0xFF854F0B),
     descripcionCorta: 'Envenenamiento por serpientes, arañas, escorpiones. Antídoto urgente.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'TRAC', nombre: 'Tracoma',
-    archivoAsset: 'assets/protocolos/Pro_Tracoma 2022.pdf',
     categoria: 'zoonosis', emoji: '👁️', color: Color(0xFF854F0B),
     descripcionCorta: 'Infección ocular por Chlamydia. Meta de eliminación OPS.',
     notificacion: '24 horas',
@@ -315,42 +272,36 @@ const List<_Ficha> _kFichas = [
   // ── MATERNA / PERINATAL ───────────────────────────────────────────────────
   _Ficha(
     codigo: 'MME', nombre: 'Mortalidad materna extrema (MME)',
-    archivoAsset: 'assets/protocolos/Pro_MME 2024.pdf',
     categoria: 'materna', emoji: '🤰', color: Color(0xFF993556),
     descripcionCorta: 'Vigilancia de la morbilidad materna extrema. Análisis de caso obligatorio.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MM', nombre: 'Mortalidad materna — Análisis de caso',
-    archivoAsset: 'assets/protocolos/550_MM_Analisis_Caso.pdf',
     categoria: 'materna', emoji: '📋', color: Color(0xFF993556),
     descripcionCorta: 'Ficha de análisis de caso de muerte materna. INS 2024.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MMAUT', nombre: 'Mortalidad materna — Autopsia verbal',
-    archivoAsset: 'assets/protocolos/550_MM_Autopsia_Verbal.pdf',
     categoria: 'materna', emoji: '📋', color: Color(0xFF993556),
     descripcionCorta: 'Instrumento de autopsia verbal para muerte materna.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MMEMB', nombre: 'Mortalidad materna — Verificación embarazo',
-    archivoAsset: 'assets/protocolos/550_MM_Verificacion_Embarazo.pdf',
     categoria: 'materna', emoji: '📋', color: Color(0xFF993556),
     descripcionCorta: 'Ficha de verificación de embarazo en muerte materna.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MMFAM', nombre: 'Mortalidad materna — Entrevista familiar',
-    archivoAsset: 'assets/protocolos/550_MM_Entrevista_Familiar.pdf',
     categoria: 'materna', emoji: '📋', color: Color(0xFF993556),
     descripcionCorta: 'Guía de entrevista a familia en caso de muerte materna.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MORTPER', nombre: 'Mortalidad perinatal',
-    archivoAsset: 'assets/protocolos/Pro_Mortalidad perinatal.pdf',
     categoria: 'materna', emoji: '👶', color: Color(0xFF993556),
     descripcionCorta: 'Vigilancia de muertes perinatales. Análisis e intervención.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -359,42 +310,36 @@ const List<_Ficha> _kFichas = [
   // ── LESIONES / VIOLENCIA ──────────────────────────────────────────────────
   _Ficha(
     codigo: 'VIO', nombre: 'Lesiones por causa externa / Violencia',
-    archivoAsset: 'assets/protocolos/Pro_Lesiones de causa externa 2024.pdf',
     categoria: 'lesiones', emoji: '🚨', color: _kRojo,
     descripcionCorta: 'Violencia de género, intrafamiliar y lesiones no intencionales.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'SUIC', nombre: 'Intento de suicidio',
-    archivoAsset: 'assets/protocolos/Pro_Intento de suicidio.pdf',
     categoria: 'lesiones', emoji: '🆘', color: _kRojo,
     descripcionCorta: 'Notificación individual. Atención y seguimiento obligatorio.',
     notificacion: '24 horas', esUrgente: true,
   ),
   _Ficha(
     codigo: 'MAP', nombre: 'Lesiones por minas antipersona (MAP/MUSE)',
-    archivoAsset: 'assets/protocolos/Pro_ Lesiones por artefactos - MAP - MUSE.pdf',
     categoria: 'lesiones', emoji: '💥', color: _kRojo,
     descripcionCorta: 'Vigilancia de víctimas de MAP y MUSE. Notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'POLV', nombre: 'Lesiones por pólvora',
-    archivoAsset: 'assets/protocolos/Pro_Lesiones por artefactos - Polvora.pdf',
     categoria: 'lesiones', emoji: '🧨', color: _kRojo,
     descripcionCorta: 'Vigilancia especial en temporadas de fiestas. Notificación obligatoria.',
     notificacion: '24 horas',
   ),
   _Ficha(
     codigo: 'INT', nombre: 'Intoxicaciones agudas (IAPMQ)',
-    archivoAsset: 'assets/protocolos/Pro_IAPMQ.pdf',
     categoria: 'lesiones', emoji: '☠️', color: _kRojo,
     descripcionCorta: 'Intoxicaciones por plaguicidas, medicamentos y sustancias químicas.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'IAD', nombre: 'Intoxicación por alcohol y drogas (IAD)',
-    archivoAsset: 'assets/protocolos/Pro_IAD 2024.pdf',
     categoria: 'lesiones', emoji: '🍶', color: _kRojo,
     descripcionCorta: 'Vigilancia de consumo de SPA. Articulado con políticas de salud mental.',
     notificacion: '24 horas',
@@ -403,56 +348,48 @@ const List<_Ficha> _kFichas = [
   // ── CRÓNICAS / OTRAS ──────────────────────────────────────────────────────
   _Ficha(
     codigo: 'MENING', nombre: 'Meningitis',
-    archivoAsset: 'assets/protocolos/Pro_Meningitis 2024.pdf',
     categoria: 'cronicas', emoji: '🧠', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Cualquier caso de meningitis bacteriana: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'IAAS', nombre: 'Infecciones Asociadas a Atención en Salud (IAAS)',
-    archivoAsset: 'assets/protocolos/Pro_IAAS 2024.pdf',
     categoria: 'cronicas', emoji: '🏥', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Vigilancia de infecciones nosocomiales. Protocolo de bioseguridad.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'RESB', nombre: 'Resistencia bacteriana a antibióticos',
-    archivoAsset: 'assets/protocolos/Pro_Resistencia bacteriana 2022.pdf',
     categoria: 'cronicas', emoji: '🔬', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Vigilancia centinela de cepas multirresistentes.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'ANTIB', nombre: 'Consumo de antibióticos',
-    archivoAsset: 'assets/protocolos/Pro_Consumo de antibioticos.pdf',
     categoria: 'cronicas', emoji: '💊', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Uso racional de antibióticos. Indicadores de consumo hospitalario.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'ENF_HUERFANAS', nombre: 'Enfermedades huérfanas / raras',
-    archivoAsset: 'assets/protocolos/Pro_Enfermedades huerfanas.pdf',
     categoria: 'cronicas', emoji: '🧬', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Registro de enfermedades raras y huérfanas. SISPRO.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'CANCER', nombre: 'Cáncer de mama y cuello uterino',
-    archivoAsset: 'assets/protocolos/Pro_Cancer de mama y cuello uterino 2024.pdf',
     categoria: 'cronicas', emoji: '🎗️', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Tamizaje y vigilancia. Registro de casos confirmados.',
     notificacion: 'Semanal',
   ),
   _Ficha(
     codigo: 'TETAN_A', nombre: 'Tétanos accidental',
-    archivoAsset: 'assets/protocolos/Pro_tetanos accidental 2024.pdf',
     categoria: 'cronicas', emoji: '💉', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Inmunoprevenible. Cualquier caso confirmado: notificación inmediata.',
     notificacion: 'Inmediata', esUrgente: true,
   ),
   _Ficha(
     codigo: 'TETAN_N', nombre: 'Tétanos neonatal',
-    archivoAsset: 'assets/protocolos/Pro_tetanos neonatal 2024.pdf',
     categoria: 'cronicas', emoji: '👶', color: Color(0xFF5F5E5A),
     descripcionCorta: 'Meta de eliminación. Todo caso es emergencia de salud pública.',
     notificacion: 'Inmediata', esUrgente: true,
@@ -475,7 +412,6 @@ class _FichasEpidemiologicasScreenState
   String _categoriaActiva = 'todas';
   String _busqueda        = '';
   bool   _soloUrgentes    = false;
-  String? _abriendo;          // codigo del que se está abriendo (spinner)
 
   final _searchCtrl = TextEditingController();
 
@@ -495,30 +431,139 @@ class _FichasEpidemiologicasScreenState
     return lista;
   }
 
-  // ── Abrir PDF desde assets ───────────────────────────────────────────────
-  Future<void> _abrirPDF(_Ficha ficha) async {
-    setState(() => _abriendo = ficha.codigo);
-    try {
-      // Copiar el asset a un directorio temporal para que open_filex lo abra
-      final byteData = await rootBundle.load(ficha.archivoAsset);
-      final tmpDir   = await getTemporaryDirectory();
-      final fileName = ficha.archivoAsset.split('/').last;
-      final file     = File('${tmpDir.path}/$fileName');
-      await file.writeAsBytes(
-          byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+  // ── Abrir formulario con selector de paciente ────────────────────────────
+  Future<void> _abrirConPaciente(_Ficha ficha) async {
+    // Cargar pacientes de la BD
+    final pacientes = await DatabaseHelper.instance.obtenerPacientes();
+    if (!mounted) return;
 
-      final result = await OpenFilex.open(file.path);
-      if (result.type != ResultType.done && mounted) {
-        _snack('No se pudo abrir el PDF. ¿Tienes un lector instalado?',
-            color: _kNaranja);
-      }
-    } catch (e) {
-      if (mounted) {
-        _snack('PDF no disponible aún. Cópialo a assets/protocolos/', color: _kNaranja);
-      }
-    } finally {
-      if (mounted) setState(() => _abriendo = null);
+    Map<String, dynamic>? pacienteSeleccionado;
+
+    if (pacientes.isNotEmpty) {
+      // Mostrar selector de paciente
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: _c(context).card,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (_) => DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          maxChildSize: 0.85,
+          minChildSize: 0.3,
+          expand: false,
+          builder: (ctx, scroll) => StatefulBuilder(
+            builder: (ctx2, ss) => Column(children: [
+              const SizedBox(height: 8),
+              Container(width: 36, height: 4,
+                  decoration: BoxDecoration(
+                      color: _c(context).border,
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(children: [
+                  Icon(Icons.person_search_rounded, color: _kVerde, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Seleccionar paciente',
+                      style: TextStyle(color: _c(context).textPrimary,
+                          fontSize: 15, fontWeight: FontWeight.bold)),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Expanded(child: ListView.separated(
+                controller: scroll,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                itemCount: pacientes.length + 1,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) {
+                  if (i == 0) {
+                    // Opción sin paciente
+                    return GestureDetector(
+                      onTap: () {
+                        pacienteSeleccionado = {};
+                        Navigator.pop(ctx2);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                            color: _c(context).bg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _c(context).border)),
+                        child: Row(children: [
+                          Icon(Icons.person_add_outlined,
+                              color: _c(context).textHint, size: 20),
+                          const SizedBox(width: 10),
+                          Text('Continuar sin paciente',
+                              style: TextStyle(color: _c(context).textSecondary,
+                                  fontSize: 13)),
+                        ]),
+                      ),
+                    );
+                  }
+                  final p = pacientes[i - 1];
+                  final nombre = p['nombre'] as String? ?? 'Sin nombre';
+                  final doc    = p['documento'] as String? ?? '';
+                  final mun    = p['municipio'] as String? ?? '';
+                  return GestureDetector(
+                    onTap: () {
+                      pacienteSeleccionado = p;
+                      Navigator.pop(ctx2);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                          color: _c(context).card,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _c(context).border)),
+                      child: Row(children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: _kVerde.withOpacity(0.12),
+                          child: Text(
+                              nombre.isNotEmpty ? nombre[0].toUpperCase() : '?',
+                              style: const TextStyle(color: _kVerde,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(nombre,
+                              style: TextStyle(color: _c(context).textPrimary,
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          if (doc.isNotEmpty || mun.isNotEmpty)
+                            Text([if (doc.isNotEmpty) doc,
+                                  if (mun.isNotEmpty) mun].join(' · '),
+                                style: TextStyle(color: _c(context).textHint,
+                                    fontSize: 11)),
+                        ])),
+                        Icon(Icons.chevron_right_rounded,
+                            color: _c(context).textHint, size: 20),
+                      ]),
+                    ),
+                  );
+                },
+              )),
+            ]),
+          ),
+        ),
+      );
+    } else {
+      pacienteSeleccionado = {};
     }
+
+    if (!mounted || pacienteSeleccionado == null) return;
+
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => FichaFormularioScreen(
+        codigoFicha:    ficha.codigo,
+        nombreFicha:    ficha.nombre,
+        colorFicha:     ficha.color,
+        emojiFicha:     ficha.emoji,
+        datosPaciente:  pacienteSeleccionado!,
+      ),
+    ));
   }
 
   void _snack(String msg, {Color? color}) {
@@ -720,8 +765,7 @@ class _FichasEpidemiologicasScreenState
                   itemBuilder: (_, i) => _TarjetaFicha(
                     ficha: fichas[i],
                     dc: dc,
-                    cargando: _abriendo == fichas[i].codigo,
-                    onTap: () => _abrirPDF(fichas[i]),
+                    onTap: () => _abrirConPaciente(fichas[i]),
                     onVerDetalle: () => _mostrarDetalle(fichas[i]),
                   ),
                 ),
@@ -743,17 +787,6 @@ class _FichasEpidemiologicasScreenState
   );
 
   // ── Modal de detalle / info antes de abrir PDF ────────────────────
-  void _abrirFormulario(_Ficha ficha) {
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => FichaFormularioScreen(
-        codigoFicha: ficha.codigo,
-        nombreFicha: ficha.nombre,
-        colorFicha:  ficha.color,
-        emojiFicha:  ficha.emoji,
-      ),
-    ));
-  }
-
   void _mostrarDetalle(_Ficha ficha) {
     final dc  = _c(context);
     final clr = ficha.color;
@@ -843,53 +876,22 @@ class _FichasEpidemiologicasScreenState
           ]),
           const SizedBox(height: 16),
 
-          // Nota del archivo
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: dc.bg, borderRadius: BorderRadius.circular(10)),
-            child: Row(children: [
-              const Icon(Icons.picture_as_pdf_rounded, color: _kRojo, size: 16),
-              const SizedBox(width: 8),
-              Expanded(child: Text(
-                  'Documento: ${ficha.archivoAsset.split('/').last}',
-                  style: TextStyle(color: dc.textHint, fontSize: 10.5),
-                  maxLines: 2, overflow: TextOverflow.ellipsis)),
-            ]),
-          ),
-          const SizedBox(height: 16),
-
-          // Botón llenar formulario
+          // Botón llenar formulario SIVIGILA
           SizedBox(
-            width: double.infinity, height: 48,
+            width: double.infinity, height: 52,
             child: ElevatedButton.icon(
-              onPressed: () { Navigator.pop(context); _abrirFormulario(ficha); },
-              icon: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 20),
+              onPressed: () {
+                Navigator.pop(context);
+                _abrirConPaciente(ficha);
+              },
+              icon: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 22),
               label: const Text('Llenar formulario SIVIGILA',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.bold, fontSize: 15)),
               style: ElevatedButton.styleFrom(
                   backgroundColor: clr, elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Botón ver PDF de referencia
-          SizedBox(
-            width: double.infinity, height: 44,
-            child: OutlinedButton.icon(
-              onPressed: _abriendo == ficha.codigo
-                  ? null
-                  : () { Navigator.pop(context); _abrirPDF(ficha); },
-              icon: _abriendo == ficha.codigo
-                  ? const SizedBox(width: 14, height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_rounded, size: 16),
-              label: Text(_abriendo == ficha.codigo ? 'Abriendo…' : 'Ver protocolo PDF (INS)',
-                  style: const TextStyle(fontWeight: FontWeight.w500)),
-              style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: clr),
-                  foregroundColor: clr,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
             ),
           ),
         ]),
@@ -906,12 +908,11 @@ class _FichasEpidemiologicasScreenState
 class _TarjetaFicha extends StatelessWidget {
   final _Ficha   ficha;
   final DispersaludColors dc;
-  final bool     cargando;
   final VoidCallback onTap;
   final VoidCallback onVerDetalle;
 
   const _TarjetaFicha({
-    required this.ficha, required this.dc, required this.cargando,
+    required this.ficha, required this.dc,
     required this.onTap, required this.onVerDetalle,
   });
 
@@ -987,25 +988,22 @@ class _TarjetaFicha extends StatelessWidget {
                           color: ficha.esUrgente ? _kRojo : dc.textHint,
                           fontSize: 10)),
                   const Spacer(),
-                  // Botón abrir PDF
+                  // Botón llenar formulario
                   GestureDetector(
-                    onTap: cargando ? null : onTap,
+                    onTap: onTap,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
-                          color: _kRojo.withOpacity(0.10),
+                          color: clr.withOpacity(0.10),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _kRojo.withOpacity(0.25))),
-                      child: cargando
-                          ? const SizedBox(width: 14, height: 14,
-                              child: CircularProgressIndicator(color: _kRojo, strokeWidth: 2))
-                          : const Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.picture_as_pdf_rounded, color: _kRojo, size: 13),
-                              SizedBox(width: 4),
-                              Text('Abrir PDF',
-                                  style: TextStyle(color: _kRojo,
-                                      fontSize: 10, fontWeight: FontWeight.w700)),
-                            ]),
+                          border: Border.all(color: clr.withOpacity(0.25))),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.edit_note_rounded, color: clr, size: 13),
+                        const SizedBox(width: 4),
+                        Text('Llenar',
+                            style: TextStyle(color: clr,
+                                fontSize: 10, fontWeight: FontWeight.w700)),
+                      ]),
                     ),
                   ),
                 ]),
