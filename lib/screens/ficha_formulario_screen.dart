@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -375,6 +376,18 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
       final datos = _recolectar();
       final pdf   = pw.Document();
 
+      // Cargar logos como imágenes reales para el PDF
+      final logoDispersalud = pw.MemoryImage(
+          (await rootBundle.load('assets/logo_dispersalud.png')).buffer.asUint8List());
+      final logoColombia = pw.MemoryImage(
+          (await rootBundle.load('assets/logos_ins/logo_colombia.png')).buffer.asUint8List());
+      final logoSalud = pw.MemoryImage(
+          (await rootBundle.load('assets/logos_ins/logo_salud.png')).buffer.asUint8List());
+      final logoIns = pw.MemoryImage(
+          (await rootBundle.load('assets/logos_ins/logo_ins.png')).buffer.asUint8List());
+      final logoSivigila = pw.MemoryImage(
+          (await rootBundle.load('assets/logos_ins/logo_sivigila.png')).buffer.asUint8List());
+
       final azulINS   = PdfColor.fromHex('003A8C');
       final azulBanda = PdfColor.fromHex('EEF2FB');
       final verdePDF  = PdfColor.fromHex('1D9E75');
@@ -399,38 +412,32 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
                   pw.Container(
                     color: azulINS,
                     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: pw.Row(children: [
+                    child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+                      pw.Container(
+                        padding: const pw.EdgeInsets.all(2),
+                        decoration: const pw.BoxDecoration(color: PdfColors.white),
+                        child: pw.Image(logoDispersalud, height: 18, width: 18),
+                      ),
+                      pw.SizedBox(width: 6),
                       pw.Text('SISTEMA NACIONAL DE VIGILANCIA EN SALUD PÚBLICA',
                           style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 8.5)),
                       pw.Spacer(),
-                      pw.Text('SIVIGILA',
-                          style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 11)),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        color: PdfColors.white,
+                        child: pw.Image(logoSivigila, height: 14),
+                      ),
                     ]),
                   ),
                   pw.Container(
                     color: PdfColor.fromHex('F0F4FF'),
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: pw.BoxDecoration(
-                            border: pw.Border.all(color: azulINS, width: 0.5)),
-                        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                          pw.Text('COLOMBIA', style: pw.TextStyle(font: bold, color: azulINS, fontSize: 6)),
-                          pw.Text('Potencia de la Vida', style: pw.TextStyle(font: regular, color: azulINS, fontSize: 5)),
-                        ]),
-                      ),
-                      pw.SizedBox(width: 5),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: pw.BoxDecoration(
-                            border: pw.Border.all(color: azulINS, width: 0.5)),
-                        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                          pw.Text('INS', style: pw.TextStyle(font: bold, color: azulINS, fontSize: 8)),
-                          pw.Text('Instituto Nacional de Salud',
-                              style: pw.TextStyle(font: regular, color: azulINS, fontSize: 4.5)),
-                        ]),
-                      ),
+                      pw.Image(logoColombia, height: 22),
+                      pw.SizedBox(width: 8),
+                      pw.Image(logoSalud, height: 18),
+                      pw.SizedBox(width: 8),
+                      pw.Image(logoIns, height: 22),
                       pw.Spacer(),
                       pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
                         pw.Text('Formulario de Recolección',
@@ -891,46 +898,51 @@ class _EncabezadoINS extends StatelessWidget {
       child: Column(children: [
         Container(
           color: _kAzulINS,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(children: [
+            // Logo DISPERSALUD IA
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(4)),
-              child: const Column(children: [
-                Text('🇨🇴', style: TextStyle(fontSize: 16)),
-                Text('COLOMBIA', style: TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold)),
-                Text('POTENCIA', style: TextStyle(color: Colors.white, fontSize: 6)),
-                Text('DE LA VIDA', style: TextStyle(color: Colors.white, fontSize: 6)),
-              ]),
+                  color: Colors.white, borderRadius: BorderRadius.circular(6)),
+              child: Image.asset('assets/logo_dispersalud.png',
+                  height: 30, width: 30, fit: BoxFit.contain),
             ),
             const SizedBox(width: 8),
+            // Logo Colombia
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: const Text('Salud',
-                  style: TextStyle(color: _kAzulINS, fontSize: 11, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: Image.asset('assets/logos_ins/logo_colombia.png',
+                  height: 26, fit: BoxFit.contain),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+            // Logo Salud
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: const Column(children: [
-                Text('INS', style: TextStyle(color: _kAzulINS, fontSize: 10, fontWeight: FontWeight.bold)),
-                Text('INSTITUTO\nNACIONAL\nDE SALUD',
-                    style: TextStyle(color: _kAzulINS, fontSize: 5), textAlign: TextAlign.center),
-              ]),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: Image.asset('assets/logos_ins/logo_salud.png',
+                  height: 26, fit: BoxFit.contain),
+            ),
+            const SizedBox(width: 6),
+            // Logo INS
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: Image.asset('assets/logos_ins/logo_ins.png',
+                  height: 26, fit: BoxFit.contain),
             ),
             const Spacer(),
+            // Logo SIVIGILA
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-              child: const Column(children: [
-                Text('SIVIGILA', style: TextStyle(
-                    color: _kAzulINS, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                Text('S U I T E', style: TextStyle(color: _kAzulClaro, fontSize: 7, letterSpacing: 2)),
-              ]),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+              child: Image.asset('assets/logos_ins/logo_sivigila.png',
+                  height: 26, fit: BoxFit.contain),
             ),
           ]),
         ),
