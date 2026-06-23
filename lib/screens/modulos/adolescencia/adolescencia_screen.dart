@@ -129,27 +129,51 @@ class _AdolescenciaScreenState extends State<AdolescenciaScreen> {
   }
 
   Future<void> _analizarYGuardar() async {
-    final presion = int.tryParse(_presionCtrl.text.split('/').first) ?? 0;
-    final peso    = double.tryParse(_pesoCtrl.text)  ?? 0;
-    final talla   = double.tryParse(_tallaCtrl.text) ?? 1;
-    final imc     = talla > 0 ? peso / ((talla / 100) * (talla / 100)) : 0;
+    final presionSis = int.tryParse(_presionCtrl.text.split('/').first) ?? 0;
+    final presionDia = int.tryParse(_presionCtrl.text.split('/').last)  ?? 0;
+    final peso       = double.tryParse(_pesoCtrl.text)  ?? 0;
+    final talla      = double.tryParse(_tallaCtrl.text) ?? 1;
+    final temp       = double.tryParse(_tempCtrl.text)  ?? 0;
+    final imc        = talla > 0 ? peso / ((talla / 100) * (talla / 100)) : 0;
 
+    // Reglas clínicas — Protocolo MINSALUD Adolescencia 10–17 años
     String dx; String nivel; Color color;
 
     if (!_sinViolencia) {
-      dx    = '🚨 Reporte de violencia. Activar ruta de atención y notificar a ICBF.';
+      dx    = '🚨 URGENTE: Reporte de violencia. Activar ruta integral, notificar a ICBF y comisaría. No enviar a casa sin verificar seguridad.';
       nivel = 'urgente'; color = Colors.red;
-    } else if (presion >= 130) {
-      dx    = '⚠️ Presión elevada para la edad. Descartar hipertensión secundaria.';
-      nivel = 'alerta'; color = Colors.orange;
+    } else if (temp >= 38.5) {
+      dx    = '🌡️ Fiebre alta (${temp}°C). Descartar dengue, malaria o ITS. Hemograma urgente. Hidratación oral.';
+      nivel = 'urgente'; color = Colors.red;
+    } else if (presionSis >= 140 || presionDia >= 90) {
+      dx    = '⚠️ HTA en adolescente ($_presionCtrl.text mmHg). Descartar causa secundaria (renal, endocrina). Remisión médica prioritaria.';
+      nivel = 'urgente'; color = Colors.red;
+    } else if (imc < 16.0) {
+      dx    = '🚨 Desnutrición severa (IMC ${imc.toStringAsFixed(1)}). Riesgo vital. Remisión urgente a nutrición y psicología. Evaluar trastorno alimentario.';
+      nivel = 'urgente'; color = Colors.red;
     } else if (_tabacoOSustancias) {
-      dx    = '🚭 Consumo de sustancias reportado. Orientar a programa de prevención.';
+      dx    = '🚭 Consumo de SPA reportado. Activar ruta salud mental. Orientar a programa CAMAD. Involucrar familia.';
       nivel = 'alerta'; color = Colors.orange;
-    } else if (imc < 16) {
-      dx    = '⚖️ IMC muy bajo. Evaluar trastorno alimentario. Referir a nutrición.';
+    } else if (presionSis >= 120 || presionDia >= 80) {
+      dx    = '⚠️ Presión limítrofe (${_presionCtrl.text} mmHg). Repetir en 2 semanas. Reducir sal y aumentar actividad física.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (imc < 18.5) {
+      dx    = '⚖️ Bajo peso (IMC ${imc.toStringAsFixed(1)}). Consejería nutricional. Control en 1 mes.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (imc >= 30.0) {
+      dx    = '⚖️ Obesidad (IMC ${imc.toStringAsFixed(1)}). Riesgo síndrome metabólico. Plan nutricional + actividad física + apoyo psicosocial.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_vph1 || !_vph2) {
+      dx    = '💉 Esquema VPH incompleto. Completar según PAI. Previene cáncer de cuello uterino.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_redApoyo) {
+      dx    = '🤝 Sin red de apoyo familiar. Riesgo psicosocial. Remitir a trabajo social y salud mental.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_tamizajeITS) {
+      dx    = '🔬 Tamizaje ITS/VIH pendiente. Solicitar prueba VIH, sífilis y hepatitis B según protocolo MINSALUD.';
       nivel = 'alerta'; color = Colors.orange;
     } else {
-      dx    = '✅ Adolescente saludable. Reforzar proyecto de vida y hábitos saludables.';
+      dx    = '✅ Adolescente saludable. Reforzar proyecto de vida y salud sexual responsable. Próximo control en 6 meses.';
       nivel = 'normal'; color = Colors.green;
     }
 

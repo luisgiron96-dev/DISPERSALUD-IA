@@ -126,20 +126,39 @@ class _JuventudScreenState extends State<JuventudScreen> {
     final talla    = double.tryParse(_tallaCtrl.text)    ?? 1;
     final imc      = talla > 0 ? peso / ((talla / 100) * (talla / 100)) : 0;
     String dx; String nivel; Color color;
-    if (presion >= 140) {
-      dx = '⚠️ Presión arterial elevada ($presion mmHg). Evaluar hipertensión. Remisión médica.';
+    // Reglas clínicas — Protocolo MINSALUD Juventud 18–28 años
+    if (presion >= 160) {
+      dx = '🚨 Crisis hipertensiva ($presion mmHg). Remisión de urgencia inmediata. No dejar solo al paciente.';
       nivel = 'urgente'; color = Colors.red;
+    } else if (glucemia >= 200) {
+      dx = '🩸 Glucemia crítica ($glucemia mg/dL). Probable descompensación diabética. Remitir a urgencias.';
+      nivel = 'urgente'; color = Colors.red;
+    } else if (presion >= 140) {
+      dx = '⚠️ HTA grado 1 ($presion mmHg) en joven. Evaluar causa secundaria. Solicitar creatinina y uroanálisis. Remisión médica.';
+      nivel = 'alerta'; color = Colors.orange;
     } else if (glucemia >= 126) {
-      dx = '🩸 Glucemia elevada ($glucemia mg/dL). Riesgo de diabetes. Solicitar HbA1c.';
-      nivel = 'urgente'; color = Colors.red;
+      dx = '🩸 Glucemia en ayunas elevada ($glucemia mg/dL). Probable diabetes tipo 2. Solicitar HbA1c y repetir glucemia. Consejería nutricional.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (glucemia >= 100 && glucemia < 126) {
+      dx = '⚠️ Prediabetes ($glucemia mg/dL). Intervención de estilo de vida. Control en 3 meses. Reducir azúcares y aumentar actividad física.';
+      nivel = 'alerta'; color = Colors.orange;
     } else if (_tabacoOSustancias) {
-      dx = '🚭 Consumo de sustancias. Orientar a programa de cesación y prevención.';
+      dx = '🚭 Consumo de SPA. Activar programa de cesación tabáquica o desintoxicación. Apoyo psicosocial y familiar.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (imc >= 30) {
+      dx = '⚖️ Obesidad (IMC ${imc.toStringAsFixed(1)}). Alto riesgo cardiovascular y metabólico. Plan nutricional estructurado + 150 min/semana de actividad física.';
       nivel = 'alerta'; color = Colors.orange;
     } else if (imc >= 25) {
-      dx = '⚖️ IMC ${imc.toStringAsFixed(1)} — Sobrepeso. Promover actividad física y dieta saludable.';
+      dx = '⚖️ Sobrepeso (IMC ${imc.toStringAsFixed(1)}). Promover dieta saludable y actividad física. Control en 3 meses.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_tamizajeITS) {
+      dx = '🔬 Tamizaje ITS pendiente. Solicitar VIH, sífilis y hepatitis B según protocolo MINSALUD para jóvenes activos sexualmente.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_actividadFisica) {
+      dx = '🏃 Sedentarismo identificado. Recomendar mínimo 150 min/semana de actividad moderada según guías OMS/MINSALUD.';
       nivel = 'alerta'; color = Colors.orange;
     } else {
-      dx = '✅ Joven saludable. Continuar controles anuales y reforzar hábitos.';
+      dx = '✅ Joven saludable. Continuar controles anuales. Reforzar hábitos saludables y detección temprana de enfermedades crónicas.';
       nivel = 'normal'; color = Colors.green;
     }
     setState(() { _diagnostico = dx; _nivelRiesgo = nivel; _colorDx = color; });

@@ -138,26 +138,51 @@ class _AdultezScreenState extends State<AdultezScreen> {
 
     String dx; String nivel; Color color;
 
-    if (presion >= 160) {
-      dx    = '🚨 Crisis hipertensiva ($presion mmHg). Remisión de urgencia inmediata.';
+    // Reglas clínicas — Protocolo MINSALUD Adultez 29–59 años
+    final cintura = double.tryParse(_cinturaCtrl.text) ?? 0;
+    final riesgoMetabolico = (cintura > 88 && peso > 0); // >88cm mujeres, usar como proxy
+
+    if (presion >= 180) {
+      dx    = '🚨 URGENCIA HIPERTENSIVA ($presion mmHg). Riesgo de ACV o infarto. Remisión inmediata a urgencias. Administrar antihipertensivo si disponible.';
+      nivel = 'urgente'; color = Colors.red;
+    } else if (glucemia >= 300) {
+      dx    = '🩸 CRISIS HIPERGLUCÉMICA ($glucemia mg/dL). Riesgo de coma diabético. Hidratación IV urgente. Remisión inmediata.';
+      nivel = 'urgente'; color = Colors.red;
+    } else if (presion >= 160) {
+      dx    = '🚨 HTA severa ($presion mmHg). Remisión urgente. Revisar adherencia a antihipertensivos. Electrocardiograma.';
       nivel = 'urgente'; color = Colors.red;
     } else if (glucemia >= 200) {
-      dx    = '🩸 Glucemia muy elevada ($glucemia mg/dL). Riesgo de descompensación diabética. Remitir.';
+      dx    = '🩸 Glucemia muy elevada ($glucemia mg/dL). Probable descompensación diabética. Ajuste de insulina o hipoglucemiantes. Remisión médica.';
       nivel = 'urgente'; color = Colors.red;
     } else if (presion >= 140 && !_adherenciaTto) {
-      dx    = '⚠️ HTA no controlada + baja adherencia. Reforzar tratamiento farmacológico.';
+      dx    = '⚠️ HTA no controlada ($presion mmHg) + baja adherencia. Reforzar tratamiento farmacológico. Educación sobre riesgo cardiovascular.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (presion >= 140) {
+      dx    = '⚠️ HTA grado 1 ($presion mmHg). Evaluar ajuste de medicación. Control en 15 días. Dieta hiposódica y ejercicio.';
       nivel = 'alerta'; color = Colors.orange;
     } else if (glucemia >= 126 && !_diabetes) {
-      dx    = '🩸 Glucemia $glucemia mg/dL. Probable diabetes tipo 2. Solicitar HbA1c.';
+      dx    = '🩸 Glucemia $glucemia mg/dL — Posible diabetes tipo 2 no diagnosticada. Solicitar HbA1c y glucemia en ayunas de confirmación.';
       nivel = 'alerta'; color = Colors.orange;
-    } else if (imc >= 30) {
-      dx    = '⚖️ Obesidad (IMC ${imc.toStringAsFixed(1)}). Alto riesgo cardiovascular. Plan de ejercicio y dieta.';
+    } else if (glucemia >= 100 && glucemia < 126) {
+      dx    = '⚠️ Prediabetes ($glucemia mg/dL). Intervención de estilo de vida. Reducir carbohidratos refinados. Control en 3 meses.';
       nivel = 'alerta'; color = Colors.orange;
     } else if (colesterol > 240) {
-      dx    = '🫀 Colesterol elevado ($colesterol mg/dL). Reforzar estatinas y dieta cardioprotectora.';
+      dx    = '🫀 Hipercolesterolemia ($colesterol mg/dL). Riesgo cardiovascular alto. Reforzar estatinas y dieta cardioprotectora (DASH). Solicitar perfil lipídico completo.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (imc >= 30 || riesgoMetabolico) {
+      dx    = '⚖️ Obesidad/riesgo metabólico (IMC ${imc.toStringAsFixed(1)}, cintura ${_cinturaCtrl.text} cm). Plan nutricional + 150 min/semana de ejercicio moderado.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (_fumador) {
+      dx    = '🚭 Tabaquismo activo. Aumenta riesgo cardiovascular x2. Orientar a programa de cesación. Preguntar por EPOC y tos crónica.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_papOmamografia) {
+      dx    = '🩺 Tamizaje de cáncer pendiente (PAP/mamografía). Solicitar según protocolo MINSALUD para detección temprana.';
+      nivel = 'alerta'; color = Colors.orange;
+    } else if (!_ejercicioRegular) {
+      dx    = '🏃 Sedentarismo. Factor de riesgo cardiovascular modificable. Recomendar 150 min/semana de actividad moderada.';
       nivel = 'alerta'; color = Colors.orange;
     } else {
-      dx    = '✅ Adulto con factores controlados. Continuar seguimiento semestral.';
+      dx    = '✅ Adulto con factores de riesgo controlados. Excelente adherencia. Continuar seguimiento semestral. Mantener hábitos saludables.';
       nivel = 'normal'; color = Colors.green;
     }
 

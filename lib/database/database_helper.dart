@@ -19,12 +19,12 @@ class DatabaseHelper {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 7, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 7, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -42,8 +42,9 @@ class DatabaseHelper {
         telefono     TEXT,
         eps          TEXT,
         modulo       TEXT,
-        acudiente    TEXT,
-        created_at   TEXT DEFAULT (datetime('now','localtime'))
+        acudiente     TEXT,
+        sincronizado  INTEGER DEFAULT 0,
+        created_at    TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
 
@@ -190,6 +191,10 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_png TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_profesional TEXT'); } catch (_) {}
       try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_fecha TEXT'); } catch (_) {}
+    }
+    if (oldVersion < 8) {
+      // Columna para rastrear qué pacientes ya se subieron a Supabase
+      try { await db.execute('ALTER TABLE pacientes ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
     }
   }
 
@@ -559,6 +564,77 @@ class DatabaseHelper {
     }
     return Sqflite.firstIntValue(
         await db.rawQuery('SELECT COUNT(*) FROM fichas_epidemiologicas')) ?? 0;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // SYNC CON SUPABASE — métodos adicionales
+  // ════════════════════════════════════════════════════════════════════
+
+  /// Pacientes que aún no se han subido a Supabase
+  Future<List<Map<String, dynamic>>> obtenerPacientesPendientesSync() async {
+    final db = await database;
+    try {
+      final rows = await db.query('pacientes',
+          where: 'sincronizado = 0 OR sincronizado IS NULL');
+      return rows
+          .map(_sec.descifrarPaciente)
+          .toList()
+          .cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Marca un paciente como ya sincronizado con Supabase
+  Future<void> marcarPacienteSincronizado(dynamic id) async {
+    final db = await database;
+    try {
+      await db.update('pacientes', {'sincronizado': 1},
+          where: 'id = ?', whereArgs: [id]);
+    } catch (_) {}
+  }
+
+  /// Alertas pendientes de sincronización (todas, sin filtro de estado)
+  Future<List<Map<String, dynamic>>> obtenerAlertasPendientesSync() async {
+    final db = await database;
+    try {
+      return await db.query('alertas',
+          orderBy: 'fecha DESC', limit: 50);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Marca una alerta como sincronizada (no-op hasta añadir columna)
+  Future<void> marcarAlertaSincronizada(dynamic id) async {
+    // Se implementará cuando se añada columna sincronizado a alertas
+  }
+
+  /// Fichas epidemiológicas pendientes (estado != 'sincronizado')
+  Future<List<Map<String, dynamic>>> obtenerFichasPendientesSync() async {
+    final db = await database;
+    try {
+      return await db.query('fichas_epidemiologicas',
+          where: "estado != 'sincronizado'",
+          orderBy: 'created_at DESC',
+          limit: 50);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Marca una ficha como sincronizada con Supabase
+  Future<void> marcarFichaSincronizada(dynamic id) async {
+    final db = await database;
+    try {
+      await db.update(
+        'fichas_epidemiologicas',
+        {'estado': 'sincronizado', 'exportado': 1,
+         'updated_at': DateTime.now().toIso8601String()},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (_) {}
   }
 
   // ════════════════════════════════════════════════════════════════════

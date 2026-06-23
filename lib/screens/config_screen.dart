@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
+import '../services/sync_service.dart';
 import '../main.dart' show temaNotifier, temaDesdeString, fontSizeNotifier;
 
 const Color _kVerde = Color(0xFF1D9E75);
@@ -961,19 +962,19 @@ class _ConfigScreenState extends State<ConfigScreen>
     if (_sincronizando) return;
     setState(() => _sincronizando = true);
     try {
-      final pendientes = await DatabaseHelper.instance.obtenerConsultasPendientesSync();
-      if (pendientes.isEmpty) { _snack('Todo está sincronizado. Sin registros pendientes.'); setState(() => _sincronizando = false); return; }
-      int sincronizados = 0;
-      for (final consulta in pendientes) {
-        await DatabaseHelper.instance.marcarConsultaSincronizada(consulta['id']);
-        sincronizados++;
-        await Future.delayed(const Duration(milliseconds: 100));
+      // Usa el nuevo SyncService con Supabase — sincroniza pacientes,
+      // consultas, alertas y fichas epidemiológicas en una sola llamada
+      final resultado = await SyncService.instance.sincronizar();
+      if (resultado.exito) {
+        _snack('✓ ${resultado.mensaje}');
+      } else {
+        _snack(resultado.mensaje, error: resultado.pendientes > 0, info: !resultado.exito && resultado.pendientes == 0);
       }
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('ultima_sincronizacion', DateTime.now().toIso8601String());
-      _snack('✓ $sincronizados registro${sincronizados == 1 ? '' : 's'} sincronizado${sincronizados == 1 ? '' : 's'}');
-    } catch (e) { _snack('Error al sincronizar: $e', error: true); }
-    finally { if (mounted) setState(() => _sincronizando = false); }
+    } catch (e) {
+      _snack('Error al sincronizar: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _sincronizando = false);
+    }
   }
 
   Future<void> _exportarPDF() async {
