@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
 import '../../../database/database_helper.dart';
+import '../../../services/sivigila_service.dart';
 
 const Color _kColor = Color(0xFF185FA5);
 
@@ -157,6 +158,12 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
           'cepillado': _cepillado, 'srp2': _srp2}),
         'diagnostico': dx, 'nivel_riesgo': nivel,
       });
+      // ── SIVIGILA: detectar enfermedades de notificación obligatoria ──
+      await SivigilaService.instance.evaluarDiagnostico(
+        diagnostico: dx,
+        paciente:    _pacienteNombre,
+        modulo:      'Infancia',
+      );
       setState(() => _guardando = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Consulta guardada para $_pacienteNombre ✓'),

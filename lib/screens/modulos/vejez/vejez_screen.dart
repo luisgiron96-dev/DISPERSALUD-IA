@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
 import '../../../database/database_helper.dart';
+import '../../../services/sivigila_service.dart';
 
 const Color _kColor = Color(0xFF5F5E5A);
 
@@ -160,6 +161,12 @@ class _VejezScreenState extends State<VejezScreen> {
           'adherenciaTto': _adherenciaTto, 'maltrato': _maltrato, 'neumococo': _neumococo}),
         'diagnostico': dx, 'nivel_riesgo': nivel,
       });
+      // ── SIVIGILA: detectar enfermedades de notificación obligatoria ──
+      await SivigilaService.instance.evaluarDiagnostico(
+        diagnostico: dx,
+        paciente:    _pacienteNombre,
+        modulo:      'Vejez',
+      );
       setState(() => _guardando = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Consulta guardada para $_pacienteNombre ✓'),
@@ -198,7 +205,9 @@ class _VejezScreenState extends State<VejezScreen> {
               style: TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
       ),
-      body: SingleChildScrollView(
+      body: SafeArea(
+        bottom: true,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(14),
         child: Column(children: [
 
@@ -328,6 +337,7 @@ class _VejezScreenState extends State<VejezScreen> {
           ),
           const SizedBox(height: 24),
         ]),
+      ),
       ),
     );
   }

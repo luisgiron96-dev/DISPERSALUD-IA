@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
 import '../../../database/database_helper.dart';
+import '../../../services/sivigila_service.dart';
 
 const Color _kColor = Color(0xFF0F6E56);
 
@@ -215,6 +216,12 @@ class _AdultezScreenState extends State<AdultezScreen> {
         'diagnostico':  dx,
         'nivel_riesgo': nivel,
       });
+      // ── SIVIGILA: detectar enfermedades de notificación obligatoria ──
+      await SivigilaService.instance.evaluarDiagnostico(
+        diagnostico: dx,
+        paciente:    _pacienteNombre,
+        modulo:      'Adultez',
+      );
       setState(() => _guardando = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -262,7 +269,9 @@ class _AdultezScreenState extends State<AdultezScreen> {
               style: TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
       ),
-      body: SingleChildScrollView(
+      body: SafeArea(
+        bottom: true,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(14),
         child: Column(children: [
 
@@ -419,6 +428,7 @@ class _AdultezScreenState extends State<AdultezScreen> {
           ),
           const SizedBox(height: 24),
         ]),
+      ),
       ),
     );
   }

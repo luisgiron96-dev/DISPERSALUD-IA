@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
 import '../../../database/database_helper.dart';
+import '../../../services/sivigila_service.dart';
 
 const Color _kColor = Color(0xFF854F0B);
 
@@ -155,6 +156,12 @@ class _PrimeraInfanciaScreenState extends State<PrimeraInfanciaScreen> {
           'micronutrientes': _micronutrientes}),
         'diagnostico': dx, 'nivel_riesgo': nivel,
       });
+      // ── SIVIGILA: detectar enfermedades de notificación obligatoria ──
+      await SivigilaService.instance.evaluarDiagnostico(
+        diagnostico: dx,
+        paciente:    _pacienteNombre,
+        modulo:      'Primera Infancia',
+      );
       setState(() => _guardando = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Consulta guardada para $_pacienteNombre ✓'),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import '../../../database/database_helper.dart';
+import '../../../services/sivigila_service.dart';
 
 DispersaludColors _c(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
@@ -477,6 +478,13 @@ class _GestacionScreenState extends State<GestacionScreen> {
       'nivel_riesgo': nivelRiesgo,
       'observaciones':_obsCtrl.text.trim(),
     });
+
+    // ── SIVIGILA: detectar enfermedades de notificación obligatoria ──
+    await SivigilaService.instance.evaluarDiagnostico(
+      diagnostico: diagnosticoTexto,
+      paciente:    _pacienteNombre,
+      modulo:      'Gestación',
+    );
 
     setState(() => _guardando = false);
 
