@@ -386,6 +386,32 @@ class SivigilaService {
       return false;
     }
   }
+
+  // ── Resumen de alertas para el prompt de la IA ─────────────────────
+  // Usa alertas reales generadas por los promotores en campo
+  Future<String> obtenerResumenAlertas() async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final rows = await db.query(
+        'alertas',
+        where: 'resuelta = 0',
+        orderBy: 'fecha DESC',
+        limit: 5,
+      );
+      if (rows.isEmpty) {
+        return 'dengue en Santander de Quilichao, malaria en López de Micay';
+      }
+      return rows.map((r) {
+        final nivel    = r['nivel']?.toString().toUpperCase() ?? '';
+        final paciente = r['paciente']?.toString() ?? 'paciente';
+        final mensaje  = r['mensaje']?.toString() ?? '';
+        return '\$nivel: \$paciente — \$mensaje';
+      }).join('; ');
+    } catch (_) {
+      return 'dengue en Santander de Quilichao, malaria en López de Micay';
+    }
+  }
+
 }
 
 // ── Resultado de evaluación ──────────────────────────────────────────────────

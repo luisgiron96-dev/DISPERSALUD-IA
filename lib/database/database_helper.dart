@@ -15,16 +15,17 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // ── CAMBIO 1: versión 8 → 9 ─────────────────────────────────────────────
   Future<Database> _initDB(String filePath) async {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 9, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 9, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -77,15 +78,19 @@ class DatabaseHelper {
       )
     ''');
 
+    // ── CAMBIO 2: tabla alertas con columnas nuevas ──────────────────────
     await db.execute('''
       CREATE TABLE alertas (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        modulo      TEXT,
-        paciente    TEXT,
-        mensaje     TEXT,
-        nivel       TEXT,
-        resuelta    INTEGER DEFAULT 0,
-        fecha       TEXT DEFAULT (datetime('now','localtime'))
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        modulo           TEXT,
+        paciente         TEXT,
+        mensaje          TEXT,
+        nivel            TEXT,
+        resuelta         INTEGER DEFAULT 0,
+        sincronizado     INTEGER DEFAULT 0,
+        auto             INTEGER DEFAULT 0,
+        codigo_sivigila  TEXT,
+        fecha            TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
 
@@ -193,8 +198,13 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE fichas_epidemiologicas ADD COLUMN firma_fecha TEXT'); } catch (_) {}
     }
     if (oldVersion < 8) {
-      // Columna para rastrear qué pacientes ya se subieron a Supabase
       try { await db.execute('ALTER TABLE pacientes ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
+    }
+    // ── CAMBIO 3: upgrade v8 → v9 — columnas SIVIGILA en alertas ────────
+    if (oldVersion < 9) {
+      try { await db.execute('ALTER TABLE alertas ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
+      try { await db.execute('ALTER TABLE alertas ADD COLUMN auto INTEGER DEFAULT 0'); } catch (_) {}
+      try { await db.execute('ALTER TABLE alertas ADD COLUMN codigo_sivigila TEXT'); } catch (_) {}
     }
   }
 
@@ -567,7 +577,7 @@ class DatabaseHelper {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // SYNC CON SUPABASE — métodos adicionales
+  // SYNC CON SUPABASE
   // ════════════════════════════════════════════════════════════════════
 
   /// Pacientes que aún no se han subido a Supabase
@@ -594,20 +604,57 @@ class DatabaseHelper {
     } catch (_) {}
   }
 
-  /// Alertas pendientes de sincronización (todas, sin filtro de estado)
+  // ── CAMBIO 4: métodos de alertas ahora funcionales ───────────────────────
+
+  /// Alertas pendientes de sincronización (sincronizado = 0)
   Future<List<Map<String, dynamic>>> obtenerAlertasPendientesSync() async {
     final db = await database;
     try {
-      return await db.query('alertas',
-          orderBy: 'fecha DESC', limit: 50);
+      return await db.query(
+        'alertas',
+        where:   'sincronizado = 0 OR sincronizado IS NULL',
+        orderBy: 'fecha DESC',
+        limit:   100,
+      );
     } catch (_) {
-      return [];
+      return await db.query('alertas', orderBy: 'fecha DESC', limit: 50);
     }
   }
 
-  /// Marca una alerta como sincronizada (no-op hasta añadir columna)
+  /// Marca una alerta como sincronizada con Supabase
   Future<void> marcarAlertaSincronizada(dynamic id) async {
-    // Se implementará cuando se añada columna sincronizado a alertas
+    final db = await database;
+    try {
+      await db.update(
+        'alertas',
+        {'sincronizado': 1},
+        where:     'id = ?',
+        whereArgs: [id],
+      );
+    } catch (_) {}
+  }
+
+  /// Guarda una alerta con campos SIVIGILA completos
+  Future<int> guardarAlertaCompleta({
+    required String modulo,
+    required String paciente,
+    required String mensaje,
+    required String nivel,
+    bool    auto           = false,
+    String? codigoSivigila,
+  }) async {
+    final db = await database;
+    return await db.insert('alertas', {
+      'modulo':          modulo,
+      'paciente':        paciente,
+      'mensaje':         mensaje,
+      'nivel':           nivel,
+      'resuelta':        0,
+      'sincronizado':    0,
+      'auto':            auto ? 1 : 0,
+      'codigo_sivigila': codigoSivigila,
+      'fecha':           DateTime.now().toIso8601String(),
+    });
   }
 
   /// Fichas epidemiológicas pendientes (estado != 'sincronizado')
@@ -615,9 +662,9 @@ class DatabaseHelper {
     final db = await database;
     try {
       return await db.query('fichas_epidemiologicas',
-          where: "estado != 'sincronizado'",
+          where:   "estado != 'sincronizado'",
           orderBy: 'created_at DESC',
-          limit: 50);
+          limit:   50);
     } catch (_) {
       return [];
     }

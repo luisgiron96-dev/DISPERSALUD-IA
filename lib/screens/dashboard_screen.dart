@@ -482,77 +482,103 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: const Color(0xFF534AB7), dt: dt,
                     onTap: () => _abrirSelectorHC()),
               ]),
-              // ── SALUD INTEGRAL ANCESTRAL ───────────────────────────────
+              // ── PARTERA ───────────────────────────────────────────────
               const SizedBox(height: 8),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () => Navigator.pushNamed(context, '/salud-integral'),
+                  onTap: () => Navigator.pushNamed(context, '/partera'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF0D1A0F), Color(0xFF1A3D20), Color(0xFF3D0A2A)],
+                        colors: [Color(0xFF2A0A1A), Color(0xFF3D1228), Color(0xFF2A0A1A)],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: const Color(0xFF2ECC71).withOpacity(0.35)),
+                          color: const Color(0xFF993556).withOpacity(0.45)),
                     ),
                     child: Row(children: [
-                      // Íconos superpuestos partera + planta
-                      SizedBox(width: 52, height: 44, child: Stack(children: [
-                        Positioned(top: 0, left: 0, child: Container(
-                          width: 38, height: 38,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF993556).withOpacity(0.25),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: const Color(0xFF993556).withOpacity(0.4)),
-                          ),
-                          child: const Icon(Icons.favorite_rounded,
-                              color: Color(0xFFF48FB1), size: 18),
-                        )),
-                        Positioned(bottom: 0, right: 0, child: Container(
-                          width: 32, height: 32,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1A7A42).withOpacity(0.3),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: const Color(0xFF2ECC71).withOpacity(0.5)),
-                          ),
-                          child: const Icon(Icons.eco_rounded,
-                              color: Color(0xFF2ECC71), size: 15),
-                        )),
-                      ])),
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF993556).withOpacity(0.25),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFF993556).withOpacity(0.5)),
+                        ),
+                        child: const Icon(Icons.favorite_rounded,
+                            color: Color(0xFFF48FB1), size: 20),
+                      ),
                       const SizedBox(width: 12),
                       const Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Salud Integral Ancestral',
+                          Text('Partera',
                               style: TextStyle(color: Colors.white,
-                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
                           SizedBox(height: 3),
-                          Text('Partería + Saberes Ancestrales + IA',
+                          Text('Atención materna + seguimiento gestante',
                               style: TextStyle(
-                                  color: Color(0xFFB2DFDB), fontSize: 10)),
-                          SizedBox(height: 5),
-                          Row(children: [
-                            _BadgeTag(texto: 'Partera',
-                                color: Color(0xFF993556)),
-                            SizedBox(width: 5),
-                            _BadgeTag(texto: 'Plantas medicinales',
-                                color: Color(0xFF1A7A42)),
-                            SizedBox(width: 5),
-                            _BadgeTag(texto: 'IA',
-                                color: Color(0xFF534AB7)),
-                          ]),
+                                  color: Color(0xFFE8B4C8), fontSize: 11)),
                         ],
                       )),
                       const Icon(Icons.chevron_right_rounded,
-                          color: Colors.white54, size: 22),
+                          color: Color(0xFFF48FB1), size: 22),
+                    ]),
+                  ),
+                ),
+              ),
+
+              // ── SABERES ANCESTRALES ────────────────────────────────────
+              const SizedBox(height: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => Navigator.pushNamed(context, '/saberes-ancestrales'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D1A0F), Color(0xFF132015), Color(0xFF0D1A0F)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: const Color(0xFF2ECC71).withOpacity(0.40)),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A7A42).withOpacity(0.30),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFF2ECC71).withOpacity(0.55)),
+                        ),
+                        child: const Icon(Icons.eco_rounded,
+                            color: Color(0xFF2ECC71), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Consulta por Saberes Ancestrales',
+                              style: TextStyle(color: Colors.white,
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
+                          SizedBox(height: 3),
+                          Text('Medicina tradicional + IA + plantas medicinales',
+                              style: TextStyle(
+                                  color: Color(0xFF88C99A), fontSize: 11)),
+                        ],
+                      )),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: Color(0xFF2ECC71), size: 22),
                     ]),
                   ),
                 ),

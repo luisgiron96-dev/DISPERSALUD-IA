@@ -441,6 +441,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
   StreamSubscription<Position>? _posicionStream;
   Timer?  _timerGPS;
 
+
   @override
   void initState() { super.initState(); _cargar(); _cargarUbicacion(); }
 
@@ -597,6 +598,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
       setState(() { _alertasDB = final_; _cargando = false; });
     } catch (_) { setState(() => _cargando = false); }
   }
+
 
   Future<void> _resolverAlerta(int id) async {
     await DatabaseHelper.instance.resolverAlerta(id);
@@ -1680,7 +1682,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 style: TextStyle(
                     color: _gpsActivo ? _kAzul : _c(context).textPrimary,
                     fontSize: 11, fontWeight: FontWeight.bold)),
-            Text(_gpsActivo ? _ubicacionGPS : 'Sin conexión con SIVIGILA',
+            Text(_gpsActivo ? _ubicacionGPS : 'Alertas generadas en campo',
                 style: TextStyle(color: _c(context).textHint, fontSize: 9)),
           ]),
         ]),
