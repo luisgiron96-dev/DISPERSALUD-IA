@@ -947,7 +947,10 @@ class _ParteraScreenState extends State<ParteraScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
           padding: EdgeInsets.fromLTRB(
-              16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 24),
+              16, 20, 16,
+              MediaQuery.of(ctx).viewInsets.bottom
+              + MediaQuery.of(ctx).padding.bottom
+              + 24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 36, height: 4,
                 decoration: BoxDecoration(
