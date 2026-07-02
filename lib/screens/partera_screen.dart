@@ -74,6 +74,8 @@ class _ParteraScreenState extends State<ParteraScreen> {
   // ── Gestantes ──────────────────────────────────────────────────────────────
   List<Map<String, dynamic>> _gestantes   = [];
   Map<String, dynamic>?      _gestanteSel;
+  bool _modoNuevaGestante = true; // false = ficha clínica, true = formulario
+  List<Map<String, dynamic>> _consultasGestante = []; // historial clínico
 
   final _nombreCtrl   = TextEditingController();
   final _telefonoCtrl = TextEditingController();
@@ -173,6 +175,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
     final g = _gestantes.firstWhere((x) => x['nombre'] == nombre);
     setState(() {
       _gestanteSel = g;
+      _modoNuevaGestante = false; // mostrar ficha clínica
       _telefonoCtrl.text = g['telefono'] ?? '';
       final semanas = g['semanas'] ?? g['datos_json'] ?? '';
       if (semanas is String && semanas.isNotEmpty && !semanas.startsWith('{')) {
@@ -182,6 +185,12 @@ class _ParteraScreenState extends State<ParteraScreen> {
       final muni = g['municipio'] ?? g['vereda'] ?? '';
       if (_ubicaciones.contains(muni)) _ubicacionSel = muni;
     });
+    // Cargar historial clínico de la gestante
+    if (g['id'] != null) {
+      DatabaseHelper.instance.consultasPorPaciente(g['id'] as int).then((lista) {
+        if (mounted) setState(() => _consultasGestante = lista);
+      });
+    }
   }
 
   Future<void> _registrarGestante() async {
@@ -203,6 +212,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
     await _cargarGestantes();
     setState(() {
       _gestanteSel = datos;
+      _modoNuevaGestante = false;
       _nombreCtrl.clear();
       _telefonoCtrl.clear();
       _semanasCtrl.clear();
@@ -488,106 +498,375 @@ class _ParteraScreenState extends State<ParteraScreen> {
   Widget _cardGestante() => _card(child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+
+      // Título + botón "Nueva gestante"
       Row(children: [
         Container(width: 34, height: 34,
             decoration: const BoxDecoration(color: _kRosa, shape: BoxShape.circle),
             child: const Icon(Icons.pregnant_woman_rounded, color: Colors.white, size: 18)),
         const SizedBox(width: 8),
-        const Text('Gestante',
-            style: TextStyle(color: _kTexto, fontSize: 14, fontWeight: FontWeight.bold)),
+        const Text('Gestante', style: TextStyle(color: _kTexto, fontSize: 14, fontWeight: FontWeight.bold)),
         const SizedBox(width: 6),
         const Icon(Icons.eco_rounded, color: _kVerde, size: 14),
+        const Spacer(),
+        GestureDetector(
+          onTap: () => setState(() {
+            _modoNuevaGestante = !_modoNuevaGestante;
+            if (_modoNuevaGestante) {
+              _nombreCtrl.clear(); _telefonoCtrl.clear(); _semanasCtrl.clear();
+            }
+          }),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: (_modoNuevaGestante ? _kRosa : _kVerde).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: (_modoNuevaGestante ? _kRosa : _kVerde).withOpacity(0.4)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(_modoNuevaGestante ? Icons.close_rounded : Icons.add_rounded,
+                  color: _modoNuevaGestante ? _kRosa : _kVerde, size: 12),
+              const SizedBox(width: 4),
+              Text(_modoNuevaGestante ? 'Cancelar' : 'Nueva',
+                  style: TextStyle(
+                      color: _modoNuevaGestante ? _kRosa : _kVerde,
+                      fontSize: 10, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
       ]),
       const SizedBox(height: 12),
 
-      _dropdown(
-        valor: _gestanteSel?['nombre'] as String?,
-        hint: 'Seleccionar gestante existente...',
-        items: _gestantes.map((g) => g['nombre'] as String).toList(),
-        onChanged: (v) { if (v != null) _seleccionarGestante(v); },
-        icono: Icons.person_outline_rounded,
-      ),
-
-      // Info de la gestante seleccionada
-      if (_gestanteSel != null) ...[
+      // ── MODO FORMULARIO: registrar nueva gestante ────────────────────
+      if (_modoNuevaGestante) ...[ 
+        _dropdown(
+          valor: _gestanteSel?['nombre'] as String?,
+          hint: 'Seleccionar gestante existente...',
+          items: _gestantes.map((g) => g['nombre'] as String).toList(),
+          onChanged: (v) { if (v != null) _seleccionarGestante(v); },
+          icono: Icons.person_outline_rounded,
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: Divider(color: _kBorder)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text('o registra una nueva',
+                style: TextStyle(color: _kRosa.withOpacity(0.8), fontSize: 10))),
+          Expanded(child: Divider(color: _kBorder)),
+        ]),
+        const SizedBox(height: 10),
+        _campo(_nombreCtrl, 'Nombre completo', Icons.person_outline_rounded),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-              color: _kVerde.withOpacity(0.07),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _kVerde.withOpacity(0.25))),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Icon(Icons.check_circle_rounded, color: _kVerde, size: 14),
-              const SizedBox(width: 6),
-              Expanded(child: Text(_gestanteSel!['nombre'] ?? '',
-                  style: const TextStyle(
-                      color: _kVerde, fontSize: 12, fontWeight: FontWeight.bold))),
-            ]),
-            if ((_gestanteSel!['telefono'] ?? '').toString().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(children: [
-                const Icon(Icons.call_outlined, color: _kTextoHint, size: 12),
-                const SizedBox(width: 5),
-                Text(_gestanteSel!['telefono'].toString(),
-                    style: const TextStyle(color: _kTextoSec, fontSize: 11)),
-              ]),
-            ],
-            if ((_gestanteSel!['municipio'] ?? '').toString().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(children: [
-                const Icon(Icons.location_on_outlined, color: _kTextoHint, size: 12),
-                const SizedBox(width: 5),
-                Text(_gestanteSel!['municipio'].toString(),
-                    style: const TextStyle(color: _kTextoSec, fontSize: 11)),
-              ]),
-            ],
-          ]),
+        _campo(_telefonoCtrl, 'Teléfono (WhatsApp)', Icons.call_outlined, tipo: TextInputType.phone),
+        const SizedBox(height: 8),
+        _campo(_semanasCtrl, 'Semanas de gestación', Icons.calendar_month_outlined, tipo: TextInputType.number),
+        const SizedBox(height: 8),
+        _dropdown(
+          valor: _ubicacionSel, hint: 'Ubicación', items: _ubicaciones,
+          onChanged: (v) => setState(() => _ubicacionSel = v ?? _ubicacionSel),
+          icono: Icons.location_on_outlined,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _registrarGestante,
+            icon: const Icon(Icons.add_rounded, color: Colors.white, size: 16),
+            label: const Text('Registrar gestante',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _kRosaOsc,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+          ),
         ),
       ],
 
-      const SizedBox(height: 10),
-      Row(children: [
-        Expanded(child: Divider(color: _kBorder)),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text('o registra una nueva',
-              style: TextStyle(color: _kRosa.withOpacity(0.8), fontSize: 10))),
-        Expanded(child: Divider(color: _kBorder)),
-      ]),
-      const SizedBox(height: 10),
-      _campo(_nombreCtrl, 'Nombre completo', Icons.person_outline_rounded),
-      const SizedBox(height: 8),
-      _campo(_telefonoCtrl, 'Teléfono (WhatsApp)', Icons.call_outlined,
-          tipo: TextInputType.phone),
-      const SizedBox(height: 8),
-      _campo(_semanasCtrl, 'Semanas de gestación', Icons.calendar_month_outlined,
-          tipo: TextInputType.number),
-      const SizedBox(height: 8),
-      _dropdown(
-        valor: _ubicacionSel, hint: 'Ubicación', items: _ubicaciones,
-        onChanged: (v) => setState(() => _ubicacionSel = v ?? _ubicacionSel),
-        icono: Icons.location_on_outlined,
-      ),
-      const SizedBox(height: 10),
-      SizedBox(width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _registrarGestante,
-          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 16),
-          label: const Text('Registrar gestante',
-              style: TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _kRosaOsc,
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10))),
+      // ── MODO FICHA CLÍNICA: gestante seleccionada ────────────────────
+      if (!_modoNuevaGestante) ...[
+        // Selector compacto para cambiar gestante
+        _dropdown(
+          valor: _gestanteSel?['nombre'] as String?,
+          hint: 'Seleccionar gestante...',
+          items: _gestantes.map((g) => g['nombre'] as String).toList(),
+          onChanged: (v) { if (v != null) _seleccionarGestante(v); },
+          icono: Icons.person_outline_rounded,
         ),
-      ),
+
+        if (_gestanteSel != null) ...[
+          const SizedBox(height: 12),
+
+          // ── Datos personales ─────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: _kRosa.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _kRosa.withOpacity(0.25))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Nombre + edad
+              Row(children: [
+                const Icon(Icons.pregnant_woman_rounded, color: _kRosa, size: 16),
+                const SizedBox(width: 6),
+                Expanded(child: Text(_gestanteSel!['nombre'] ?? '',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))),
+                if ((_gestanteSel!['edad'] ?? '').toString().isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: _kRosa.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                    child: Text('${_gestanteSel!['edad']} años',
+                        style: const TextStyle(color: _kRosa, fontSize: 10, fontWeight: FontWeight.w600)),
+                  ),
+              ]),
+              const SizedBox(height: 8),
+              const Divider(color: Color(0xFF2A1820), height: 1),
+              const SizedBox(height: 8),
+              // Datos en grid
+              Row(children: [
+                Expanded(child: _datoGestante(Icons.phone_outlined, 'Teléfono',
+                    (_gestanteSel!['telefono'] ?? '-').toString())),
+                Expanded(child: _datoGestante(Icons.location_on_outlined, 'Municipio',
+                    (_gestanteSel!['municipio'] ?? _gestanteSel!['vereda'] ?? '-').toString())),
+              ]),
+              if ((_gestanteSel!['eps'] ?? '').toString().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _datoGestante(Icons.local_hospital_outlined, 'EPS / Afiliación',
+                    _gestanteSel!['eps'].toString()),
+              ],
+              if ((_gestanteSel!['documento'] ?? '').toString().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _datoGestante(Icons.badge_outlined, 'Documento',
+                    _gestanteSel!['documento'].toString()),
+              ],
+            ]),
+          ),
+          const SizedBox(height: 10),
+
+          // ── Datos clínicos del último control ────────────────────────
+          Builder(builder: (_) {
+            // Último control registrado
+            final ult = _consultasGestante.isNotEmpty ? _consultasGestante.first : null;
+            final semanas = ult?['semanas'] ?? _semanasCtrl.text;
+            final peso    = ult?['peso']    ?? '-';
+            final presion = ult?['presion'] ?? '-';
+            final fc      = ult?['fc']      ?? '-';
+            final spo2    = ult?['spo2']    ?? '-';
+            final diag    = ult?['diagnostico'] ?? '-';
+            final obs     = ult?['observaciones'] ?? '';
+            final nControles = _consultasGestante.length;
+
+            // Extraer ecografía y complicaciones del campo datos_extra/datos_json
+            String ecografia      = '-';
+            String complicaciones = 'Sin complicaciones registradas';
+            if (ult != null) {
+              final extra = ult['datos_extra'] ?? ult['datos_json'] ?? '';
+              if (extra is String && extra.contains('ecografia')) {
+                try {
+                  final m = RegExp(r'"ecografia"\s*:\s*"([^"]*)"').firstMatch(extra);
+                  if (m != null) ecografia = m.group(1) ?? '-';
+                } catch (_) {}
+              }
+              if (extra is String && extra.contains('complicacion')) {
+                try {
+                  final m = RegExp(r'"complicacion[^"]*"\s*:\s*"([^"]*)"').firstMatch(extra);
+                  if (m != null && m.group(1)!.isNotEmpty) complicaciones = m.group(1)!;
+                } catch (_) {}
+              }
+              // También revisar en observaciones
+              if (obs is String && obs.toLowerCase().contains('ecograf')) {
+                ecografia = 'Registrada en observaciones';
+              }
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: _kCardAlt,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kBorder)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Header con badge controles
+                Row(children: [
+                  const Icon(Icons.monitor_heart_outlined, color: _kVerde, size: 14),
+                  const SizedBox(width: 6),
+                  const Text('Datos clínicos del último control',
+                      style: TextStyle(color: _kVerde, fontSize: 11, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: _kVerde.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                    child: Text('$nControles control${nControles != 1 ? 'es' : ''}',
+                        style: const TextStyle(color: _kVerde, fontSize: 9, fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+
+                if (ult == null) ...[
+                  const SizedBox(height: 8),
+                  const Text('Sin controles registrados aún para esta gestante.',
+                      style: TextStyle(color: _kTextoHint, fontSize: 11)),
+                ] else ...[
+                  const SizedBox(height: 10),
+
+                  // Semanas destacadas
+                  if (semanas.toString().isNotEmpty && semanas.toString() != '-')
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                          color: _kRosa.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _kRosa.withOpacity(0.3))),
+                      child: Row(children: [
+                        const Icon(Icons.child_care_rounded, color: _kRosa, size: 18),
+                        const SizedBox(width: 8),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('Semanas de gestación', style: TextStyle(color: _kTextoHint, fontSize: 9)),
+                          Text('$semanas semanas',
+                              style: const TextStyle(color: _kRosa, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ]),
+                        const Spacer(),
+                        // Trimestre
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: _kRosa.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                          child: Text(_trimestre(semanas.toString()),
+                              style: const TextStyle(color: _kRosa, fontSize: 9, fontWeight: FontWeight.bold)),
+                        ),
+                      ]),
+                    ),
+
+                  // Signos vitales
+                  Row(children: [
+                    Expanded(child: _signoVital(Icons.favorite_outlined,        'Presión',  presion.toString(),  _kAzul)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _signoVital(Icons.monitor_weight_outlined,  'Peso',     peso.toString(),     _kVerde)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _signoVital(Icons.speed_outlined,           'FC',       fc.toString(),       _kNaranja)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _signoVital(Icons.air_outlined,             'SpO2',     spo2.toString(),     _kTeal)),
+                  ]),
+                  const SizedBox(height: 8),
+
+                  // Diagnóstico
+                  if (diag != '-' && diag != null) ...[
+                    _filaClinica(Icons.medical_information_outlined, 'Diagnóstico', diag.toString()),
+                    const SizedBox(height: 6),
+                  ],
+
+                  // Ecografía
+                  _filaClinica(Icons.image_search_outlined, 'Ecografía', ecografia),
+                  const SizedBox(height: 6),
+
+                  // Complicaciones
+                  _filaClinicaColor(
+                    Icons.warning_amber_rounded,
+                    'Complicaciones',
+                    complicaciones,
+                    complicaciones == 'Sin complicaciones registradas' ? _kVerde : _kRojo,
+                  ),
+
+                  // Observaciones
+                  if (obs != null && obs.toString().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          color: _kCard, borderRadius: BorderRadius.circular(8)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('Observaciones del último control',
+                            style: TextStyle(color: _kTextoHint, fontSize: 9, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 3),
+                        Text(obs.toString(),
+                            style: const TextStyle(color: _kTextoSec, fontSize: 10.5, height: 1.4)),
+                      ]),
+                    ),
+                  ],
+                ],
+              ]),
+            );
+          }),
+        ],
+
+        // Si no hay gestante seleccionada
+        if (_gestanteSel == null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: _kRosa.withOpacity(0.05), borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _kRosa.withOpacity(0.2))),
+            child: const Row(children: [
+              Icon(Icons.info_outline_rounded, color: _kRosa, size: 14),
+              SizedBox(width: 8),
+              Expanded(child: Text(
+                  'Selecciona una gestante del listado para ver su ficha clínica completa, '
+                  'o pulsa "Nueva" para registrar una.',
+                  style: TextStyle(color: _kTextoSec, fontSize: 11, height: 1.4))),
+            ]),
+          ),
+        ],
+      ],
     ],
   ));
 
+  // Helpers para la ficha clínica
+  String _trimestre(String sem) {
+    final s = int.tryParse(sem) ?? 0;
+    if (s <= 13) return '1er trimestre';
+    if (s <= 27) return '2do trimestre';
+    return '3er trimestre';
+  }
+
+  Widget _datoGestante(IconData icono, String label, String valor) => Padding(
+    padding: const EdgeInsets.only(bottom: 2),
+    child: Row(children: [
+      Icon(icono, color: _kTextoHint, size: 12),
+      const SizedBox(width: 4),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: _kTextoHint, fontSize: 8.5)),
+        Text(valor, style: const TextStyle(color: _kTextoSec, fontSize: 11, fontWeight: FontWeight.w500)),
+      ]),
+    ]),
+  );
+
+  Widget _signoVital(IconData icono, String label, String valor, Color color) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
+    decoration: BoxDecoration(
+        color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.25))),
+    child: Column(children: [
+      Icon(icono, color: color, size: 14),
+      const SizedBox(height: 2),
+      Text(label, style: TextStyle(color: color, fontSize: 8)),
+      Text(valor, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+    ]),
+  );
+
+  Widget _filaClinica(IconData icono, String label, String valor) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icono, color: _kTextoHint, size: 13),
+      const SizedBox(width: 6),
+      Text('$label: ', style: const TextStyle(color: _kTextoHint, fontSize: 10.5, fontWeight: FontWeight.w600)),
+      Expanded(child: Text(valor, style: const TextStyle(color: _kTextoSec, fontSize: 10.5))),
+    ],
+  );
+
+  Widget _filaClinicaColor(IconData icono, String label, String valor, Color color) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icono, color: color, size: 13),
+      const SizedBox(width: 6),
+      Text('$label: ', style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600)),
+      Expanded(child: Text(valor, style: TextStyle(color: color, fontSize: 10.5))),
+    ],
+  );
+
   // ── Card Análisis IA (Canal A) ────────────────────────────────────────────
+
 
   Widget _cardAnalisisIA() => _card(
     border: Border.all(color: _kMorado.withOpacity(0.4)),
