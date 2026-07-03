@@ -140,9 +140,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   String _saludo() {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Buenos días';
-    if (h < 18) return 'Buenas tardes';
-    return 'Buenas noches';
+    if (h < 12) return '☀️ Buenos días';
+    if (h < 18) return '🌤 Buenas tardes';
+    return '🌙 Buenas noches';
   }
 
   String _tiempoRelativo(String? iso) {

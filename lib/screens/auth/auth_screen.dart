@@ -30,17 +30,145 @@ class _AuthScreenState extends State<AuthScreen>
   bool   _cargando = false;
   bool   _verPass  = false;
   String _error    = '';
-  String _municipioSel = 'Popayán';
-  String _rolSel       = 'Promotor/a de salud';
+  String _departamentoSel = 'Cauca';
+  String _municipioSel    = 'Popayán';
+  String _rolSel           = 'Promotor/a de salud';
 
-  static const _municipios = [
-    'Popayán', 'López de Micay', 'Timbiquí', 'Guapi',
-    'Santander de Quilichao', 'Puerto Tejada', 'Corinto',
-    'Miranda', 'Padilla', 'Buenos Aires', 'Suárez',
-    'Morales', 'Piendamó', 'El Tambo', 'La Sierra',
-    'Rosas', 'La Vega', 'Almaguer', 'Bolívar',
-    'Mercaderes', 'Florencia', 'Pueblo Nasa', 'Otro',
+  static const _departamentos = [
+    'Cauca', 'Valle del Cauca', 'Nariño', 'Bogotá D.C.',
+    'Antioquia', 'Cundinamarca', 'Boyacá', 'Santander',
+    'Norte de Santander', 'Atlántico', 'Bolívar', 'Córdoba',
+    'Sucre', 'Magdalena', 'Cesar', 'La Guajira', 'Huila',
+    'Tolima', 'Meta', 'Caquetá', 'Putumayo', 'Amazonas',
+    'Vaupés', 'Guainía', 'Vichada', 'Guaviare', 'Chocó',
+    'Risaralda', 'Caldas', 'Quindío', 'Arauca', 'Casanare',
+    'San Andrés y Providencia',
   ];
+
+  static const _municipiosPorDept = <String, List<String>>{
+    'Cauca': [
+      'Popayán', 'Santander de Quilichao', 'Puerto Tejada',
+      'Corinto', 'Miranda', 'Padilla', 'Buenos Aires', 'Suárez',
+      'Morales', 'Piendamó', 'El Tambo', 'La Sierra', 'Rosas',
+      'La Vega', 'Almaguer', 'Bolívar', 'Mercaderes', 'Florencia',
+      'López de Micay', 'Timbiquí', 'Guapi', 'Pueblo Nasa', 'Otro',
+    ],
+    'Valle del Cauca': [
+      'Cali', 'Buenaventura', 'Palmira', 'Tuluá', 'Buga',
+      'Cartago', 'Roldanillo', 'Zarzal', 'Florida', 'Candelaria',
+      'Jamundí', 'Yumbo', 'Dagua', 'Restrepo', 'La Cumbre',
+      'Ginebra', 'El Cerrito', 'Guacarí', 'Sevilla', 'Otro',
+    ],
+    'Nariño': [
+      'Pasto', 'Ipiales', 'Tumaco', 'Túquerres', 'La Unión',
+      'Samaniego', 'Barbacoas', 'Cumbal', 'El Charco', 'Olaya Herrera',
+      'Francisco Pizarro', 'Roberto Payán', 'Magüí Payán', 'Otro',
+    ],
+    'Bogotá D.C.': [
+      'Bogotá', 'Usaquén', 'Chapinero', 'Suba', 'Engativá',
+      'Fontibón', 'Kennedy', 'Bosa', 'Ciudad Bolívar', 'Otro',
+    ],
+    'Antioquia': [
+      'Medellín', 'Bello', 'Itagüí', 'Envigado', 'Apartadó',
+      'Turbo', 'Rionegro', 'Caucasia', 'Quibdó', 'Montería', 'Otro',
+    ],
+    'Cundinamarca': [
+      'Soacha', 'Facatativá', 'Zipaquirá', 'Fusagasugá', 'Chía',
+      'Mosquera', 'Madrid', 'Funza', 'Girardot', 'Villeta', 'Otro',
+    ],
+    'Boyacá': [
+      'Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa',
+      'Ramiriquí', 'Garagoa', 'Puerto Boyacá', 'Otro',
+    ],
+    'Santander': [
+      'Bucaramanga', 'Floridablanca', 'Barrancabermeja', 'Girón',
+      'Piedecuesta', 'San Gil', 'Socorro', 'Vélez', 'Otro',
+    ],
+    'Norte de Santander': [
+      'Cúcuta', 'Ocaña', 'Pamplona', 'Villa del Rosario',
+      'Los Patios', 'El Zulia', 'Tibú', 'Sardinata', 'Otro',
+    ],
+    'Atlántico': [
+      'Barranquilla', 'Soledad', 'Malambo', 'Sabanalarga',
+      'Galapa', 'Baranoa', 'Puerto Colombia', 'Otro',
+    ],
+    'Bolívar': [
+      'Cartagena', 'Magangué', 'El Carmen de Bolívar',
+      'Mompós', 'Turbaco', 'Arjona', 'Otro',
+    ],
+    'Córdoba': [
+      'Montería', 'Cereté', 'Lorica', 'Sahagún', 'Montelíbano',
+      'Puerto Libertador', 'Tierralta', 'Otro',
+    ],
+    'Sucre': [
+      'Sincelejo', 'Corozal', 'San Marcos', 'Sampués',
+      'Tolú', 'Toluviejo', 'Otro',
+    ],
+    'Magdalena': [
+      'Santa Marta', 'Ciénaga', 'Fundación', 'El Banco',
+      'Plato', 'Aracataca', 'Otro',
+    ],
+    'Cesar': [
+      'Valledupar', 'Aguachica', 'La Jagua de Ibirico',
+      'Bosconia', 'Codazzi', 'Otro',
+    ],
+    'La Guajira': [
+      'Riohacha', 'Maicao', 'San Juan del Cesar',
+      'Fonseca', 'Dibulla', 'Manaure', 'Otro',
+    ],
+    'Huila': [
+      'Neiva', 'Pitalito', 'Garzón', 'La Plata',
+      'San Agustín', 'Campoalegre', 'Otro',
+    ],
+    'Tolima': [
+      'Ibagué', 'Espinal', 'Melgar', 'Honda', 'Líbano',
+      'Mariquita', 'Chaparral', 'Otro',
+    ],
+    'Meta': [
+      'Villavicencio', 'Acacías', 'Granada', 'San Martín',
+      'Puerto López', 'Puerto Gaitán', 'Otro',
+    ],
+    'Caquetá': [
+      'Florencia', 'San Vicente del Caguán', 'Puerto Rico',
+      'Belén de los Andaquíes', 'Cartagena del Chairá', 'Otro',
+    ],
+    'Putumayo': [
+      'Mocoa', 'Puerto Asís', 'Orito', 'Valle del Guamuez',
+      'San Miguel', 'Puerto Leguízamo', 'Otro',
+    ],
+    'Chocó': [
+      'Quibdó', 'Buenaventura', 'Itsmina', 'Tadó',
+      'Riosucio', 'Bahía Solano', 'Nuquí', 'Otro',
+    ],
+    'Risaralda': [
+      'Pereira', 'Dosquebradas', 'Santa Rosa de Cabal',
+      'La Virginia', 'Marsella', 'Otro',
+    ],
+    'Caldas': [
+      'Manizales', 'La Dorada', 'Villamaría', 'Chinchiná',
+      'Riosucio', 'Supía', 'Otro',
+    ],
+    'Quindío': [
+      'Armenia', 'Calarcá', 'Montenegro', 'La Tebaida',
+      'Quimbaya', 'Circasia', 'Otro',
+    ],
+    'Arauca': [
+      'Arauca', 'Tame', 'Saravena', 'Arauquita', 'Cravo Norte', 'Otro',
+    ],
+    'Casanare': [
+      'Yopal', 'Aguazul', 'Villanueva', 'Paz de Ariporo',
+      'Trinidad', 'Tauramena', 'Otro',
+    ],
+    'Amazonas': ['Leticia', 'Puerto Nariño', 'Otro'],
+    'Vaupés':   ['Mitú', 'Carurú', 'Otro'],
+    'Guainía':  ['Inírida', 'Otro'],
+    'Vichada':  ['Puerto Carreño', 'La Primavera', 'Otro'],
+    'Guaviare': ['San José del Guaviare', 'El Retorno', 'Calamar', 'Otro'],
+    'San Andrés y Providencia': ['San Andrés', 'Providencia', 'Otro'],
+  };
+
+  List<String> get _municipiosActuales =>
+      _municipiosPorDept[_departamentoSel] ?? ['Otro'];
 
   static const _roles = [
     'Promotor/a de salud',
@@ -481,18 +609,37 @@ class _AuthScreenState extends State<AuthScreen>
       ),
       const SizedBox(height: 14),
 
-      // Municipio
+      // Departamento
       DropdownButtonFormField<String>(
-        value: _municipioSel,
+        value: _departamentoSel,
         decoration: InputDecoration(
-          labelText: 'Municipio (Cauca)',
-          prefixIcon: const Icon(Icons.location_on_outlined),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12)),
-          contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 14),
+          labelText: 'Departamento',
+          prefixIcon: const Icon(Icons.map_outlined),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),
-        items: _municipios.map((m) =>
+        items: _departamentos.map((d) =>
+            DropdownMenuItem(value: d, child: Text(d))).toList(),
+        onChanged: (v) => setState(() {
+          _departamentoSel = v!;
+          // Al cambiar departamento, resetear municipio al primero disponible
+          final lista = _municipiosPorDept[_departamentoSel] ?? ['Otro'];
+          _municipioSel = lista.first;
+        }),
+      ),
+      const SizedBox(height: 14),
+
+      // Municipio — se actualiza según el departamento elegido
+      DropdownButtonFormField<String>(
+        value: _municipiosActuales.contains(_municipioSel)
+            ? _municipioSel : _municipiosActuales.first,
+        decoration: InputDecoration(
+          labelText: 'Municipio',
+          prefixIcon: const Icon(Icons.location_on_outlined),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        ),
+        items: _municipiosActuales.map((m) =>
             DropdownMenuItem(value: m, child: Text(m))).toList(),
         onChanged: (v) => setState(() => _municipioSel = v!),
       ),

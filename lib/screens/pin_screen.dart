@@ -346,20 +346,32 @@ class _PinScreenState extends State<PinScreen> with TickerProviderStateMixin {
 
                         SizedBox(height: compacto ? 8 : 12),
 
-                        // ── Saludo ────────────────────────────────────
-                        RichText(text: TextSpan(
-                          style: TextStyle(fontSize: compacto ? 17 : 19),
-                          children: [
-                            TextSpan(text: 'Hola, ',
-                                style: TextStyle(color: textPrim,
-                                    fontWeight: FontWeight.w500)),
-                            TextSpan(
-                              text: _nombre.isNotEmpty ? _nombre : 'Promotor/a',
-                              style: const TextStyle(color: _kVerde,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        )),
+                        // ── Saludo dinámico según la hora ────────────
+                        Builder(builder: (_) {
+                          final h = DateTime.now().hour;
+                          final saludo = h < 12
+                              ? 'Buenos días,'
+                              : h < 18
+                                  ? 'Buenas tardes,'
+                                  : 'Buenas noches,';
+                          return Column(
+                            children: [
+                              Text(saludo,
+                                  style: TextStyle(
+                                      color: textHint,
+                                      fontSize: compacto ? 13 : 14,
+                                      fontWeight: FontWeight.w500)),
+                              const SizedBox(height: 2),
+                              Text(
+                                _nombre.isNotEmpty ? _nombre : 'Promotor/a',
+                                style: TextStyle(
+                                    color: _kVerde,
+                                    fontSize: compacto ? 17 : 20,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          );
+                        }),
                         const SizedBox(height: 3),
                         Text('Promotor de Salud Rural',
                             style: TextStyle(color: textHint, fontSize: 12)),

@@ -15,6 +15,7 @@ import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
 import '../main.dart' show temaNotifier, temaDesdeString, fontSizeNotifier;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const Color _kVerde = Color(0xFF1D9E75);
 
@@ -1584,17 +1585,33 @@ class _ConfigScreenState extends State<ConfigScreen>
       backgroundColor: _c(context).card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text('¿Cerrar sesión?', style: TextStyle(color: _c(context).textPrimary, fontWeight: FontWeight.bold)),
-      content: Text('Tus datos quedarán guardados. Necesitarás tu PIN para volver a ingresar.',
-          style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5)),
+      content: Text(
+        'Tu sesión se cerrará completamente. Los datos del dispositivo permanecerán guardados.',
+        style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5),
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: _kVerde))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar', style: TextStyle(color: _kVerde)),
+        ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
           onPressed: () async {
             Navigator.pop(context);
-            final p = await SharedPreferences.getInstance();
-            await p.remove('pin_configurado');
-            if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/pin', (r) => false);
+            // 1. Cerrar sesión en Supabase (invalida el token en servidor)
+            try {
+              await Supabase.instance.client.auth.signOut();
+            } catch (_) {
+              // Sin internet: se cerrará solo localmente
+            }
+            // Solo se cierra la sesión — el perfil y los datos quedan intactos
+            // Para borrar todo usar "Eliminar cuenta" en Mi Perfil
+            if (mounted) {
+              Navigator.of(context).pushNamedAndRemoveUntil('/auth', (r) => false);
+            }
           },
           child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         ),
