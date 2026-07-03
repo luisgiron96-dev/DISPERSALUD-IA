@@ -77,14 +77,6 @@ void main() async {
   // ConnectivityService se inicia en background — no bloquea el arranque
   ConnectivityService.instance.init().catchError((_) {});
 
-  if (!kIsWeb) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor:           Colors.transparent,
-      systemNavigationBarColor: Colors.transparent,
-      statusBarIconBrightness:  Brightness.light,
-    ));
-  }
-
   runApp(const DispersaludApp());
 
   if (kIsWeb) {
@@ -107,11 +99,26 @@ class DispersaludApp extends StatelessWidget {
           theme:     AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: modo,
-          builder: (ctx, child) => MediaQuery(
-            data: MediaQuery.of(ctx).copyWith(
-              textScaler: TextScaler.linear(escala),
+          builder: (ctx, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+            value: (Theme.of(ctx).brightness == Brightness.dark)
+                ? const SystemUiOverlayStyle(
+                    statusBarColor:           Colors.transparent,
+                    systemNavigationBarColor: Colors.transparent,
+                    statusBarIconBrightness:  Brightness.light, // íconos blancos sobre fondo oscuro
+                    statusBarBrightness:      Brightness.dark,  // (iOS)
+                  )
+                : const SystemUiOverlayStyle(
+                    statusBarColor:           Colors.transparent,
+                    systemNavigationBarColor: Colors.transparent,
+                    statusBarIconBrightness:  Brightness.dark,  // íconos oscuros sobre fondo claro
+                    statusBarBrightness:      Brightness.light, // (iOS)
+                  ),
+            child: MediaQuery(
+              data: MediaQuery.of(ctx).copyWith(
+                textScaler: TextScaler.linear(escala),
+              ),
+              child: child!,
             ),
-            child: child!,
           ),
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,

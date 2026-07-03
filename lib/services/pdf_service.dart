@@ -117,10 +117,318 @@ class PdfService {
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  // MÉTODO — EXPORTAR HISTORIA CLÍNICA COMPLETA (formulario largo)
+  // ════════════════════════════════════════════════════════════════════════
+  static Future<void> generarHistoriaClinicaPdf({
+    required BuildContext context,
+    required String pacienteNombre,
+    required Map<String, dynamic> datos,
+  }) async {
+    _cargarImagenes();
+
+    final pdf = pw.Document(
+      title: 'Historia Clinica — $pacienteNombre',
+      author: 'DISPERSALUD IA',
+    );
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(28, 28, 28, 32),
+        header: (ctx) => _header(pacienteNombre, ctx,
+            titulo: 'Historia Clinica'),
+        footer: (ctx) => _footer(ctx),
+        build: (ctx) => [
+          _hcSeccionIdentificacion(datos),
+          pw.SizedBox(height: 14),
+          _hcSeccionTexto('Anamnesis', {
+            'Motivo de consulta': datos['motivo'],
+            'Enfermedad actual':  datos['enfermedad'],
+          }),
+          pw.SizedBox(height: 14),
+          _hcSeccionTexto('Antecedentes', {
+            'Patologicos':     datos['ant_patologicos'],
+            'Quirurgicos':     datos['ant_quirurgicos'],
+            'Traumaticos':     datos['ant_traumaticos'],
+            'Alergicos':       datos['ant_alergicos'],
+            'Farmacologicos':  datos['ant_farmacologicos'],
+            'Hospitalarios':   datos['ant_hospitalarios'],
+            'Toxicologicos':   datos['ant_toxicologicos'],
+            'Inmunizaciones':  datos['inmunizaciones'],
+            'Familiares':      datos['ant_familiares'],
+          }),
+          if ((datos['gestaciones'] ?? '0') != '0' ||
+              (datos['fur'] ?? '').toString().isNotEmpty) ...[
+            pw.SizedBox(height: 14),
+            _hcSeccionGinecoObst(datos),
+          ],
+          pw.SizedBox(height: 14),
+          _hcSeccionTexto('Revision por Sistemas', {
+            'Sintomas generales': datos['sint_generales'],
+            'Piel y faneras':     datos['piel_faneras'],
+            'Ojos':               datos['ojos'],
+            'Oidos/Nariz/Garganta': datos['oidos'],
+            'Respiratorio':        datos['respiratorio'],
+            'Cardiovascular':      datos['cardiovascular'],
+            'Gastrointestinal':    datos['gastrointestinal'],
+            'Genitourinario':      datos['genitourinario'],
+            'Osteomuscular':       datos['osteomuscular'],
+            'Neurologico':         datos['neurologico'],
+            'Endocrino':           datos['endocrino'],
+            'Hematologico':        datos['hematologico'],
+          }),
+          pw.SizedBox(height: 14),
+          _hcSeccionExamenFisico(datos),
+          pw.SizedBox(height: 14),
+          _hcSeccionDiagnostico(datos),
+          pw.SizedBox(height: 14),
+          _pieLegal(),
+        ],
+      ),
+    );
+
+    final pdfBytes = await pdf.save();
+    if (kIsWeb) {
+      await Printing.layoutPdf(
+        onLayout: (_) async => pdfBytes,
+        name: 'DISPERSALUD_HistoriaClinica.pdf',
+      );
+    } else {
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename:
+            'DISPERSALUD_HC_${pacienteNombre.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    }
+  }
+
+  static pw.Widget _hcSeccionIdentificacion(Map<String, dynamic> d) {
+    final nombreCompleto = '${d['nombres'] ?? ''} ${d['apellidos'] ?? ''}'.trim();
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _tituloSeccion('Identificacion del Paciente', Icons.person),
+        pw.SizedBox(height: 8),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(14),
+          decoration: pw.BoxDecoration(
+            color: _grisClaro,
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: _borde),
+          ),
+          child: pw.Column(children: [
+            pw.Row(children: [
+              _campo('Nombre completo', nombreCompleto.isEmpty ? '—' : nombreCompleto),
+              _campo('Documento', '${d['tipo_doc'] ?? ''} ${d['num_doc'] ?? ''}'),
+            ]),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _campo('Fecha de nacimiento', d['fecha_nac'] ?? '—'),
+              _campo('Edad',  d['edad']  ?? '—'),
+              _campo('Sexo',  d['sexo']  ?? '—'),
+            ]),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _campo('Estado civil',     d['estado_civil'] ?? '—'),
+              _campo('Grupo sanguineo',  '${d['grupo_sanguineo'] ?? '—'}${d['rh'] ?? ''}'),
+              _campo('Ocupacion',        d['ocupacion'] ?? '—'),
+            ]),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _campo('Direccion', d['direccion'] ?? '—'),
+              _campo('Municipio', d['ciudad'] ?? '—'),
+              _campo('Departamento', d['departamento'] ?? '—'),
+            ]),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _campo('Celular',   d['celular'] ?? '—'),
+              _campo('EPS',       d['eps'] ?? '—'),
+              _campo('Afiliacion', d['tipo_afiliacion'] ?? '—'),
+            ]),
+            if ((d['contacto_nombre'] ?? '').toString().isNotEmpty) ...[
+              pw.SizedBox(height: 8),
+              pw.Row(children: [
+                _campo('Contacto de emergencia', d['contacto_nombre'] ?? '—'),
+                _campo('Parentesco', d['contacto_parent'] ?? '—'),
+                _campo('Telefono contacto', d['contacto_tel'] ?? '—'),
+              ]),
+            ],
+          ]),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _hcSeccionTexto(String titulo, Map<String, dynamic> campos) {
+    final visibles = campos.entries
+        .where((e) => (e.value ?? '').toString().trim().isNotEmpty)
+        .toList();
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _tituloSeccion(titulo, Icons.notes),
+        pw.SizedBox(height: 8),
+        if (visibles.isEmpty)
+          _mensajeVacio('Sin informacion registrada.')
+        else
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: _grisClaro,
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: _borde),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: visibles.map((e) => pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 7),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(e.key,
+                        style: pw.TextStyle(
+                            fontSize: 8,
+                            color: PdfColors.grey600,
+                            fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 2),
+                    pw.Text(_limpiar(e.value.toString()),
+                        style: pw.TextStyle(fontSize: 9.5, color: _texto)),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static pw.Widget _hcSeccionGinecoObst(Map<String, dynamic> d) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _tituloSeccion('Antecedentes Gineco-Obstetricos', Icons.pregnant_woman),
+        pw.SizedBox(height: 8),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: _grisClaro,
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: _borde),
+          ),
+          child: pw.Column(children: [
+            pw.Row(children: [
+              _campo('Menarquia', d['menarquia'] ?? '—'),
+              _campo('Ciclo menstrual', d['ciclo_menstrual'] ?? '—'),
+              _campo('FUR', d['fur'] ?? '—'),
+            ]),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _campo('Gestaciones', d['gestaciones'] ?? '0'),
+              _campo('Partos',      d['partos']      ?? '0'),
+              _campo('Cesareas',    d['cesareas']    ?? '0'),
+              _campo('Abortos',     d['abortos']     ?? '0'),
+            ]),
+            if ((d['planificacion'] ?? '').toString().isNotEmpty) ...[
+              pw.SizedBox(height: 8),
+              pw.Row(children: [
+                _campo('Planificacion familiar', d['planificacion'] ?? '—'),
+              ]),
+            ],
+          ]),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _hcSeccionExamenFisico(Map<String, dynamic> d) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _tituloSeccion('Examen Fisico', Icons.monitor_heart),
+        pw.SizedBox(height: 8),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: _grisClaro,
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: _borde),
+          ),
+          child: pw.Column(children: [
+            pw.Row(children: [
+              _campo('Presion arterial', d['presion'] ?? '—'),
+              _campo('Frec. cardiaca',   d['frec_cardiaca'] ?? '—'),
+              _campo('Frec. respiratoria', d['frec_resp'] ?? '—'),
+              _campo('Temperatura',      d['temperatura'] ?? '—'),
+            ]),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _campo('Peso (kg)',  d['peso']  ?? '—'),
+              _campo('Talla (cm)', d['talla'] ?? '—'),
+              _campo('IMC',        d['imc']   ?? '—'),
+            ]),
+          ]),
+        ),
+        pw.SizedBox(height: 8),
+        _hcSeccionTexto('Hallazgos por Segmento', {
+          'Estado general': d['estado_general'],
+          'Cabeza':         d['cabeza'],
+          'Cuello':         d['cuello'],
+          'Torax':          d['torax'],
+          'Abdomen':        d['abdomen'],
+          'Extremidades':   d['extremidades'],
+          'Neurologico':    d['exam_neuro'],
+        }),
+      ],
+    );
+  }
+
+  static pw.Widget _hcSeccionDiagnostico(Map<String, dynamic> d) {
+    final teleModalidad   = (d['tele_modalidad']    ?? '').toString();
+    final teleEspecialidad = (d['tele_especialidad'] ?? '').toString();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _hcSeccionTexto('Impresion Diagnostica y Plan de Manejo', {
+          'Impresion diagnostica': d['impresion_dx'],
+          'Plan de manejo':        d['plan_manejo'],
+        }),
+        pw.SizedBox(height: 8),
+        _hcSeccionTexto('Ordenes Medicas', {
+          'Ordenes de laboratorio':   d['ordenes_lab'],
+          'Formula medica':          d['formula_medica'],
+          'Imagenes diagnosticas':   d['imagenes_rx'],
+          'Recomendaciones':         d['recomendaciones'],
+        }),
+        if (teleModalidad.isNotEmpty) ...[
+          pw.SizedBox(height: 8),
+          _tituloSeccion('Remision / Teleorientacion', Icons.wifi_tethering),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(11),
+            decoration: pw.BoxDecoration(
+              color: const PdfColor.fromInt(0xFFE7F7F1),
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: _verde, width: 0.7),
+            ),
+            child: pw.Row(children: [
+              _campo('Servicio', teleModalidad),
+              if (teleEspecialidad.isNotEmpty)
+                _campo('Especialidad', teleEspecialidad),
+            ]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   // HEADER — aparece en CADA página
   // ════════════════════════════════════════════════════════════════════════
-  static pw.Widget _header(String nombre, pw.Context ctx) {
+  static pw.Widget _header(String nombre, pw.Context ctx, {String? titulo}) {
     final esPortada = ctx.pageNumber == 1;
+    final tituloBase = titulo ?? 'Historial Clinico Integral';
 
     return pw.Column(children: [
       // ── Banda superior: logos institucionales ──────────────────────────
@@ -188,7 +496,7 @@ class PdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  esPortada ? 'Historial Clinico Integral' : 'Historial Clinico Integral (cont.)',
+                  esPortada ? tituloBase : '$tituloBase (cont.)',
                   style: pw.TextStyle(
                       fontSize: 13,
                       fontWeight: pw.FontWeight.bold,

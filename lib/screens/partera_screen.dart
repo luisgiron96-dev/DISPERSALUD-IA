@@ -103,6 +103,11 @@ class _ParteraScreenState extends State<ParteraScreen> {
   String?            _signoSel;
   final List<String> _signosRegistrados = [];
 
+  // ── Partera de cabecera ────────────────────────────────────────────────────
+  List<Map<String, dynamic>> _parteras     = [];
+  Map<String, dynamic>?      _parteraSel;
+  bool                       _cargandoPart = false;
+
   // ── CANAL A — análisis en la card ─────────────────────────────────────────
   bool   _analizandoIA      = false;
   String _resultadoAnalisis = '';
@@ -128,6 +133,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
     super.initState();
     _initConn();
     _cargarGestantes();
+    _cargarParteras();
     _chatMensajes.add({
       'rol':   'ia',
       'texto': '👶 Hola, soy DISPERSALUD IA.\n'
@@ -169,6 +175,120 @@ class _ParteraScreenState extends State<ParteraScreen> {
     _chatScroll.dispose();
     super.dispose();
   }
+
+  // ── Partera de cabecera: carga y acciones ────────────────────────────────
+  Future<void> _cargarParteras() async {
+    setState(() => _cargandoPart = true);
+    final todos = await DatabaseHelper.instance.obtenerEspecialistas();
+    final lista = todos.where((e) {
+      final cat = (e['categoria_id'] as String? ?? '').toLowerCase();
+      final esp = (e['especialidad']  as String? ?? '').toLowerCase();
+      return cat.contains('parter') || cat.contains('ginec') ||
+             cat.contains('obste')  || esp.contains('parter') ||
+             esp.contains('matrona')|| esp.contains('ginec')  ||
+             esp.contains('obste');
+    }).toList();
+    if (mounted) setState(() { _parteras = lista; _cargandoPart = false; });
+  }
+
+  Future<void> _llamarPartera() async {
+    final tel = (_parteraSel?['telefono'] as String? ?? '').trim();
+    if (tel.isEmpty) { _snack('Sin número registrado para esta partera', color: _kNaranja); return; }
+    final uri = Uri.parse('tel:${tel.replaceAll(RegExp(r'[\s\-\(\)]'), '')}');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _whatsappPartera() async {
+    final tel = (_parteraSel?['telefono'] as String? ?? '').trim();
+    if (tel.isEmpty) { _snack('Sin número de WhatsApp para esta partera', color: _kNaranja); return; }
+    var num = tel.replaceAll(RegExp(r'[^\d]'), '');
+    if (num.length == 10) num = '57$num';
+    final nombre   = _parteraSel?['nombre']  as String? ?? 'Partera';
+    final gestante = _gestanteSel?['nombre'] as String? ?? 'la gestante';
+    final msg = Uri.encodeComponent(
+        'Hola $nombre, le contacto desde DISPERSALUD IA para coordinar '
+        'la atención de $gestante. 🌿');
+    final uri = Uri.parse('https://wa.me/$num?text=$msg');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _verPerfilPartera() {
+    if (_parteraSel == null) return;
+    final p = _parteraSel!;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 68, height: 68,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kMorado.withOpacity(0.15),
+                border: Border.all(color: _kMoradoClaro.withOpacity(0.4), width: 2),
+              ),
+              child: const Icon(Icons.self_improvement_rounded, color: _kMoradoClaro, size: 34),
+            ),
+            const SizedBox(height: 12),
+            Text(p['nombre'] as String? ?? '-',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(p['especialidad'] as String? ?? '-',
+                style: const TextStyle(color: _kMoradoClaro, fontSize: 12)),
+            const SizedBox(height: 14),
+            _filaDialogo(Icons.star_outline_rounded, 'Experiencia', '${p['anios_exp'] ?? '-'} años'),
+            _filaDialogo(Icons.location_on_outlined,  'Ciudad',     p['ciudad']    as String? ?? '-'),
+            _filaDialogo(Icons.phone_outlined,         'Teléfono',  p['telefono']  as String? ?? '-'),
+            _filaDialogo(Icons.star_rounded,           'Calificación', '${p['calificacion'] ?? '-'} / 5.0'),
+            _filaDialogo(Icons.schedule_outlined,      'Disponible',
+                (p['disponible'] == 1) ? '✅ Sí' : '❌ No'),
+            if ((p['proximo_horario'] as String? ?? '').isNotEmpty)
+              _filaDialogo(Icons.event_outlined, 'Próximo horario', p['proximo_horario'] as String),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(child: ElevatedButton.icon(
+                onPressed: () { Navigator.pop(context); _llamarPartera(); },
+                icon: const Icon(Icons.call_rounded, size: 15),
+                label: const Text('Llamar'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kVerde, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: ElevatedButton.icon(
+                onPressed: () { Navigator.pop(context); _whatsappPartera(); },
+                icon: const Icon(Icons.chat_rounded, size: 15),
+                label: const Text('WhatsApp'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+            ]),
+            const SizedBox(height: 6),
+            SizedBox(width: double.infinity, child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar', style: TextStyle(color: _kTextoHint)),
+            )),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _filaDialogo(IconData icono, String label, String valor) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(children: [
+      Icon(icono, color: _kTextoHint, size: 14),
+      const SizedBox(width: 8),
+      Text('$label: ', style: const TextStyle(color: _kTextoHint, fontSize: 11.5)),
+      Expanded(child: Text(valor,
+          style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600))),
+    ]),
+  );
 
   // ── Seleccionar gestante y autocompletar datos ────────────────────────────
   void _seleccionarGestante(String nombre) {
@@ -414,21 +534,23 @@ class _ParteraScreenState extends State<ParteraScreen> {
             _buildHeader(),
             const SizedBox(height: 16),
 
-            // ── Gestante + Análisis IA (2 col en tablet) ──────────────
+            // ── Gestante + Partera (2 col en tablet) ──────────────────
             LayoutBuilder(builder: (_, c) {
               if (c.maxWidth > 600) {
                 return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Expanded(child: _cardGestante()),
                   const SizedBox(width: 12),
-                  Expanded(child: _cardAnalisisIA()),
+                  Expanded(child: _cardParteraCabecera()),
                 ]);
               }
               return Column(children: [
                 _cardGestante(),
                 const SizedBox(height: 12),
-                _cardAnalisisIA(),
+                _cardParteraCabecera(),
               ]);
             }),
+            const SizedBox(height: 14),
+            _cardAnalisisIA(),
             const SizedBox(height: 14),
             _cardConsulta(),
             const SizedBox(height: 14),
@@ -988,6 +1110,196 @@ class _ParteraScreenState extends State<ParteraScreen> {
       ]),
     ]),
   );
+
+  // ── Card Partera de Cabecera ──────────────────────────────────────────────
+
+  Widget _cardParteraCabecera() => _card(
+    border: Border.all(color: _kMorado.withOpacity(0.4)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+      // Título
+      Row(children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(
+              color: _kMorado.withOpacity(0.2), shape: BoxShape.circle,
+              border: Border.all(color: _kMoradoClaro.withOpacity(0.4))),
+          child: const Icon(Icons.self_improvement_rounded, color: _kMoradoClaro, size: 18),
+        ),
+        const SizedBox(width: 8),
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Partera / Sabedora de Cabecera',
+              style: TextStyle(color: _kTexto, fontSize: 14, fontWeight: FontWeight.bold)),
+          Text('Responsable del acompañamiento gestacional',
+              style: TextStyle(color: _kTextoHint, fontSize: 10)),
+        ])),
+        if (_cargandoPart)
+          const SizedBox(width: 14, height: 14,
+              child: CircularProgressIndicator(color: _kMoradoClaro, strokeWidth: 2)),
+      ]),
+      const SizedBox(height: 12),
+
+      // Selector
+      _parteras.isEmpty
+          ? Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                  color: _kCardAlt, borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kBorder)),
+              child: const Row(children: [
+                Icon(Icons.info_outline_rounded, color: _kNaranja, size: 15),
+                SizedBox(width: 8),
+                Expanded(child: Text(
+                    'No hay parteras registradas aún.\n'
+                    'Agrégalas desde el módulo de Especialistas.',
+                    style: TextStyle(color: _kTextoSec, fontSize: 11, height: 1.4))),
+              ]),
+            )
+          : _dropdown(
+              valor: _parteraSel?['nombre'] as String?,
+              hint: 'Seleccionar partera de cabecera...',
+              items: _parteras.map((p) => p['nombre'] as String).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() =>
+                    _parteraSel = _parteras.firstWhere((p) => p['nombre'] == v));
+              },
+              icono: Icons.self_improvement_rounded,
+            ),
+
+      // Info partera seleccionada
+      if (_parteraSel != null) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: _kMorado.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kMorado.withOpacity(0.3))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+            // Avatar + nombre + disponibilidad
+            Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _kMorado.withOpacity(0.15),
+                    border: Border.all(color: _kMoradoClaro.withOpacity(0.4))),
+                child: const Icon(Icons.self_improvement_rounded, color: _kMoradoClaro, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_parteraSel!['nombre'] as String? ?? '-',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                Text(_parteraSel!['especialidad'] as String? ?? '-',
+                    style: const TextStyle(color: _kMoradoClaro, fontSize: 10.5)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (_parteraSel!['disponible'] == 1 ? _kVerde : _kRojo).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: (_parteraSel!['disponible'] == 1 ? _kVerde : _kRojo).withOpacity(0.4)),
+                ),
+                child: Text(
+                  _parteraSel!['disponible'] == 1 ? 'Disponible' : 'No disponible',
+                  style: TextStyle(
+                      color: _parteraSel!['disponible'] == 1 ? _kVerde : _kRojo,
+                      fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            const Divider(color: Color(0xFF1F3028), height: 1),
+            const SizedBox(height: 10),
+
+            // Datos 2 columnas
+            Row(children: [
+              Expanded(child: _infoItemP(Icons.star_outline_rounded, 'Experiencia',
+                  '${_parteraSel!['anios_exp'] ?? '-'} años')),
+              Expanded(child: _infoItemP(Icons.star_rounded, 'Calificación',
+                  '${_parteraSel!['calificacion'] ?? '-'} / 5.0')),
+            ]),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: _infoItemP(Icons.location_on_outlined, 'Ciudad',
+                  _parteraSel!['ciudad'] as String? ?? '-')),
+              Expanded(child: _infoItemP(Icons.phone_outlined, 'Teléfono',
+                  (_parteraSel!['telefono'] as String? ?? '').isEmpty
+                      ? 'Sin número' : _parteraSel!['telefono'] as String)),
+            ]),
+            if ((_parteraSel!['proximo_horario'] as String? ?? '').isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _infoItemP(Icons.event_outlined, 'Próxima disponibilidad',
+                  _parteraSel!['proximo_horario'] as String),
+            ],
+            const SizedBox(height: 12),
+
+            // Botones
+            Row(children: [
+              Expanded(child: _btnP(Icons.call_rounded,   'Llamar',     _kVerde,                 _llamarPartera)),
+              const SizedBox(width: 6),
+              Expanded(child: _btnP(Icons.chat_rounded,   'WhatsApp',   const Color(0xFF25D366), _whatsappPartera)),
+              const SizedBox(width: 6),
+              Expanded(child: _btnP(Icons.badge_outlined, 'Ver perfil', _kMoradoClaro,           _verPerfilPartera)),
+            ]),
+          ]),
+        ),
+      ],
+
+      // Mensaje cuando no hay partera asignada
+      if (_parteraSel == null && _parteras.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: _kMorado.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _kMorado.withOpacity(0.2))),
+          child: const Row(children: [
+            Icon(Icons.info_outline_rounded, color: _kMoradoClaro, size: 14),
+            SizedBox(width: 8),
+            Expanded(child: Text(
+                'Asigna una partera de cabecera para acceder a sus datos '
+                'y contactarla directamente desde esta pantalla.',
+                style: TextStyle(color: _kTextoSec, fontSize: 11, height: 1.4))),
+          ]),
+        ),
+      ],
+    ]),
+  );
+
+  Widget _infoItemP(IconData icono, String label, String valor) => Padding(
+    padding: const EdgeInsets.only(right: 4),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icono, color: _kTextoHint, size: 12),
+      const SizedBox(width: 4),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: _kTextoHint, fontSize: 9)),
+        Text(valor, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _kTextoSec, fontSize: 11, fontWeight: FontWeight.w600)),
+      ])),
+    ]),
+  );
+
+  Widget _btnP(IconData icono, String label, Color color, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: color.withOpacity(0.35))),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icono, color: color, size: 16),
+            const SizedBox(height: 3),
+            Text(label, style: TextStyle(
+                color: color, fontSize: 9.5, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      );
 
   // ── Card Consulta actual — motivo clínico seleccionable ───────────────────
 

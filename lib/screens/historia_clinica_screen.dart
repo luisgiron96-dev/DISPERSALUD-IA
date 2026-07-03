@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_theme.dart';
 import '../database/database_helper.dart';
+import '../services/pdf_service.dart';
 
 const Color _kVerdeHC = Color(0xFF1D9E75);
 
@@ -21,6 +22,7 @@ class HistoriaClinicaScreen extends StatefulWidget {
 class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
   int  _tabActual        = 0;
   bool _guardando        = false;
+  bool _exportando       = false;
   bool _hayDatosGuardados = false;
 
   // ── 0 — IDENTIFICACIÓN ───────────────────────────────────────────────────
@@ -111,6 +113,44 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
   final _formulaMedica  = TextEditingController();
   final _imagenesRx     = TextEditingController();
   final _recomendaciones = TextEditingController();
+
+  // ── 6b — REMISIÓN / TELEORIENTACIÓN ─────────────────────────────────────
+  String _teleModalidad    = '';
+  String _teleEspecialidad = '';
+
+  static const List<(String, IconData)> _kModalidadesTele = [
+    ('Telemedicina',        Icons.medical_services_outlined),
+    ('Teleenfermería',      Icons.healing_outlined),
+    ('Tele Bacteriología',  Icons.biotech_outlined),
+    ('Tele Psicología',     Icons.psychology_outlined),
+    ('Tele Fisioterapia',   Icons.accessibility_new_outlined),
+    ('Tele Odontología',    Icons.medical_information_outlined),
+    ('Tele Trabajo Social', Icons.groups_outlined),
+    ('Tele Especialista',   Icons.local_hospital_outlined),
+  ];
+
+  static const List<String> _kEspecialidadesTele = [
+    'Pediatría',
+    'Medicina Interna',
+    'Ginecología y Obstetricia',
+    'Cardiología',
+    'Dermatología',
+    'Neurología',
+    'Psiquiatría',
+    'Ortopedia y Traumatología',
+    'Otorrinolaringología',
+    'Oftalmología',
+    'Endocrinología',
+    'Nutrición y Dietética',
+    'Urología',
+    'Geriatría',
+    'Cirugía General',
+    'Medicina Familiar',
+    'Infectología',
+    'Nefrología',
+    'Neumología',
+    'Gastroenterología',
+  ];
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   static const List<(String, IconData)> _kTabs = [
@@ -285,6 +325,8 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
     _formulaMedica.text    = d['formula_medica']      ?? '';
     _imagenesRx.text       = d['imagenes_rx']         ?? '';
     _recomendaciones.text  = d['recomendaciones']     ?? '';
+    _teleModalidad          = d['tele_modalidad']     ?? '';
+    _teleEspecialidad       = d['tele_especialidad']  ?? '';
     setState(() {});
   }
 
@@ -336,6 +378,7 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
     'impresion_dx': _impresionDx.text,  'plan_manejo': _planManejo.text,
     'ordenes_lab': _ordenesLab.text,    'formula_medica': _formulaMedica.text,
     'imagenes_rx': _imagenesRx.text,    'recomendaciones': _recomendaciones.text,
+    'tele_modalidad': _teleModalidad,   'tele_especialidad': _teleEspecialidad,
   };
 
   // ── Guardar ──────────────────────────────────────────────────────────────
@@ -344,36 +387,9 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
     try {
       final db      = await DatabaseHelper.instance.database;
       final jsonStr = json.encode(_recolectar());
-      final ahora   = DateTime.now().toIso8601String();
 
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS historia_clinica (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          paciente_id INTEGER,
-          datos_json TEXT,
-          fecha TEXT
-        )
-      ''');
-
-      final rows = widget.pacienteId != null
-          ? await db.query('historia_clinica',
-              where: 'paciente_id = ?', whereArgs: [widget.pacienteId])
-          : <Map<String, Object?>>[];
-
-      if (rows.isNotEmpty) {
-        await db.update(
-          'historia_clinica',
-          {'datos_json': jsonStr, 'fecha': ahora},
-          where: 'paciente_id = ?',
-          whereArgs: [widget.pacienteId],
-        );
-      } else {
-        await db.insert('historia_clinica', {
-          'paciente_id': widget.pacienteId,
-          'datos_json':  jsonStr,
-          'fecha':       ahora,
-        });
-      }
+      await DatabaseHelper.instance.guardarHistoriaClinica(
+          widget.pacienteId, jsonStr);
 
       // Sincronizar datos básicos en tabla pacientes
       if (widget.pacienteId != null) {
@@ -419,6 +435,37 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
     }
   }
 
+  // ── Exportar a PDF ───────────────────────────────────────────────────────
+  Future<void> _exportarPdf() async {
+    final nombreCompleto = '${_nombres.text} ${_apellidos.text}'.trim();
+    if (nombreCompleto.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Ingresa al menos el nombre del paciente antes de exportar'),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    setState(() => _exportando = true);
+    try {
+      await PdfService.generarHistoriaClinicaPdf(
+        context: context,
+        pacienteNombre: nombreCompleto,
+        datos: _recolectar(),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al generar PDF: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _exportando = false);
+    }
+  }
+
   // ── Limpiar ──────────────────────────────────────────────────────────────
   void _limpiarTodo() {
     showDialog(
@@ -444,6 +491,7 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
                 _imc = '';
                 _gestaciones.text = '0'; _partos.text = '0';
                 _cesareas.text = '0';    _abortos.text = '0';
+                _teleModalidad = ''; _teleEspecialidad = '';
               });
             },
             child: const Text('Limpiar',
@@ -655,6 +703,27 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _exportando ? null : _exportarPdf,
+          child: Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFB0413E).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: const Color(0xFFB0413E).withOpacity(0.3)),
+            ),
+            child: _exportando
+                ? const Padding(
+                    padding: EdgeInsets.all(13),
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFB0413E), strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf_outlined,
+                    color: Color(0xFFB0413E), size: 20),
           ),
         ),
         if (_tabActual < _kTabs.length - 1) ...[
@@ -969,8 +1038,277 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
       _hcGrande('Recomendaciones y Educación al Paciente',
           'Indicaciones generales, signos de alarma, cuidados en casa',
           _recomendaciones, dt, minLines: 3),
+      const SizedBox(height: 16),
+      _hcTitulo('Remisión / Teleorientación', Icons.wifi_tethering_rounded, dt,
+          sub: 'Selecciona el servicio remoto al que se remite al paciente'),
+      _hcSelectorTele(dt),
+      if (_teleModalidad == 'Tele Especialista') ...[
+        const SizedBox(height: 4),
+        _hcSelectorEspecialidad(dt),
+      ],
       _hcAviso(dt),
     ]);
+  }
+
+  // ── Selector de modalidad de teleorientación ────────────────────────────
+  Widget _hcSelectorTele(DispersaludColors dt) {
+    final seleccionado = _kModalidadesTele
+        .where((m) => m.$1 == _teleModalidad)
+        .toList();
+    final icono = seleccionado.isNotEmpty
+        ? seleccionado.first.$2
+        : Icons.expand_more_rounded;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Servicio de Teleorientación',
+            style: TextStyle(
+                color: dt.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _abrirSelectorTele(dt),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: dt.bg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: _teleModalidad.isNotEmpty
+                      ? _kVerdeHC.withOpacity(0.5)
+                      : dt.border),
+            ),
+            child: Row(children: [
+              Icon(icono,
+                  size: 18,
+                  color: _teleModalidad.isNotEmpty
+                      ? _kVerdeHC
+                      : dt.textHint),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _teleModalidad.isEmpty
+                      ? 'Toca para elegir un servicio…'
+                      : _teleModalidad,
+                  style: TextStyle(
+                      color: _teleModalidad.isEmpty
+                          ? dt.textHint
+                          : dt.textPrimary,
+                      fontSize: 13,
+                      fontWeight: _teleModalidad.isEmpty
+                          ? FontWeight.normal
+                          : FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.unfold_more_rounded, size: 18, color: dt.textHint),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  void _abrirSelectorTele(DispersaludColors dt) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: dt.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (ctx, scrollCtrl) => Column(children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: dt.border, borderRadius: BorderRadius.circular(4)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Servicio de Teleorientación',
+                style: TextStyle(
+                    color: dt.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: scrollCtrl,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _kModalidadesTele.length,
+              itemBuilder: (ctx, i) {
+                final (nombre, icono) = _kModalidadesTele[i];
+                final activo = nombre == _teleModalidad;
+                return ListTile(
+                  onTap: () {
+                    setState(() {
+                      _teleModalidad = nombre;
+                      if (nombre != 'Tele Especialista') {
+                        _teleEspecialidad = '';
+                      }
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  leading: Icon(icono,
+                      color: activo ? _kVerdeHC : dt.textHint),
+                  title: Text(nombre,
+                      style: TextStyle(
+                          color: dt.textPrimary,
+                          fontSize: 13.5,
+                          fontWeight:
+                              activo ? FontWeight.w700 : FontWeight.w500)),
+                  trailing: nombre == 'Tele Especialista'
+                      ? Icon(Icons.chevron_right_rounded,
+                          size: 18, color: dt.textHint)
+                      : (activo
+                          ? const Icon(Icons.check_circle_rounded,
+                              color: _kVerdeHC, size: 20)
+                          : null),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  tileColor: activo ? _kVerdeHC.withOpacity(0.07) : null,
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // ── Selector de especialidad (sub-opciones de Tele Especialista) ────────
+  Widget _hcSelectorEspecialidad(DispersaludColors dt) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14, left: 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 3, height: 14,
+            decoration: BoxDecoration(
+                color: _kVerdeHC, borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(width: 8),
+          Text('Especialidad',
+              style: TextStyle(
+                  color: dt.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
+        ]),
+        const SizedBox(height: 6),
+        InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _abrirSelectorEspecialidad(dt),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: dt.bg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: _teleEspecialidad.isNotEmpty
+                      ? _kVerdeHC.withOpacity(0.5)
+                      : dt.border),
+            ),
+            child: Row(children: [
+              Icon(Icons.local_hospital_outlined,
+                  size: 18,
+                  color: _teleEspecialidad.isNotEmpty
+                      ? _kVerdeHC
+                      : dt.textHint),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _teleEspecialidad.isEmpty
+                      ? 'Toca para elegir una especialidad…'
+                      : _teleEspecialidad,
+                  style: TextStyle(
+                      color: _teleEspecialidad.isEmpty
+                          ? dt.textHint
+                          : dt.textPrimary,
+                      fontSize: 13,
+                      fontWeight: _teleEspecialidad.isEmpty
+                          ? FontWeight.normal
+                          : FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.unfold_more_rounded, size: 18, color: dt.textHint),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  void _abrirSelectorEspecialidad(DispersaludColors dt) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: dt.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollCtrl) => Column(children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: dt.border, borderRadius: BorderRadius.circular(4)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Especialidad — Tele Especialista',
+                style: TextStyle(
+                    color: dt.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: scrollCtrl,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _kEspecialidadesTele.length,
+              itemBuilder: (ctx, i) {
+                final nombre = _kEspecialidadesTele[i];
+                final activo = nombre == _teleEspecialidad;
+                return ListTile(
+                  onTap: () {
+                    setState(() => _teleEspecialidad = nombre);
+                    Navigator.pop(ctx);
+                  },
+                  leading: Icon(Icons.medical_information_outlined,
+                      color: activo ? _kVerdeHC : dt.textHint),
+                  title: Text(nombre,
+                      style: TextStyle(
+                          color: dt.textPrimary,
+                          fontSize: 13.5,
+                          fontWeight:
+                              activo ? FontWeight.w700 : FontWeight.w500)),
+                  trailing: activo
+                      ? const Icon(Icons.check_circle_rounded,
+                          color: _kVerdeHC, size: 20)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  tileColor: activo ? _kVerdeHC.withOpacity(0.07) : null,
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 
   // ── Widget IMC con color dinámico ────────────────────────────────────────

@@ -136,6 +136,27 @@ class SyncService {
         } catch (_) {}
       }
 
+      // ── 5. Sincronizar historias clínicas ──────────────────────
+      final historias = await DatabaseHelper.instance.obtenerHistoriasPendientesSync();
+      total += historias.length;
+      for (final h in historias) {
+        try {
+          dynamic datosJson = h['datos_json'];
+          if (datosJson is String && datosJson.isNotEmpty) {
+            try { datosJson = jsonDecode(datosJson); } catch (_) {}
+          }
+
+          await _sb.from('historia_clinica').upsert({
+            'id_local':    h['id'],
+            'paciente_id': h['paciente_id'],
+            'datos_json':  datosJson,
+            'fecha':       h['fecha'],
+          }, onConflict: 'id_local');
+          await DatabaseHelper.instance.marcarHistoriaSincronizada(h['id']);
+          subidos++;
+        } catch (_) {}
+      }
+
       await _guardarUltimaSync();
 
       final pendientes = total - subidos;

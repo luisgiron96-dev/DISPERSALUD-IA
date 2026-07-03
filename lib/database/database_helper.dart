@@ -15,17 +15,17 @@ class DatabaseHelper {
     return _database!;
   }
 
-  // ── CAMBIO 1: versión 8 → 9 ─────────────────────────────────────────────
+  // ── CAMBIO 1: versión 9 → 10 (tabla historia_clinica sincronizable) ─────
   Future<Database> _initDB(String filePath) async {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(filePath,
-          version: 9, onCreate: _createDB, onUpgrade: _upgradeDB);
+          version: 10, onCreate: _createDB, onUpgrade: _upgradeDB);
     }
     final dbPath = await getDatabasesPath();
     final path   = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 9, onCreate: _createDB, onUpgrade: _upgradeDB);
+        version: 10, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -130,6 +130,17 @@ class DatabaseHelper {
         updated_at          TEXT DEFAULT (datetime('now','localtime'))
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS historia_clinica (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        paciente_id  INTEGER,
+        datos_json   TEXT,
+        fecha        TEXT DEFAULT (datetime('now','localtime')),
+        sincronizado INTEGER DEFAULT 0,
+        created_at   TEXT DEFAULT (datetime('now','localtime')),
+        updated_at   TEXT DEFAULT (datetime('now','localtime'))
+      )
+    ''');
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -205,6 +216,25 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE alertas ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
       try { await db.execute('ALTER TABLE alertas ADD COLUMN auto INTEGER DEFAULT 0'); } catch (_) {}
       try { await db.execute('ALTER TABLE alertas ADD COLUMN codigo_sivigila TEXT'); } catch (_) {}
+    }
+    // ── CAMBIO 5: upgrade v9 → v10 — historia_clinica sincronizable ─────
+    if (oldVersion < 10) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS historia_clinica (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            paciente_id  INTEGER,
+            datos_json   TEXT,
+            fecha        TEXT DEFAULT (datetime('now','localtime')),
+            sincronizado INTEGER DEFAULT 0,
+            created_at   TEXT DEFAULT (datetime('now','localtime')),
+            updated_at   TEXT DEFAULT (datetime('now','localtime'))
+          )
+        ''');
+      } catch (_) {}
+      try { await db.execute('ALTER TABLE historia_clinica ADD COLUMN sincronizado INTEGER DEFAULT 0'); } catch (_) {}
+      try { await db.execute('ALTER TABLE historia_clinica ADD COLUMN created_at TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE historia_clinica ADD COLUMN updated_at TEXT'); } catch (_) {}
     }
   }
 
@@ -681,6 +711,74 @@ class DatabaseHelper {
         where: 'id = ?',
         whereArgs: [id],
       );
+    } catch (_) {}
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // HISTORIA CLÍNICA
+  // ════════════════════════════════════════════════════════════════════
+
+  /// Guarda (inserta o actualiza) la historia clínica de un paciente.
+  /// Siempre marca sincronizado = 0 para que quede pendiente de subir.
+  Future<int> guardarHistoriaClinica(int? pacienteId, String datosJson) async {
+    final db     = await database;
+    final ahora  = DateTime.now().toIso8601String();
+    final existentes = pacienteId != null
+        ? await db.query('historia_clinica',
+            where: 'paciente_id = ?', whereArgs: [pacienteId])
+        : <Map<String, Object?>>[];
+
+    if (existentes.isNotEmpty) {
+      final id = existentes.first['id'] as int;
+      await db.update(
+        'historia_clinica',
+        {'datos_json': datosJson, 'fecha': ahora, 'updated_at': ahora,
+         'sincronizado': 0},
+        where: 'id = ?', whereArgs: [id],
+      );
+      return id;
+    }
+    return await db.insert('historia_clinica', {
+      'paciente_id':  pacienteId,
+      'datos_json':   datosJson,
+      'fecha':        ahora,
+      'created_at':   ahora,
+      'updated_at':   ahora,
+      'sincronizado': 0,
+    });
+  }
+
+  /// Obtiene la historia clínica más reciente de un paciente
+  Future<Map<String, dynamic>?> obtenerHistoriaClinica(int pacienteId) async {
+    final db   = await database;
+    final rows = await db.query(
+      'historia_clinica',
+      where: 'paciente_id = ?', whereArgs: [pacienteId],
+      orderBy: 'fecha DESC', limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  /// Historias clínicas pendientes de sincronización
+  Future<List<Map<String, dynamic>>> obtenerHistoriasPendientesSync() async {
+    final db = await database;
+    try {
+      return await db.query(
+        'historia_clinica',
+        where: 'sincronizado = 0 OR sincronizado IS NULL',
+        orderBy: 'fecha DESC', limit: 50,
+      );
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Marca una historia clínica como sincronizada con Supabase
+  Future<void> marcarHistoriaSincronizada(dynamic id) async {
+    final db = await database;
+    try {
+      await db.update('historia_clinica', {'sincronizado': 1},
+          where: 'id = ?', whereArgs: [id]);
     } catch (_) {}
   }
 
