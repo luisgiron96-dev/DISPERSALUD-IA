@@ -1,5 +1,11 @@
+// lib/screens/splash/splash_screen.dart
+// ════════════════════════════════════════════════════════════════════════════
+//  DISPERSALUD IA — Splash Screen
+//  Redirige a /auth si no hay sesión activa, o a /home si ya está logueado
+// ════════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,19 +30,23 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    _logoCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _logoCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800));
     _logoScale = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOutBack)
         .drive(Tween(begin: 0.5, end: 1.0));
     _logoFade = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeIn)
         .drive(Tween(begin: 0.0, end: 1.0));
 
-    _textCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _textCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
     _textFade = CurvedAnimation(parent: _textCtrl, curve: Curves.easeIn)
         .drive(Tween(begin: 0.0, end: 1.0));
     _textSlide = CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut)
-        .drive(Tween(begin: const Offset(0, 0.25), end: Offset.zero));
+        .drive(Tween(
+            begin: const Offset(0, 0.25), end: Offset.zero));
 
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _fadeCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
     _fadeOut = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn)
         .drive(Tween(begin: 1.0, end: 0.0));
 
@@ -49,13 +59,19 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 650));
     _textCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 2200));
-    await _irAlPin();
+    await _navegar();
   }
 
-  Future<void> _irAlPin() async {
+  Future<void> _navegar() async {
     if (!mounted) return;
     await _fadeCtrl.forward();
-    if (mounted) Navigator.of(context).pushReplacementNamed('/pin');
+    if (!mounted) return;
+
+    // Si ya hay sesión activa → ir a /home directamente
+    // Si no → ir a /auth para login o registro
+    final session = Supabase.instance.client.auth.currentSession;
+    final destino = session != null ? '/home' : '/auth';
+    Navigator.of(context).pushReplacementNamed(destino);
   }
 
   @override
@@ -72,7 +88,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     return AnimatedBuilder(
       animation: _fadeOut,
-      builder: (_, child) => Opacity(opacity: _fadeOut.value, child: child),
+      builder: (_, child) =>
+          Opacity(opacity: _fadeOut.value, child: child),
       child: Scaffold(
         backgroundColor: const Color(0xFF7ED8D8),
         body: Container(
@@ -85,77 +102,81 @@ class _SplashScreenState extends State<SplashScreen>
               colors: [Color(0xFF7ED8D8), Color(0xFF3DAEAE)],
             ),
           ),
-          child: Stack(
-            children: [
-              Positioned.fill(child: CustomPaint(painter: _FondoPainter())),
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _logoCtrl,
-                      builder: (_, child) => FadeTransition(
-                        opacity: _logoFade,
-                        child: ScaleTransition(scale: _logoScale, child: child),
-                      ),
-                      child: GestureDetector(
-                        onTap: _irAlPin,
-                        child: Container(
-                          width: (size.width * 0.58).clamp(0.0, 280.0),
-                          height: (size.width * 0.58).clamp(0.0, 280.0),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.18),
-                                blurRadius: 32,
-                                spreadRadius: 4,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/logo_dispersalud.png',
-                              fit: BoxFit.contain,
+          child: Stack(children: [
+            Positioned.fill(
+                child: CustomPaint(painter: _FondoPainter())),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedBuilder(
+                    animation: _logoCtrl,
+                    builder: (_, child) => FadeTransition(
+                      opacity: _logoFade,
+                      child: ScaleTransition(
+                          scale: _logoScale, child: child),
+                    ),
+                    child: GestureDetector(
+                      onTap: _navegar,
+                      child: Container(
+                        width: (size.width * 0.58).clamp(0.0, 280.0),
+                        height: (size.width * 0.58).clamp(0.0, 280.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 32,
+                              spreadRadius: 4,
+                              offset: const Offset(0, 10),
                             ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/logo_dispersalud.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(height: (size.height * 0.06).clamp(0.0, 40.0)),
-                    AnimatedBuilder(
-                      animation: _textCtrl,
-                      builder: (_, child) => FadeTransition(
-                        opacity: _textFade,
-                        child: SlideTransition(position: _textSlide, child: child),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
-                        child: Text(
-                          'Tecnología que cuida tu salud,\ndonde más se necesita.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: size.width > 600 ? 18.0 : 22.0,
-                            fontWeight: FontWeight.w700,
-                            height: 1.45,
-                          ),
+                  ),
+                  SizedBox(
+                      height: (size.height * 0.06).clamp(0.0, 40.0)),
+                  AnimatedBuilder(
+                    animation: _textCtrl,
+                    builder: (_, child) => FadeTransition(
+                      opacity: _textFade,
+                      child: SlideTransition(
+                          position: _textSlide, child: child),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: size.width * 0.1),
+                      child: Text(
+                        'Tecnología que cuida tu salud,\ndonde más se necesita.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: size.width > 600 ? 18.0 : 22.0,
+                          fontWeight: FontWeight.w700,
+                          height: 1.45,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );
   }
 }
 
+// ── Fondo decorativo (igual que el original) ──────────────────────────────────
 class _FondoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -179,7 +200,8 @@ class _FondoPainter extends CustomPainter {
       [0.79, 0.12], [0.07, 0.52], [0.88, 0.76],
       [0.21, 0.76], [0.61, 0.95], [0.36, 0.08], [0.72, 0.48],
     ]) {
-      _hex(canvas, p, Offset(size.width * pos[0], size.height * pos[1]), 22);
+      _hex(canvas, p,
+          Offset(size.width * pos[0], size.height * pos[1]), 22);
     }
 
     final ecg = Paint()
