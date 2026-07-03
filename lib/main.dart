@@ -43,6 +43,44 @@ Future<void> _cargarTemaGuardado() async {
   temaNotifier.value = temaDesdeString(guardado);
   final escala = prefs.getDouble('fuente_escala') ?? 1.0;
   fontSizeNotifier.value = escala.clamp(0.8, 1.4);
+
+  // Aplicar estilo de barra de estado desde el arranque
+  _aplicarEstiloSistema(guardado);
+
+  // Escuchar cambios de tema para actualizar la barra siempre
+  temaNotifier.addListener(() {
+    final modo = temaNotifier.value;
+    final nombre = modo == ThemeMode.light
+        ? 'Claro'
+        : modo == ThemeMode.dark
+            ? 'Oscuro'
+            : 'Sistema';
+    _aplicarEstiloSistema(nombre);
+  });
+}
+
+/// Actualiza statusBar + navigationBar según el tema elegido
+void _aplicarEstiloSistema(String tema) {
+  final plataformaBrightness = WidgetsBinding
+      .instance.platformDispatcher.platformBrightness;
+  final esClaro = tema == 'Claro' ||
+      (tema == 'Sistema' && plataformaBrightness == Brightness.light);
+
+  // En modo claro: barra de estado verde aguamarina de DISPERSALUD
+  // En modo oscuro: barra de estado negra
+  // NUNCA transparent — así no depende de qué haya debajo durante la transición
+  const kVerdeApp = Color(0xFF1D9E75);
+
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    // Status bar (hora, wifi, batería)
+    statusBarColor:          esClaro ? kVerdeApp : const Color(0xFF0A0A0A),
+    statusBarIconBrightness: Brightness.light, // íconos siempre blancos (se ven sobre verde Y sobre negro)
+    statusBarBrightness:     Brightness.dark,  // iOS equivalente
+    // Navigation bar inferior (botones del sistema)
+    systemNavigationBarColor:          esClaro ? Colors.white : const Color(0xFF101010),
+    systemNavigationBarIconBrightness: esClaro ? Brightness.dark : Brightness.light,
+    systemNavigationBarDividerColor:   Colors.transparent,
+  ));
 }
 
 ThemeMode temaDesdeString(String s) {
@@ -102,16 +140,18 @@ class DispersaludApp extends StatelessWidget {
           builder: (ctx, child) => AnnotatedRegion<SystemUiOverlayStyle>(
             value: (Theme.of(ctx).brightness == Brightness.dark)
                 ? const SystemUiOverlayStyle(
-                    statusBarColor:           Colors.transparent,
-                    systemNavigationBarColor: Colors.transparent,
-                    statusBarIconBrightness:  Brightness.light, // íconos blancos sobre fondo oscuro
-                    statusBarBrightness:      Brightness.dark,  // (iOS)
+                    statusBarColor:                    Color(0xFF0A0A0A),
+                    statusBarIconBrightness:           Brightness.light,
+                    statusBarBrightness:               Brightness.dark,
+                    systemNavigationBarColor:          Color(0xFF101010),
+                    systemNavigationBarIconBrightness: Brightness.light,
                   )
                 : const SystemUiOverlayStyle(
-                    statusBarColor:           Colors.transparent,
-                    systemNavigationBarColor: Colors.transparent,
-                    statusBarIconBrightness:  Brightness.dark,  // íconos oscuros sobre fondo claro
-                    statusBarBrightness:      Brightness.light, // (iOS)
+                    statusBarColor:                    Color(0xFF1D9E75), // verde DISPERSALUD
+                    statusBarIconBrightness:           Brightness.light,  // íconos blancos sobre verde
+                    statusBarBrightness:               Brightness.dark,
+                    systemNavigationBarColor:          Colors.white,
+                    systemNavigationBarIconBrightness: Brightness.dark,
                   ),
             child: MediaQuery(
               data: MediaQuery.of(ctx).copyWith(

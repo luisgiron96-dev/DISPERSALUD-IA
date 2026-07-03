@@ -1187,6 +1187,25 @@ class _ConfigScreenState extends State<ConfigScreen>
                 await _pref('tema_app', t.$1);
                 temaNotifier.value = temaDesdeString(t.$1);
                 setState(() => _tema = t.$1);
+
+                // FIX: forzar actualización inmediata de la barra de estado
+                // El AnnotatedRegion solo funciona en algunos dispositivos;
+                // SystemChrome garantiza el cambio en TODOS los Android.
+                final esClaro = t.$1 == 'Claro' ||
+                    (t.$1 == 'Sistema' &&
+                        (WidgetsBinding.instance.platformDispatcher
+                                .platformBrightness ==
+                            Brightness.light));
+                const kVerdeApp = Color(0xFF1D9E75);
+                SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+                  statusBarColor:          esClaro ? kVerdeApp : const Color(0xFF0A0A0A),
+                  statusBarIconBrightness: Brightness.light,
+                  statusBarBrightness:     Brightness.dark,
+                  systemNavigationBarColor:          esClaro ? Colors.white : const Color(0xFF101010),
+                  systemNavigationBarIconBrightness: esClaro ? Brightness.dark : Brightness.light,
+                  systemNavigationBarDividerColor:   Colors.transparent,
+                ));
+
                 if (mounted) Navigator.pop(context);
                 _snack('Tema ${t.$1.toLowerCase()} aplicado ✓');
               },
