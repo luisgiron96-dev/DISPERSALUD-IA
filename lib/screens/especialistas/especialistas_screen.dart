@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_theme.dart';
 import '../../core/responsive.dart';
 import '../../database/database_helper.dart';
+import '../../services/connectivity_service.dart';
 
 DispersaludColors _dc(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
@@ -78,12 +80,37 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
   final _search = TextEditingController();
   int    _tab      = 0;
   String _busqueda = '';
-  bool   _cargando = true;
+  bool   _cargando      = true;
+  bool   _online        = false;
+  StreamSubscription<bool>? _connSub;
   List<Map<String, dynamic>> _todos = [];
-  int _disponibles = 0;
+  int    _disponibles   = 0;
+  // Filtros adicionales
+  bool   _soloDisponibles = false;
+  double _califMin        = 0;   // 0 = sin filtro
+  int    _expMin          = 0;   // 0 = sin filtro
+  String _ciudadFiltro    = '';  // '' = todas
 
-  @override void initState() { super.initState(); _cargar(); }
-  @override void dispose()   { _search.dispose(); super.dispose(); }
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+    _initConn();
+  }
+
+  Future<void> _initConn() async {
+    _online = await ConnectivityService.instance.verificarAhora();
+    if (mounted) setState(() {});
+    _connSub = ConnectivityService.instance.cambios.listen((v) {
+      if (mounted) setState(() => _online = v);
+    });
+  }
+  @override
+  void dispose() {
+    _connSub?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
 
   Future<void> _cargar() async {
     setState(() => _cargando = true);
@@ -98,6 +125,7 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
 
   List<Map<String, dynamic>> get _filtrados {
     var r = List<Map<String, dynamic>>.from(_todos);
+    // Búsqueda por texto
     if (_busqueda.isNotEmpty) {
       final q = _busqueda.toLowerCase();
       r = r.where((e) =>
@@ -105,9 +133,27 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
         (e['especialidad'] as String? ?? '').toLowerCase().contains(q) ||
         (e['ciudad']       as String? ?? '').toLowerCase().contains(q)).toList();
     }
+    // Filtro por categoría (chips superiores)
     if (_tab > 0) {
       final catId = _kCatMap[_kTabs[_tab]] ?? '';
       r = r.where((e) => (e['categoria_id'] as String? ?? '') == catId).toList();
+    }
+    // Filtro solo disponibles
+    if (_soloDisponibles) {
+      r = r.where((e) => e['disponible'] == 1).toList();
+    }
+    // Filtro calificación mínima
+    if (_califMin > 0) {
+      r = r.where((e) => (e['calificacion'] as num? ?? 0) >= _califMin).toList();
+    }
+    // Filtro experiencia mínima
+    if (_expMin > 0) {
+      r = r.where((e) => (e['anios_experiencia'] as int? ?? 0) >= _expMin).toList();
+    }
+    // Filtro por ciudad
+    if (_ciudadFiltro.isNotEmpty) {
+      r = r.where((e) =>
+          (e['ciudad'] as String? ?? '').toLowerCase().contains(_ciudadFiltro.toLowerCase())).toList();
     }
     return r;
   }
@@ -215,6 +261,185 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
     catch (_) { _snack('No se pudo abrir la app de llamadas', error: true); }
   }
 
+  // Indica si hay algún filtro adicional activo
+  bool get _filtrosActivos =>
+      _soloDisponibles || _califMin > 0 || _expMin > 0 || _ciudadFiltro.isNotEmpty;
+
+  void _limpiarFiltros() => setState(() {
+    _soloDisponibles = false;
+    _califMin        = 0;
+    _expMin          = 0;
+    _ciudadFiltro    = '';
+  });
+
+  void _abrirFiltros() {
+    final dc    = _dc(context);
+    final verde = Theme.of(context).colorScheme.primary;
+
+    // Variables locales del sheet (se aplican al cerrar con "Aplicar")
+    bool   localDisp  = _soloDisponibles;
+    double localCalif = _califMin;
+    int    localExp   = _expMin;
+    String localCiud  = _ciudadFiltro;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, ss) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: BoxDecoration(
+              color: dc.card,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Handle
+              Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: dc.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+
+              // Título
+              Row(children: [
+                Icon(Icons.tune_rounded, color: verde, size: 20),
+                const SizedBox(width: 8),
+                Text('Filtros', style: TextStyle(color: dc.textPrimary,
+                    fontSize: 17, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () { ss(() { localDisp = false; localCalif = 0; localExp = 0; localCiud = ''; }); },
+                  child: Text('Limpiar todo', style: TextStyle(color: verde, fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+              ]),
+              const SizedBox(height: 20),
+
+              // ── Solo disponibles ─────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: dc.bg, borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: dc.border)),
+                child: Row(children: [
+                  Icon(Icons.circle, color: localDisp ? const Color(0xFF4CAF50) : dc.textHint, size: 14),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Solo especialistas disponibles ahora',
+                      style: TextStyle(color: dc.textPrimary, fontSize: 13))),
+                  Switch(value: localDisp, activeColor: verde,
+                      onChanged: (v) => ss(() => localDisp = v)),
+                ]),
+              ),
+              const SizedBox(height: 14),
+
+              // ── Calificación mínima ──────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: dc.bg, borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: dc.border)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(Icons.star_rounded, color: const Color(0xFFFFB300), size: 16),
+                    const SizedBox(width: 8),
+                    Text('Calificación mínima',
+                        style: TextStyle(color: dc.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(localCalif == 0 ? 'Todas' : '${localCalif.toStringAsFixed(1)}★',
+                        style: TextStyle(color: verde, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(children: List.generate(5, (i) {
+                    final estrella = (i + 1).toDouble();
+                    return GestureDetector(
+                      onTap: () => ss(() => localCalif = localCalif == estrella ? 0 : estrella),
+                      child: Padding(padding: const EdgeInsets.only(right: 8),
+                        child: Icon(
+                          i < localCalif ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: const Color(0xFFFFB300), size: 32)),
+                    );
+                  })),
+                ]),
+              ),
+              const SizedBox(height: 14),
+
+              // ── Experiencia mínima ───────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: dc.bg, borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: dc.border)),
+                child: Row(children: [
+                  Icon(Icons.workspace_premium_rounded, color: dc.textSecondary, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Experiencia mínima',
+                      style: TextStyle(color: dc.textPrimary, fontSize: 13, fontWeight: FontWeight.w600))),
+                  GestureDetector(
+                    onTap: () { if (localExp > 0) ss(() => localExp -= 5); },
+                    child: Container(width: 32, height: 32,
+                        decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: dc.border)),
+                        child: Icon(Icons.remove_rounded, color: dc.textSecondary, size: 16)),
+                  ),
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Text(localExp == 0 ? 'Todos' : '$localExp+ años',
+                          style: TextStyle(color: dc.textPrimary, fontSize: 13, fontWeight: FontWeight.bold))),
+                  GestureDetector(
+                    onTap: () => ss(() => localExp = (localExp + 5).clamp(0, 30)),
+                    child: Container(width: 32, height: 32,
+                        decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: dc.border)),
+                        child: Icon(Icons.add_rounded, color: verde, size: 16)),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 14),
+
+              // ── Ciudad ───────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(color: dc.bg, borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: dc.border)),
+                child: TextField(
+                  controller: TextEditingController(text: localCiud),
+                  onChanged: (v) => localCiud = v,
+                  style: TextStyle(color: dc.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Filtrar por ciudad (ej: Cali, Popayán...)',
+                    hintStyle: TextStyle(color: dc.textHint, fontSize: 12),
+                    prefixIcon: Icon(Icons.location_on_outlined, color: dc.textHint, size: 18),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // ── Botón aplicar ────────────────────────────────────────────
+              SizedBox(width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _soloDisponibles = localDisp;
+                      _califMin        = localCalif;
+                      _expMin          = localExp;
+                      _ciudadFiltro    = localCiud.trim();
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  icon: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                  label: const Text('Aplicar filtros',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: verde,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _whatsapp(String? tel, String nombre) async {
     if (tel == null || tel.trim().isEmpty) {
       _snack('$nombre no tiene teléfono registrado', error: true); return;
@@ -245,7 +470,7 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
       body: ResponsiveCenter(child: CustomScrollView(slivers: [
         SliverToBoxAdapter(child: _header(dc)),
         SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16,16,16,0), child: _stats(dc, verde))),
-        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16,14,16,0), child: _buscador(dc))),
+        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16,14,16,0), child: _buscador(dc, verde))),
         SliverToBoxAdapter(child: _chips(dc, verde)),
         SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16,16,16,0), child: _bannerIA(dc))),
         SliverToBoxAdapter(child: Padding(
@@ -289,25 +514,39 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
           Text('Especialistas', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           Text('Conecta con expertos en salud', style: TextStyle(color: Color(0xFF9FE1CB), fontSize: 12)),
         ])),
+        // Indicador Online / Offline dinámico (igual al resto de la app)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(0.3))),
-          child: const Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.wifi_off_rounded, color: Colors.white, size: 13),
-            SizedBox(width: 4),
-            Text('Modo Offline', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+          decoration: BoxDecoration(
+            color: _online
+                ? Colors.green.withOpacity(0.25)
+                : Colors.orange.withOpacity(0.25),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _online
+                  ? Colors.greenAccent.withOpacity(0.7)
+                  : Colors.orange.withOpacity(0.7),
+            ),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 7, height: 7,
+              decoration: BoxDecoration(
+                color: _online ? Colors.greenAccent : Colors.orange,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              _online ? 'Online' : 'Offline',
+              style: TextStyle(
+                color: _online ? Colors.greenAccent : Colors.orange,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ]),
         ),
-        const SizedBox(width: 10),
-        Stack(children: [
-          Container(width: 36, height: 36,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
-              child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 18)),
-          Positioned(right: 0, top: 0, child: Container(width: 15, height: 15,
-              decoration: const BoxDecoration(color: Color(0xFFE24B4A), shape: BoxShape.circle),
-              child: const Center(child: Text('3', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold))))),
-        ]),
       ]),
     )),
   );
@@ -336,7 +575,7 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
     )));
   }
 
-  Widget _buscador(DispersaludColors dc) => Row(children: [
+  Widget _buscador(DispersaludColors dc, Color verde) => Row(children: [
     Expanded(child: Container(
       height: 46,
       decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: dc.border)),
@@ -355,13 +594,32 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
       ),
     )),
     const SizedBox(width: 10),
-    Container(height: 46, padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(color: dc.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: dc.border)),
-      child: Row(children: [
-        Icon(Icons.tune_rounded, color: dc.textSecondary, size: 18),
-        const SizedBox(width: 6),
-        Text('Filtros', style: TextStyle(color: dc.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
-      ]),
+    GestureDetector(
+      onTap: _abrirFiltros,
+      child: Container(height: 46, padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: _filtrosActivos ? verde.withOpacity(0.12) : dc.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _filtrosActivos ? verde : dc.border,
+            width: _filtrosActivos ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(children: [
+          Icon(Icons.tune_rounded,
+              color: _filtrosActivos ? verde : dc.textSecondary, size: 18),
+          const SizedBox(width: 6),
+          Text('Filtros',
+              style: TextStyle(
+                color: _filtrosActivos ? verde : dc.textSecondary,
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          if (_filtrosActivos) ...[
+            const SizedBox(width: 5),
+            Container(width: 7, height: 7,
+                decoration: BoxDecoration(color: verde, shape: BoxShape.circle)),
+          ],
+        ]),
+      ),
     ),
   ]);
 

@@ -578,6 +578,20 @@ class _ParteraScreenState extends State<ParteraScreen> {
   Widget _buildHeader() => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      // ── Botón regresar ────────────────────────────────────────────────
+      GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+              color: _kCard,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _kBorder)),
+          child: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: _kTexto, size: 16),
+        ),
+      ),
+      const SizedBox(width: 10),
       Container(width: 56, height: 56,
           decoration: BoxDecoration(
               color: _kRosa.withOpacity(0.1), shape: BoxShape.circle,

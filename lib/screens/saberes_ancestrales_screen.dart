@@ -693,6 +693,7 @@ Responde de forma breve y en español colombiano.
         const SizedBox(height: 4),
         DropdownButtonFormField<Map<String, dynamic>>(
           value: _pacienteSeleccionado,
+          isExpanded: true,
           dropdownColor: _kCardAlt,
           style: const TextStyle(color: _kTexto, fontSize: 11),
           hint: Text('Seleccionar...', style: TextStyle(
@@ -857,6 +858,7 @@ Responde de forma breve y en español colombiano.
           // Comunidad
           DropdownButtonFormField<String>(
             value: _comunidadSel,
+            isExpanded: true,
             dropdownColor: _kCardAlt,
             style: const TextStyle(color: _kTexto, fontSize: 11),
             decoration: _inputDeco('Comunidad'),
