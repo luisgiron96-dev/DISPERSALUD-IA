@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../database/database_helper.dart';
+import '../core/responsive.dart';
 import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
 
@@ -527,7 +528,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: Stack(children: [
+      body: ResponsiveCenter(child: Stack(children: [
         SafeArea(child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(14, 12, 14, 110 + bp),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -568,7 +569,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
             bottom: 90 + bp, right: 12, left: 12,
             child: _panelChat(),
           ),
-      ]),
+      ]), ),
     );
   }
 
@@ -1387,12 +1388,20 @@ class _ParteraScreenState extends State<ParteraScreen> {
       const Text('Toca cada ítem para registrar el valor',
           style: TextStyle(color: _kTextoHint, fontSize: 10)),
       const SizedBox(height: 12),
-      GridView.count(
+      // NOTA: antes usaba `childAspectRatio: 0.90`, lo cual hace que la
+      // altura de cada tarjeta crezca en proporción al ancho — en pantallas
+      // grandes (desktop/tablet) esto dejaba tarjetas enormes con mucho
+      // espacio vacío. Con `mainAxisExtent` fijo, el alto siempre es el
+      // mismo (114px, igual al que ya tenías en celular) sin importar
+      // cuánto ancho haya disponible.
+      GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 3,
-        mainAxisSpacing: 10, crossAxisSpacing: 10,
-        childAspectRatio: 0.90,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 10, crossAxisSpacing: 10,
+          mainAxisExtent: 114,
+        ),
         children: [
           _evalItem(
             Icons.favorite_rounded, 'Frecuencia\nfetal', _kRosa, _frecuenciaFetal,

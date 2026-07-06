@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import '../services/pdf_service.dart';
 
@@ -516,7 +517,7 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
             duration: const Duration(milliseconds: 200),
             child: KeyedSubtree(
               key: ValueKey(_tabActual),
-              child: SingleChildScrollView(
+              child: ResponsiveCenter(maxWidth: 800, child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 child: [
                   _buildIdentificacion(dt),
@@ -527,7 +528,7 @@ class _HistoriaClinicaScreenState extends State<HistoriaClinicaScreen> {
                   _buildExamenFisico(dt),
                   _buildDiagnostico(dt),
                 ][_tabActual],
-              ),
+              ), ),
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import 'fichas_epidemiologicas_screen.dart';
 
@@ -1054,7 +1055,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     items: const [
                       DropdownMenuItem(value: 'urgente', child: Text('🚨 Urgente')),
                       DropdownMenuItem(value: 'alerta',  child: Text('⚠️ Alerta')),
-                      DropdownMenuItem(value: 'normal',  child: Text('✅ Vigilancia')),
+                      DropdownMenuItem(value: 'vigilancia', child: Text('✅ Vigilancia')),
                     ],
                     onChanged: (v) => ss(() => nivel = v!),
                   )),
@@ -1120,6 +1121,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
     return Scaffold(
       backgroundColor: _c(context).bg,
       body: SafeArea(
+        child: ResponsiveCenter(
         child: RefreshIndicator(
           onRefresh: _cargar, color: _kVerde,
           child: CustomScrollView(
@@ -1432,6 +1434,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
               ],
 
             ],
+          ),
           ),
         ),
       ),

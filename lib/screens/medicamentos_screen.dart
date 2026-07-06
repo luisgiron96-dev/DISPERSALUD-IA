@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 
 DispersaludColors _c(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
@@ -769,7 +770,7 @@ class _MedicamentosScreenState extends State<MedicamentosScreen> {
 
     return Scaffold(
       backgroundColor: dc.bg,
-      body: CustomScrollView(
+      body: ResponsiveCenter(child: CustomScrollView(
         slivers: [
 
           // ── APP BAR ──────────────────────────────────────────────────
@@ -990,7 +991,7 @@ class _MedicamentosScreenState extends State<MedicamentosScreen> {
                   ),
                 ),
         ],
-      ),
+      ), ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/responsive.dart';
 import '../../../database/database_helper.dart';
 import '../../../services/sivigila_service.dart';
 
@@ -271,7 +272,7 @@ class _AdultezScreenState extends State<AdultezScreen> {
       ),
       body: SafeArea(
         bottom: true,
-        child: SingleChildScrollView(
+        child: ResponsiveCenter(child: SingleChildScrollView(
         padding: const EdgeInsets.all(14),
         child: Column(children: [
 
@@ -428,6 +429,7 @@ class _AdultezScreenState extends State<AdultezScreen> {
           ),
           const SizedBox(height: 24),
         ]),
+      ),
       ),
       ),
     );

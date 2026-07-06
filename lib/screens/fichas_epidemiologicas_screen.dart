@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import 'ficha_formulario_screen.dart';
 import 'fichas_reportes_screen.dart';
 import 'historial_fichas_screen.dart';
@@ -757,7 +758,7 @@ class _FichasEpidemiologicasScreenState
 
         // ── Lista de fichas ────────────────────────────────────────────
         Expanded(
-          child: fichas.isEmpty
+          child: ResponsiveCenter(child: fichas.isEmpty
               ? _buildVacio(dc)
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -769,6 +770,7 @@ class _FichasEpidemiologicasScreenState
                     onVerDetalle: () => _mostrarDetalle(fichas[i]),
                   ),
                 ),
+          ),
         ),
       ]),
     );

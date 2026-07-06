@@ -22,6 +22,12 @@
 
   <title>DISPERSALUD IA</title>
 
+  <!-- Passkeys Web SDK — requerido por supabase_flutter (gotrue) en web.      -->
+  <!-- Sin esto, la app se cierra al arrancar con el error:                    -->
+  <!-- "Passkeys Web SDK not loaded. Please include the Passkeys Web SDK      -->
+  <!-- (bundle.js) in your HTML file."                                        -->
+  <script src="https://github.com/corbado/flutter-passkeys/releases/download/2.4.0/bundle.js" type="application/javascript"></script>
+
   <style id="splash-screen-style">
     * { margin: 0; padding: 0; box-sizing: border-box; }
 

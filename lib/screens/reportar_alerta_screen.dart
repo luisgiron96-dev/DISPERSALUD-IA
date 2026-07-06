@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -245,7 +246,7 @@ class _ReportarAlertaScreenState extends State<ReportarAlertaScreen> {
             child: Divider(height: 1, color: dc.border)),
       ),
 
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(maxWidth: 700, child: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: 40),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
@@ -564,7 +565,7 @@ class _ReportarAlertaScreenState extends State<ReportarAlertaScreen> {
             ]),
           ),
         ]),
-      ),
+      ), ),
     );
   }
 

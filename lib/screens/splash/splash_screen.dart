@@ -69,8 +69,20 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Si ya hay sesión activa → ir a /home directamente
     // Si no → ir a /auth para login o registro
-    final session = Supabase.instance.client.auth.currentSession;
-    final destino = session != null ? '/home' : '/auth';
+    // NOTA: esto va en try/catch a propósito. Si Supabase no llegó a
+    // inicializarse bien (red, config, etc.), acceder a Supabase.instance
+    // lanza una excepción — y sin este try/catch la app se queda
+    // congelada para siempre en el splash, sin ningún mensaje visible.
+    String destino = '/auth';
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      destino = session != null ? '/home' : '/auth';
+    } catch (e) {
+      debugPrint('⚠️ No se pudo leer la sesión de Supabase: $e');
+      destino = '/auth'; // Seguimos igual, en modo login/offline
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(destino);
   }
 

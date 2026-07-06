@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import 'ficha_formulario_screen.dart';
 
@@ -196,7 +197,7 @@ class _HistorialFichasScreenState extends State<HistorialFichasScreen> {
 
         // ── Lista ────────────────────────────────────────────────────
         Expanded(
-          child: _cargando
+          child: ResponsiveCenter(child: _cargando
               ? const Center(child: CircularProgressIndicator(color: _kVerde))
               : _filtradas.isEmpty
                   ? _buildVacio(dc)
@@ -210,6 +211,7 @@ class _HistorialFichasScreenState extends State<HistorialFichasScreen> {
                         itemBuilder: (_, i) => _buildTarjeta(_filtradas[i], dc),
                       ),
                     ),
+          ),
         ),
       ]),
     );

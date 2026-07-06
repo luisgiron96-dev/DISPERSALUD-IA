@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 
 const Color _kVerde = Color(0xFF1D9E75);
 
@@ -224,12 +225,34 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
       'eps':          _eps         ?? '',
       'modulo':       _modulo,
     };
-    if (_esEdicion) {
-      await DatabaseHelper.instance.actualizarPaciente(_idEdicion!, datos);
-    } else {
-      await DatabaseHelper.instance.insertarPaciente({
-        ...datos, 'created_at': DateTime.now().toIso8601String(),
-      });
+    // NOTA: agregamos try/catch + timeout a propósito. Antes, si
+    // DatabaseHelper se quedaba esperando indefinidamente (por ejemplo,
+    // si el motor de base de datos del navegador no llegó a inicializar
+    // bien), el botón se quedaba en "Guardando..." para siempre sin
+    // ningún mensaje de error. Ahora, después de 10 segundos sin
+    // respuesta, se muestra el error real en pantalla y en la consola.
+    try {
+      if (_esEdicion) {
+        await DatabaseHelper.instance
+            .actualizarPaciente(_idEdicion!, datos)
+            .timeout(const Duration(seconds: 10));
+      } else {
+        await DatabaseHelper.instance.insertarPaciente({
+          ...datos, 'created_at': DateTime.now().toIso8601String(),
+        }).timeout(const Duration(seconds: 10));
+      }
+    } catch (e, st) {
+      debugPrint('⚠️ Error guardando paciente: $e');
+      debugPrintStack(stackTrace: st);
+      if (mounted) {
+        setState(() => _guardando = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('No se pudo guardar: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+      return;
     }
     setState(() => _guardando = false);
     if (mounted) {
@@ -267,7 +290,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
               style: TextStyle(color: dc.textHint, fontSize: 12)),
         ]),
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(maxWidth: 700, child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
 
@@ -384,7 +407,7 @@ class _NuevoPacienteScreenState extends State<NuevoPacienteScreen> {
           ),
           const SizedBox(height: 24),
         ]),
-      ),
+      ), ),
     );
   }
 }

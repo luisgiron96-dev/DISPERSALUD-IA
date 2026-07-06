@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/responsive.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -395,6 +396,11 @@ class _AuthScreenState extends State<AuthScreen>
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          // En celular el formulario ocupa el ancho completo (igual que
+          // antes). En tablet/escritorio se limita a 460px y se centra,
+          // para que no quede un cuadro de login estirado de lado a lado.
+          child: ResponsiveCenter(
+          maxWidth: 460,
           child: Column(children: [
             const SizedBox(height: 24),
 
@@ -533,6 +539,7 @@ class _AuthScreenState extends State<AuthScreen>
             ),
             const SizedBox(height: 8),
           ]),
+          ),
         ),
       ),
     );

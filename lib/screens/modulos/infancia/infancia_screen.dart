@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/responsive.dart';
 import '../../../database/database_helper.dart';
 import '../../../services/sivigila_service.dart';
 
@@ -202,7 +203,7 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
               style: TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(child: SingleChildScrollView(
         padding: const EdgeInsets.all(14),
         child: Column(children: [
 
@@ -327,7 +328,7 @@ class _InfanciaScreenState extends State<InfanciaScreen> {
           ),
           const SizedBox(height: 24),
         ]),
-      ),
+      ), ),
     );
   }
 }

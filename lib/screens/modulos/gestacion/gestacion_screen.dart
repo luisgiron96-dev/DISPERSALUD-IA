@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/responsive.dart';
 import 'package:flutter/services.dart';
 import '../../../database/database_helper.dart';
 import '../../../services/sivigila_service.dart';
@@ -579,7 +580,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
               style: TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(child: SingleChildScrollView(
         padding: const EdgeInsets.all(14),
         child: Column(children: [
 
@@ -759,7 +760,7 @@ class _GestacionScreenState extends State<GestacionScreen> {
           ),
           SizedBox(height: 12 + MediaQuery.of(context).padding.bottom),
         ]),
-      ),
+      ), ),
     );
   }
 }

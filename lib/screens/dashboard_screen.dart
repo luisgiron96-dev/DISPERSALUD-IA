@@ -8,6 +8,7 @@ import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
 import '../database/database_helper.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import 'historia_clinica_screen.dart';
 import 'pacientes_screen.dart';
 
@@ -208,6 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         onRefresh: _cargar,
         color: _kVerde,
         child: SafeArea(
+          child: ResponsiveCenter(
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
@@ -743,6 +745,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
               const SizedBox(height: 80),
             ]),
+          ),
           ),
         ),
       ),

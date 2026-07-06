@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import '../services/ia_service.dart';
 import '../services/connectivity_service.dart';
@@ -475,7 +476,7 @@ Responde de forma breve y en español colombiano.
             color: Colors.white, size: 26),
         tooltip: 'IA DISPERSALUD',
       ),
-      body: Stack(
+      body: ResponsiveCenter(child: Stack(
         children: [
           // ── Fondo decorativo ──────────────────────────────────────────
           Positioned(top: 0, left: 0, right: 0,
@@ -664,7 +665,7 @@ Responde de forma breve y en español colombiano.
               child: _chatIAPanel(),
             ),
         ],
-      ),
+      ), ),
     );
   }
 

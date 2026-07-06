@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_theme.dart';
+import '../../core/responsive.dart';
 import '../../database/database_helper.dart';
 
 DispersaludColors _dc(BuildContext ctx) =>
@@ -241,7 +242,7 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
 
     return Scaffold(
       backgroundColor: dc.bg,
-      body: CustomScrollView(slivers: [
+      body: ResponsiveCenter(child: CustomScrollView(slivers: [
         SliverToBoxAdapter(child: _header(dc)),
         SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16,16,16,0), child: _stats(dc, verde))),
         SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16,14,16,0), child: _buscador(dc))),
@@ -272,7 +273,7 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
           child: _botonAgregar(dc, verde),
         ))),
-      ]),
+      ]), ),
     );
   }
 

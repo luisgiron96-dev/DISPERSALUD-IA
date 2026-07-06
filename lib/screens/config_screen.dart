@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import '../services/excel_service.dart';
 import 'package:printing/printing.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
@@ -21,6 +23,23 @@ const Color _kVerde = Color(0xFF1D9E75);
 
 DispersaludColors _c(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
+
+/// Construye el widget de la foto de perfil, ya sea que venga de un archivo
+/// local (Android/iOS) o de un string base64 (web). Si el dato guardado
+/// está vacío o corrupto, muestra [fallback] en su lugar en vez de fallar.
+Widget _fotoPerfilWidget(String fotoPerfil, Widget fallback) {
+  if (fotoPerfil.isEmpty) return fallback;
+  try {
+    if (kIsWeb) {
+      final b64 = fotoPerfil.replaceFirst('data:base64,', '');
+      return Image.memory(base64Decode(b64), fit: BoxFit.cover);
+    } else {
+      return Image.file(File(fotoPerfil), fit: BoxFit.cover);
+    }
+  } catch (_) {
+    return fallback;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PANTALLA COMPLETA "Mi Perfil" (nueva — diseño imagen)
@@ -141,12 +160,16 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
     if (img != null) {
       if (kIsWeb) {
-        // En web usar el path directamente (blob URL)
+        // En web no hay sistema de archivos ni File(): guardamos la imagen
+        // codificada en base64 dentro de SharedPreferences. Esto permite
+        // mostrarla con Image.memory() y que persista aunque se recargue
+        // la página (un blob: URL, en cambio, se pierde al recargar).
+        final bytes = await img.readAsBytes();
         if (!mounted) return;
-        setState(() => _fotoPerfil = img.path);
+        setState(() => _fotoPerfil = 'data:base64,${base64Encode(bytes)}');
       } else {
         final dir = await getApplicationDocumentsDirectory();
-        final dest = File('\${dir.path}/perfil_foto.jpg');
+        final dest = File('${dir.path}/perfil_foto.jpg');
         await dest.writeAsBytes(await img.readAsBytes());
         if (!mounted) return;
         setState(() => _fotoPerfil = dest.path);
@@ -160,7 +183,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
     if (img != null) {
       final dir = await getApplicationDocumentsDirectory();
-      final dest = File('\${dir.path}/perfil_foto.jpg');
+      final dest = File('${dir.path}/perfil_foto.jpg');
       await dest.writeAsBytes(await img.readAsBytes());
       if (!mounted) return;
       setState(() => _fotoPerfil = dest.path);
@@ -323,7 +346,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     final dc = _c(context);
     return Scaffold(
       backgroundColor: dc.bg,
-      body: CustomScrollView(
+      body: ResponsiveCenter(child: CustomScrollView(
         slivers: [
 
           // ── APP BAR con header verde degradado ──────────────────────────
@@ -367,12 +390,12 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                               border: Border.all(color: Colors.white.withOpacity(0.4), width: 3),
                               color: Colors.white.withOpacity(0.15),
                             ),
-                            child: ClipOval(child: (!kIsWeb && _fotoPerfil.isNotEmpty)
-                              ? Image.file(File(_fotoPerfil), fit: BoxFit.cover)
-                              : Center(child: Text(
+                            child: ClipOval(child: _fotoPerfilWidget(
+                              _fotoPerfil,
+                              Center(child: Text(
                                   _nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
                                   style: const TextStyle(color: Colors.white, fontSize: 32,
-                                      fontWeight: FontWeight.bold)))),
+                                      fontWeight: FontWeight.bold))))),
                           ),
                           Positioned(bottom: 0, right: 0,
                             child: Container(
@@ -562,6 +585,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1660,11 +1684,12 @@ class _ConfigScreenState extends State<ConfigScreen>
                         border: Border.all(color: _kVerde.withOpacity(0.3), width: 2),
                         color: _kVerde.withOpacity(0.15),
                       ),
-                      child: ClipOval(child: (!kIsWeb && _fotoPerfil.isNotEmpty)
-                        ? Image.file(File(_fotoPerfil), fit: BoxFit.cover)
-                        : Center(child: Text(
+                      child: ClipOval(child: _fotoPerfilWidget(
+                        _fotoPerfil,
+                        Center(child: Text(
                             _nombre.isNotEmpty ? _nombre[0].toUpperCase() : 'P',
-                            style: const TextStyle(color: _kVerde, fontSize: 22, fontWeight: FontWeight.bold)))),
+                            style: const TextStyle(color: _kVerde, fontSize: 22, fontWeight: FontWeight.bold))),
+                      )),
                     ),
                     const SizedBox(width: 14),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

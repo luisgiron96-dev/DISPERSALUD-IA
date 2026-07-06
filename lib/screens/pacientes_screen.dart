@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import 'nuevo_paciente_screen.dart';
 import 'historial_screen.dart';
@@ -90,6 +91,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
     return Scaffold(
       backgroundColor: _c(context).bg,
       body: SafeArea(
+        child: ResponsiveCenter(
         child: Column(children: [
           // ── Header ────────────────────────────────────────────────────
           Padding(
@@ -274,6 +276,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
                       ),
           ),
         ]),
+        ),
       ),
     );
   }

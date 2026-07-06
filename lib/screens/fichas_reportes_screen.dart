@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import 'ficha_formulario_screen.dart';
 
@@ -71,7 +72,7 @@ class _FichasReportesScreenState extends State<FichasReportesScreen> {
         title: Text('Fichas guardadas',
             style: TextStyle(color: dc.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
       ),
-      body: _cargando
+      body: ResponsiveCenter(child: _cargando
           ? const Center(child: CircularProgressIndicator(color: _kVerde))
           : _fichas.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -194,6 +195,7 @@ class _FichasReportesScreenState extends State<FichasReportesScreen> {
                     },
                   ),
                 ),
+      ),
     );
   }
 }

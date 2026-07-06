@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import '../services/pdf_service.dart';
 
@@ -122,7 +123,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
           ),
         ],
       ),
-      body: _cargando
+      body: ResponsiveCenter(child: _cargando
           ? Center(
               child: CircularProgressIndicator(color: Color(0xFF1D9E75)))
           : SingleChildScrollView(
@@ -267,6 +268,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                 SizedBox(height: 24),
               ]),
             ),
+      ),
     );
   }
 }

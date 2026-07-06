@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/app_theme.dart';
+import '../../core/responsive.dart';
 import '../../database/database_helper.dart';
 import '../../services/connectivity_service.dart';
 
@@ -214,10 +215,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final dc    = DT(context);
     final verde = Theme.of(context).colorScheme.primary;
+    // En celular esto da 3 (idéntico a como estaba siempre). Solo cambia
+    // en tablet/escritorio, donde aprovecha el espacio con más columnas.
+    final columnasModulos = columnasResponsivas(
+      context.anchoPantalla,
+      base: 3, tablet: 4, escritorio: 5,
+    );
 
     return Scaffold(
       backgroundColor: dc.bg,
-      body: RefreshIndicator(
+      body: ResponsiveCenter(
+        child: RefreshIndicator(
         onRefresh: () async {
           await _cargarPerfil();
           await _cargarDatos();
@@ -373,11 +381,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:   3,
+                // mainAxisExtent = alto FIJO de la tarjeta (166px, el mismo
+                // que resultaba antes en celular con childAspectRatio 0.68).
+                // Al fijar la altura en vez de calcularla por proporción,
+                // las tarjetas se ensanchan en pantallas grandes pero NUNCA
+                // se estiran de alto ni dejan espacios vacíos. En celular
+                // columnasModulos = 3 siempre, así que el resultado es
+                // exactamente igual a como estaba antes.
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:   columnasModulos,
                   crossAxisSpacing: 10,
                   mainAxisSpacing:  10,
-                  childAspectRatio: 0.68,
+                  mainAxisExtent:   166,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) => _ModuloCard(
@@ -393,6 +408,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
+        ),
         ),
       ),
     );

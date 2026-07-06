@@ -81,17 +81,43 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) databaseFactory = databaseFactoryFfiWeb;
 
-  await Supabase.initialize(
-    url:     'https://whsipsmeqrlyfyyzagnk.supabase.co',
-    anonKey: 'sb_publishable_gITtOddpPlSH7npmFbh5rw_KAQTrVCw',
-  ).catchError((_) {});
+  // ── Supabase ──────────────────────────────────────────────────────────
+  // IMPORTANTE: antes esto usaba `.catchError((_) {})`, lo cual es peligroso:
+  // Supabase.initialize() devuelve Future<Supabase> (no admite null), y si
+  // fallaba por cualquier motivo, catchError intentaba devolver `null`,
+  // lanzando un error NUEVO de tipo ("Null no es subtipo de Supabase") que
+  // no quedaba capturado por nada. Ese error se perdía silenciosamente y
+  // la app se quedaba congelada en el splash porque nunca llegaba a
+  // ejecutar runApp() o se rompía más adelante al acceder a
+  // Supabase.instance sin haber sido inicializado.
+  try {
+    await Supabase.initialize(
+      url:     'https://whsipsmeqrlyfyyzagnk.supabase.co',
+      anonKey: 'sb_publishable_gITtOddpPlSH7npmFbh5rw_KAQTrVCw',
+    );
+  } catch (e, st) {
+    // No detenemos el arranque de la app, pero SÍ dejamos rastro visible
+    // en la consola del navegador (F12 > Console) para poder diagnosticar.
+    debugPrint('⚠️ Supabase.initialize() falló: $e');
+    debugPrintStack(stackTrace: st);
+  }
 
-  await Future.wait([
-    SecurityService.instance.init().catchError((_) {}),
-    _cargarTemaGuardado().catchError((_) {}),
-  ]);
+  try {
+    await Future.wait([
+      SecurityService.instance.init(),
+      _cargarTemaGuardado(),
+    ]);
+  } catch (e, st) {
+    debugPrint('⚠️ Error inicializando servicios: $e');
+    debugPrintStack(stackTrace: st);
+  }
 
-  ConnectivityService.instance.init().catchError((_) {});
+  // No bloquea el arranque: se ejecuta en segundo plano.
+  // ignore: unawaited_futures
+  ConnectivityService.instance.init().catchError((e) {
+    debugPrint('⚠️ ConnectivityService falló: $e');
+  });
+
   runApp(const DispersaludApp());
 }
 

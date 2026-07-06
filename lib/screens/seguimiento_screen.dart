@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import '../services/connectivity_service.dart';
 import '../widgets/firma_panel.dart';
@@ -476,7 +477,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
-        child: Column(children: [
+        child: ResponsiveCenter(child: Column(children: [
 
           // ── APP BAR ────────────────────────────────────────────────────
           Padding(
@@ -703,7 +704,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   ),
           ),
         ]),
-      ),
+      ), ),
     );
   }
 }

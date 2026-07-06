@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../core/app_theme.dart';
+import '../core/responsive.dart';
 import '../database/database_helper.dart';
 
 DispersaludColors _c(BuildContext ctx) =>
@@ -864,7 +865,7 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
 
         // ── Formulario ───────────────────────────────────────────────────
         Expanded(
-          child: SingleChildScrollView(
+          child: ResponsiveCenter(maxWidth: 800, child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 80),
             child: Container(
               decoration: BoxDecoration(
@@ -988,6 +989,7 @@ class _FichaFormularioScreenState extends State<FichaFormularioScreen> {
                 ),
               ]),
             ),
+          ),
           ),
         ),
       ]),
