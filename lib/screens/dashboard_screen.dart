@@ -28,11 +28,17 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
 
   // Conectividad
   bool _tieneInternet = false;
   StreamSubscription<bool>? _connSub;
+
+  // ── Animación mascota FAB ────────────────────────────────────────────────
+  late AnimationController _flotarCtrl;
+  late AnimationController _pulsoCtrl;
+  late Animation<double> _flotar;
+  late Animation<double> _pulso;
 
   // Datos
   int    _consultasHoy       = 0;
@@ -62,6 +68,18 @@ class _DashboardScreenState extends State<DashboardScreen>
     _cargarPerfil();
     _cargar();
     _initConectividad();
+    // Animación de flotación suave
+    _flotarCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1800))
+      ..repeat(reverse: true);
+    _flotar = Tween<double>(begin: -5, end: 5).animate(
+        CurvedAnimation(parent: _flotarCtrl, curve: Curves.easeInOut));
+    // Pulso del aura
+    _pulsoCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat(reverse: true);
+    _pulso = Tween<double>(begin: 0.88, end: 1.08).animate(
+        CurvedAnimation(parent: _pulsoCtrl, curve: Curves.easeInOut));
   }
 
   Future<void> _initConectividad() async {
@@ -136,6 +154,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connSub?.cancel();
+    _flotarCtrl.dispose();
+    _pulsoCtrl.dispose();
     super.dispose();
   }
 
@@ -200,10 +220,70 @@ class _DashboardScreenState extends State<DashboardScreen>
     final dt = DT(context);
     return Scaffold(
       backgroundColor: dt.bg,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _abrirAsistente,
-        backgroundColor: _kVerde,
-        child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 26),
+      floatingActionButton: AnimatedBuilder(
+        animation: Listenable.merge([_flotarCtrl, _pulsoCtrl]),
+        builder: (_, __) => Transform.translate(
+          offset: Offset(0, _flotar.value),
+          child: GestureDetector(
+            onTap: _abrirAsistente,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Aura pulsante
+                Transform.scale(
+                  scale: _pulso.value,
+                  child: Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        _kVerde.withOpacity(0.35),
+                        _kVerde.withOpacity(0.0),
+                      ]),
+                    ),
+                  ),
+                ),
+                // Imagen circular
+                Container(
+                  width: 58, height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kVerde.withOpacity(0.5),
+                        blurRadius: 16, spreadRadius: 2,
+                        offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/mascota_ia.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                          Icons.smart_toy_rounded,
+                          color: Color(0xFF1D9E75), size: 30),
+                    ),
+                  ),
+                ),
+                // Punto verde de estado
+                Positioned(
+                  bottom: 6, right: 6,
+                  child: Container(
+                    width: 12, height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _tieneInternet
+                          ? const Color(0xFF2ECC71)
+                          : const Color(0xFFEF9F27),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _cargar,
@@ -318,21 +398,28 @@ class _DashboardScreenState extends State<DashboardScreen>
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Icono robot
+                    // Mascota IA
                     Container(
-                      width: 64, height: 64,
+                      width: 80, height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.18),
+                            blurRadius: 8, offset: const Offset(0, 3)),
+                        ],
                       ),
-                      child: Stack(alignment: Alignment.center, children: [
-                        const Icon(Icons.smart_toy_rounded,
-                            color: Colors.white, size: 36),
-                        Positioned(
-                          top: 6, right: 6,
-                          child: Icon(Icons.auto_awesome,
-                              color: Colors.white.withOpacity(0.7), size: 12)),
-                      ]),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/mascota_ia.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.smart_toy_rounded,
+                              color: Color(0xFF1D9E75), size: 40),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 14),
                     // Texto
@@ -1080,8 +1167,15 @@ class _AsistenteModalState extends State<_AsistenteModal> {
                 gradient: const LinearGradient(
                     colors: [Color(0xFF085041), Color(0xFF1D9E75)]),
                 borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.smart_toy_rounded,
-                  color: Colors.white, size: 22),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/mascota_ia.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                      Icons.smart_toy_rounded, color: Colors.white, size: 22),
+                ),
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(child: Column(
