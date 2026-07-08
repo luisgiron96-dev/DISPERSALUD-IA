@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../database/database_helper.dart';
+import '../../core/responsive.dart';
 import '../../services/ia_service.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/pdf_service.dart';
@@ -582,7 +583,7 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
         child: Column(children: [
           _header(),
           Expanded(
-            child: _cargando
+            child: ResponsiveCenter(child: _cargando
                 ? const Center(child: CircularProgressIndicator(color: _kVerdeBI))
                 : RefreshIndicator(
                     color: _kVerdeBI,
@@ -682,6 +683,7 @@ class _ParteraSaberesState extends State<ParteraSaberesScreen> {
                       ),
                     ),
                   ),
+          ),
           ),
         ]),
       ),

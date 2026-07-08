@@ -44,6 +44,7 @@ dependencies:
   # Excel — exportación (versión 2.x con API compatible)
   excel: ^2.1.0
   open_filex: ^4.3.4
+  file_picker: ^8.1.2
 
   # Conectividad y red
   connectivity_plus: ^6.0.3

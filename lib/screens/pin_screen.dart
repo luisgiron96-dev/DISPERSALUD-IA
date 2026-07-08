@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/responsive.dart';
 import '../services/connectivity_service.dart';
 
 // ─── Colores base (el modo claro se calcula desde el tema) ───────────────────
@@ -297,7 +298,7 @@ class _PinScreenState extends State<PinScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: Stack(children: [
+      body: ResponsiveCenter(maxWidth: 460, child: Stack(children: [
 
         // ── Fondo ECG decorativo ──────────────────────────────────────────
         Positioned.fill(child: CustomPaint(
@@ -562,7 +563,7 @@ class _PinScreenState extends State<PinScreen> with TickerProviderStateMixin {
             },
           ),
         ),
-      ]),
+      ]), ),
     );
   }
 }

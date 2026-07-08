@@ -9,6 +9,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../services/excel_service.dart';
+import 'package:file_picker/file_picker.dart';
+import '../services/backup_downloader_stub.dart'
+    if (dart.library.html) '../services/backup_downloader_web.dart'
+    if (dart.library.io)   '../services/backup_downloader_mobile.dart';
 import 'package:printing/printing.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/app_theme.dart';
@@ -908,6 +912,7 @@ class _ConfigScreenState extends State<ConfigScreen>
   bool _exportandoExcel = false;
   bool _sincronizando = false;
   bool _creandoCopia  = false;
+  bool _restaurando   = false;
 
   @override
   void initState() {
@@ -1142,16 +1147,98 @@ class _ConfigScreenState extends State<ConfigScreen>
       final dd  = ahora.day.toString().padLeft(2, '0');
       final hh  = ahora.hour.toString().padLeft(2, '0');
       final min = ahora.minute.toString().padLeft(2, '0');
-      if (!kIsWeb) {
-        final dir = await getApplicationDocumentsDirectory();
-        final nombre = 'dispersalud_backup_${ahora.year}${mm}${dd}_${hh}${min}.json';
-        final file = File('${dir.path}/$nombre');
-        await file.writeAsString(_mapToJson(backup));
-      }
+      final nombre = 'dispersalud_backup_${ahora.year}${mm}${dd}_${hh}${min}.json';
+      // NOTA: antes esto tenía `if (!kIsWeb) { ...guardar archivo... }`,
+      // lo cual significaba que en web NUNCA se guardaba ningún archivo
+      // real — el mensaje decía "Copia guardada" pero era falso. Ahora,
+      // en web se descarga el .json al navegador (carpeta Descargas del
+      // usuario) usando el mismo mecanismo que ya usa la exportación a
+      // Excel; en Android/iOS se sigue guardando en la carpeta de
+      // documentos de la app, exactamente como antes.
+      await descargarBackup(_mapToJson(backup), nombre);
       await prefs.setString('ultima_copia', ahora.toIso8601String());
       _snack('✓ Copia guardada: ${pacientes.length} pacientes, ${consultas.length} consultas');
     } catch (e) { _snack('Error al crear copia: $e', error: true); }
     finally { if (mounted) setState(() => _creandoCopia = false); }
+  }
+
+  // ── Restaurar una copia de seguridad desde un archivo .json ──────────────
+  Future<void> _restaurarCopia() async {
+    if (_restaurando) return;
+
+    // Confirmación previa: importar puede duplicar o sobrescribir datos.
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _c(context).card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('¿Restaurar copia de seguridad?',
+            style: TextStyle(color: _c(context).textPrimary, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Se agregarán los pacientes, consultas y alertas del archivo que elijas. '
+          'Si un registro ya existe (mismo ID), se actualizará con los datos de la copia. '
+          'Esta acción no se puede deshacer.',
+          style: TextStyle(color: _c(context).textSecondary, fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar', style: TextStyle(color: _kVerde))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kVerde,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Elegir archivo', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    setState(() => _restaurando = true);
+    try {
+      // withData: true es obligatorio en web (ahí no existe una ruta de
+      // archivo real; solo se puede acceder a los bytes en memoria).
+      final resultado = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        withData: true,
+      );
+      if (resultado == null || resultado.files.single.bytes == null) {
+        setState(() => _restaurando = false);
+        return; // el usuario canceló el selector
+      }
+
+      _snack('Restaurando copia de seguridad...', info: true);
+      final contenido = utf8.decode(resultado.files.single.bytes!);
+      final Map<String, dynamic> backup = jsonDecode(contenido);
+
+      if (backup['datos'] == null) {
+        throw const FormatException('El archivo no tiene el formato esperado de DISPERSALUD IA');
+      }
+      final datos = backup['datos'] as Map<String, dynamic>;
+      final pacientes = (datos['pacientes'] as List?) ?? [];
+      final consultas = (datos['consultas'] as List?) ?? [];
+      final alertas   = (datos['alertas']   as List?) ?? [];
+
+      int okPacientes = 0, okConsultas = 0, okAlertas = 0;
+      for (final p in pacientes) {
+        try { await DatabaseHelper.instance.insertarPaciente(Map<String, dynamic>.from(p)); okPacientes++; } catch (_) {}
+      }
+      for (final c in consultas) {
+        try { await DatabaseHelper.instance.insertarConsulta(Map<String, dynamic>.from(c)); okConsultas++; } catch (_) {}
+      }
+      for (final a in alertas) {
+        try { await DatabaseHelper.instance.insertarAlerta(Map<String, dynamic>.from(a)); okAlertas++; } catch (_) {}
+      }
+
+      _snack('✓ Copia restaurada: $okPacientes pacientes, $okConsultas consultas, $okAlertas alertas');
+    } on FormatException catch (e) {
+      _snack('Archivo inválido: ${e.message}', error: true);
+    } catch (e) {
+      _snack('Error al restaurar la copia: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _restaurando = false);
+    }
   }
 
   String _mapToJson(dynamic obj) {
@@ -1569,6 +1656,15 @@ class _ConfigScreenState extends State<ConfigScreen>
               style: ElevatedButton.styleFrom(backgroundColor: _kVerde, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),
+          const SizedBox(height: 10),
+          SizedBox(width: double.infinity, height: 48,
+            child: OutlinedButton.icon(
+              onPressed: _restaurando ? null : () { Navigator.pop(context); _restaurarCopia(); },
+              icon: _restaurando ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Color(0xFF185FA5), strokeWidth: 2)) : const Icon(Icons.restore_rounded, size: 18, color: Color(0xFF185FA5)),
+              label: Text(_restaurando ? 'Restaurando...' : 'Restaurar desde archivo', style: const TextStyle(color: Color(0xFF185FA5))),
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF185FA5)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+          ),
         ]),
       ),
     );
@@ -1784,7 +1880,9 @@ class _ConfigScreenState extends State<ConfigScreen>
               _tile(Icons.sync_rounded, 'Sincronización de datos', _sincronizando ? 'Sincronizando...' : null,
                   dc, onTap: _abrirSincronizacion, iconColor: _online ? _kVerde : Colors.orange),
               _tile(Icons.download_outlined, 'Exportar datos', _exportando ? 'Generando PDF...' : null, dc, onTap: _abrirExportar),
-              _tile(Icons.backup_outlined, 'Copias de seguridad', _creandoCopia ? 'Creando copia...' : null, dc, onTap: _abrirCopias, last: true),
+              _tile(Icons.backup_outlined, 'Copias de seguridad',
+                  _creandoCopia ? 'Creando copia...' : _restaurando ? 'Restaurando...' : null,
+                  dc, onTap: _abrirCopias, last: true),
             ], dc),
             const SizedBox(height: 8),
             _label('Soporte'),

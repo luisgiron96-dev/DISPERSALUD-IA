@@ -1909,13 +1909,18 @@ class _AlertasScreenState extends State<AlertasScreen> {
             style: TextStyle(color: _c(context).textPrimary,
                 fontSize: 13, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
-        GridView.count(
+        // NOTA: antes usaba `childAspectRatio: 0.75`, causando tarjetas
+        // desproporcionadamente altas en pantallas anchas. `mainAxisExtent`
+        // fijo mantiene siempre el mismo alto compacto.
+        GridView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 5,
-          childAspectRatio: 0.75,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            mainAxisExtent: 76,
+          ),
           children: [
             _CategoriaGridItem('🦟', 'Vectores',      'vectores', const Color(0xFF3B6D11)),
             _CategoriaGridItem('💉', 'Inmuno',         'inmuno',   const Color(0xFF185FA5)),

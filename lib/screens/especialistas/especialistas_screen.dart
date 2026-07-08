@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +12,25 @@ import '../../services/connectivity_service.dart';
 
 DispersaludColors _dc(BuildContext ctx) =>
     Theme.of(ctx).extension<DispersaludColors>() ?? DispersaludColors.dark;
+
+/// Devuelve el ImageProvider correcto para la foto de un especialista, ya
+/// sea que venga de un archivo local (Android/iOS) o de un string base64
+/// (web, donde no existe sistema de archivos). Si el dato está vacío o
+/// corrupto, devuelve null (el llamador debe mostrar un fallback).
+ImageProvider? _fotoEspecialistaProvider(String fotoPath) {
+  if (fotoPath.isEmpty) return null;
+  try {
+    if (kIsWeb) {
+      if (!fotoPath.startsWith('data:base64,')) return null;
+      final b64 = fotoPath.replaceFirst('data:base64,', '');
+      return MemoryImage(base64Decode(b64));
+    } else {
+      return FileImage(File(fotoPath));
+    }
+  } catch (_) {
+    return null;
+  }
+}
 
 // ── Chips de filtro ───────────────────────────────────────────────────────────
 const _kTabs = [
@@ -713,7 +733,10 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
                 color: color.withOpacity(0.2), shape: BoxShape.circle,
                 border: Border.all(color: color.withOpacity(0.4), width: 2),
                 image: fotoPath.isNotEmpty
-                    ? DecorationImage(image: (!kIsWeb && fotoPath.isNotEmpty) ? FileImage(File(fotoPath)) as ImageProvider : const AssetImage('assets/logo_dispersalud.png'), fit: BoxFit.cover)
+                    ? DecorationImage(
+                        image: _fotoEspecialistaProvider(fotoPath) ??
+                            const AssetImage('assets/logo_dispersalud.png'),
+                        fit: BoxFit.cover)
                     : null,
               ),
               child: fotoPath.isEmpty
@@ -929,6 +952,22 @@ class _FormularioState extends State<_Formulario> {
   Color             get verde => widget.verde;
 
   // ── Seleccionar foto ──────────────────────────────────────────────────────
+  // NOTA: en web, XFile.path es una URL temporal tipo "blob:..." que no se
+  // puede volver a abrir con File() ni persiste al recargar la página. Por
+  // eso, en web guardamos la imagen codificada en base64 (igual que en la
+  // pantalla de "Mi Perfil"); en Android/iOS seguimos usando la ruta real
+  // del archivo, sin cambios.
+  Future<void> _guardarFotoSeleccionada(XFile f) async {
+    if (kIsWeb) {
+      final bytes = await f.readAsBytes();
+      if (!mounted) return;
+      setState(() => _fotoPath = 'data:base64,${base64Encode(bytes)}');
+    } else {
+      if (!mounted) return;
+      setState(() => _fotoPath = f.path);
+    }
+  }
+
   void _seleccionarFoto() {
     final picker = ImagePicker();
     showModalBottomSheet(
@@ -942,7 +981,7 @@ class _FormularioState extends State<_Formulario> {
           onTap: () async {
             Navigator.pop(context);
             final f = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
-            if (f != null && mounted) setState(() => _fotoPath = f.path);
+            if (f != null) await _guardarFotoSeleccionada(f);
           },
         ),
         ListTile(
@@ -951,7 +990,7 @@ class _FormularioState extends State<_Formulario> {
           onTap: () async {
             Navigator.pop(context);
             final f = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-            if (f != null && mounted) setState(() => _fotoPath = f.path);
+            if (f != null) await _guardarFotoSeleccionada(f);
           },
         ),
         if (_fotoPath != null && _fotoPath!.isNotEmpty)
@@ -1119,7 +1158,10 @@ class _FormularioState extends State<_Formulario> {
                 color: verde.withOpacity(0.12),
                 border: Border.all(color: verde.withOpacity(0.4), width: 2),
                 image: (_fotoPath != null && _fotoPath!.isNotEmpty)
-                    ? DecorationImage(image: (!kIsWeb && (_fotoPath?.isNotEmpty ?? false)) ? FileImage(File(_fotoPath!)) as ImageProvider : const AssetImage('assets/logo_dispersalud.png'), fit: BoxFit.cover)
+                    ? DecorationImage(
+                        image: _fotoEspecialistaProvider(_fotoPath!) ??
+                            const AssetImage('assets/logo_dispersalud.png'),
+                        fit: BoxFit.cover)
                     : null,
               ),
               child: (_fotoPath == null || _fotoPath!.isEmpty)
