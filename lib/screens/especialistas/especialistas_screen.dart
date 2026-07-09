@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -1086,18 +1087,19 @@ class _FormularioState extends State<_Formulario> {
     if (fecha != null && mounted) setState(() => _fecha = fecha);
   }
 
-  // ── Seleccionar hora ──────────────────────────────────────────────────────
+  // ── Seleccionar hora — picker personalizado oscuro con reloj analógico ──────
   Future<void> _seleccionarHora() async {
-    final hora = await showTimePicker(
+    final resultado = await showModalBottomSheet<TimeOfDay>(
       context: context,
-      initialTime: _hora ?? TimeOfDay.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(colorScheme: ColorScheme.dark(
-            primary: verde, surface: dc.card, onSurface: dc.textPrimary)),
-        child: child!,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TimePickerCustom(
+        inicial: _hora ?? TimeOfDay.now(),
+        verde:   verde,
+        dc:      dc,
       ),
     );
-    if (hora != null && mounted) setState(() => _hora = hora);
+    if (resultado != null && mounted) setState(() => _hora = resultado);
   }
 
   // ── Guardar ───────────────────────────────────────────────────────────────
@@ -1358,4 +1360,292 @@ class _FormularioState extends State<_Formulario> {
         ),
       ),
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TIME PICKER PERSONALIZADO — Estilo oscuro con reloj analógico
+// ═════════════════════════════════════════════════════════════════════════════
+class _TimePickerCustom extends StatefulWidget {
+  final TimeOfDay inicial;
+  final Color verde;
+  final DispersaludColors dc;
+  const _TimePickerCustom({required this.inicial, required this.verde, required this.dc});
+  @override State<_TimePickerCustom> createState() => _TimePickerCustomState();
+}
+
+class _TimePickerCustomState extends State<_TimePickerCustom> {
+  late int  _hora;
+  late int  _minuto;
+  late bool _esPM;
+  bool      _editandoMinutos = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hora   = widget.inicial.hourOfPeriod == 0 ? 12 : widget.inicial.hourOfPeriod;
+    _minuto = widget.inicial.minute;
+    _esPM   = widget.inicial.period == DayPeriod.pm;
+  }
+
+  TimeOfDay get _resultado {
+    int h = _hora % 12;
+    if (_esPM) h += 12;
+    return TimeOfDay(hour: h, minute: _minuto);
+  }
+
+  String _pad(int v) => v.toString().padLeft(2, '0');
+
+  void _onRelojTap(Offset localPos, Size size) {
+    final centro = Offset(size.width / 2, size.height / 2);
+    final dx = localPos.dx - centro.dx;
+    final dy = localPos.dy - centro.dy;
+    double angulo = (atan2(dx, -dy) * 180 / pi + 360) % 360;
+    if (!_editandoMinutos) {
+      int h = (angulo / 30).round() % 12;
+      if (h == 0) h = 12;
+      setState(() => _hora = h);
+    } else {
+      int m = (angulo / 6).round() % 60;
+      setState(() => _minuto = m);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color fondo  = const Color(0xFF0D1B12);
+    final Color cardC  = const Color(0xFF131F17);
+    final Color borde  = const Color(0xFF1D9E75).withOpacity(0.3);
+    final Color verde  = widget.verde;
+    final Color textoH = const Color(0xFF6F9A78);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: fondo,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: borde, width: 1.5),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 14, 20,
+          MediaQuery.of(context).padding.bottom + 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+
+        // Handle
+        Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(color: borde, borderRadius: BorderRadius.circular(2)))),
+
+        // Título
+        Row(children: [
+          Container(width: 36, height: 36,
+            decoration: BoxDecoration(color: verde.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10), border: Border.all(color: borde)),
+            child: Icon(Icons.access_time_rounded, color: verde, size: 20)),
+          const SizedBox(width: 12),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Selecciona una hora',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Elige la hora que prefieras', style: TextStyle(color: textoH, fontSize: 11)),
+          ]),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(width: 32, height: 32,
+              decoration: BoxDecoration(color: cardC, shape: BoxShape.circle, border: Border.all(color: borde)),
+              child: const Icon(Icons.close_rounded, color: Colors.white54, size: 16))),
+        ]),
+        const SizedBox(height: 20),
+
+        // Display hora : minutos
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          GestureDetector(
+            onTap: () => setState(() => _editandoMinutos = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 100, height: 72,
+              decoration: BoxDecoration(
+                color: !_editandoMinutos ? verde : cardC,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: !_editandoMinutos ? verde : borde, width: 1.5)),
+              child: Center(child: Text(_pad(_hora),
+                  style: TextStyle(
+                      color: !_editandoMinutos ? Colors.white : textoH,
+                      fontSize: 36, fontWeight: FontWeight.w700))),
+            ),
+          ),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(':', style: TextStyle(color: textoH, fontSize: 36, fontWeight: FontWeight.bold))),
+          GestureDetector(
+            onTap: () => setState(() => _editandoMinutos = true),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 100, height: 72,
+              decoration: BoxDecoration(
+                color: _editandoMinutos ? verde : cardC,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _editandoMinutos ? verde : borde, width: 1.5)),
+              child: Center(child: Text(_pad(_minuto),
+                  style: TextStyle(
+                      color: _editandoMinutos ? Colors.white : textoH,
+                      fontSize: 36, fontWeight: FontWeight.w700))),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(children: [
+            _amPmBtn('AM', !_esPM, verde, cardC, borde, textoH, () => setState(() => _esPM = false)),
+            const SizedBox(height: 8),
+            _amPmBtn('PM', _esPM,  verde, cardC, borde, textoH, () => setState(() => _esPM = true)),
+          ]),
+        ]),
+
+        // Etiquetas
+        Padding(padding: const EdgeInsets.only(top: 6),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            SizedBox(width: 100, child: Center(child: Text('Hora',
+                style: TextStyle(color: !_editandoMinutos ? verde : textoH,
+                    fontSize: 11, fontWeight: FontWeight.w600)))),
+            const SizedBox(width: 30),
+            SizedBox(width: 100, child: Center(child: Text('Minutos',
+                style: TextStyle(color: _editandoMinutos ? verde : textoH,
+                    fontSize: 11, fontWeight: FontWeight.w600)))),
+          ])),
+        const SizedBox(height: 20),
+
+        // Reloj analógico
+        GestureDetector(
+          onTapDown: (d) => _onRelojTap(d.localPosition, const Size(220, 220)),
+          onPanUpdate: (d) => _onRelojTap(d.localPosition, const Size(220, 220)),
+          child: SizedBox(width: 220, height: 220,
+              child: CustomPaint(painter: _RelojPainter(
+                hora: _hora, minuto: _minuto, esPM: _esPM,
+                editandoMinutos: _editandoMinutos, verde: verde))),
+        ),
+        const SizedBox(height: 20),
+
+        // Accesos rápidos
+        Row(children: [
+          _quickBtn('🌅', 'Mañana', '08:00 AM', verde, cardC, borde, textoH,
+              () => setState(() { _hora = 8;  _minuto = 0; _esPM = false; })),
+          const SizedBox(width: 8),
+          _quickBtn('☀️', 'Tarde',  '02:00 PM', verde, cardC, borde, textoH,
+              () => setState(() { _hora = 2;  _minuto = 0; _esPM = true; })),
+          const SizedBox(width: 8),
+          _quickBtn('🌆', 'Noche',  '08:00 PM', verde, cardC, borde, textoH,
+              () => setState(() { _hora = 8;  _minuto = 0; _esPM = true; })),
+        ]),
+        const SizedBox(height: 20),
+
+        // Botones
+        Row(children: [
+          Expanded(child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(color: cardC, borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borde)),
+              child: const Center(child: Text('Cancelar',
+                  style: TextStyle(color: Colors.white60, fontSize: 14, fontWeight: FontWeight.w600)))),
+          )),
+          const SizedBox(width: 12),
+          Expanded(child: GestureDetector(
+            onTap: () => Navigator.pop(context, _resultado),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [verde.withOpacity(0.8), verde],
+                    begin: Alignment.centerLeft, end: Alignment.centerRight),
+                borderRadius: BorderRadius.circular(14)),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('Aceptar', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                SizedBox(width: 8),
+                Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 18),
+              ])),
+          )),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _amPmBtn(String label, bool activo, Color verde, Color cardC, Color borde, Color textoH, VoidCallback onTap) =>
+    GestureDetector(onTap: onTap,
+      child: AnimatedContainer(duration: const Duration(milliseconds: 180),
+        width: 54, height: 32,
+        decoration: BoxDecoration(color: activo ? verde : cardC,
+            borderRadius: BorderRadius.circular(8), border: Border.all(color: activo ? verde : borde)),
+        child: Center(child: Text(label,
+            style: TextStyle(color: activo ? Colors.white : textoH, fontSize: 12, fontWeight: FontWeight.bold)))));
+
+  Widget _quickBtn(String emoji, String titulo, String sub,
+      Color verde, Color cardC, Color borde, Color textoH, VoidCallback onTap) =>
+    Expanded(child: GestureDetector(onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(color: cardC, borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borde)),
+        child: Column(children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(height: 4),
+          Text(titulo, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(sub, style: TextStyle(color: textoH, fontSize: 10)),
+        ]))));
+}
+
+// ── Pintor del reloj analógico ─────────────────────────────────────────────
+class _RelojPainter extends CustomPainter {
+  final int  hora, minuto;
+  final bool esPM, editandoMinutos;
+  final Color verde;
+  const _RelojPainter({required this.hora, required this.minuto,
+      required this.esPM, required this.editandoMinutos, required this.verde});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centro = Offset(size.width / 2, size.height / 2);
+    final radio  = size.width / 2 - 8;
+
+    canvas.drawCircle(centro, radio, Paint()..color = const Color(0xFF131F17)..style = PaintingStyle.fill);
+    canvas.drawCircle(centro, radio, Paint()
+      ..color = verde.withOpacity(0.25)..style = PaintingStyle.stroke..strokeWidth = 1.5);
+
+    for (int i = 0; i < 60; i++) {
+      final angulo = i * 6 * pi / 180;
+      final esPrincipal = i % 5 == 0;
+      final r1 = radio - (esPrincipal ? 14 : 8);
+      final r2 = radio - 4;
+      canvas.drawLine(
+        Offset(centro.dx + r1 * sin(angulo), centro.dy - r1 * cos(angulo)),
+        Offset(centro.dx + r2 * sin(angulo), centro.dy - r2 * cos(angulo)),
+        Paint()..color = esPrincipal ? verde.withOpacity(0.5) : verde.withOpacity(0.15)
+               ..strokeWidth = esPrincipal ? 1.5 : 0.8);
+    }
+
+    const nums = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    final numRadio = radio - 28.0;
+    for (int i = 0; i < 12; i++) {
+      final angulo = i * 30 * pi / 180;
+      final pos = Offset(centro.dx + numRadio * sin(angulo), centro.dy - numRadio * cos(angulo));
+      final activo = !editandoMinutos && nums[i] == hora;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${editandoMinutos ? i * 5 : nums[i]}',
+          style: TextStyle(color: activo ? Colors.white : verde.withOpacity(0.6),
+              fontSize: activo ? 14 : 11, fontWeight: activo ? FontWeight.bold : FontWeight.normal)),
+        textDirection: TextDirection.ltr)..layout();
+      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+    }
+
+    final anguloManecilla = editandoMinutos ? minuto * 6 * pi / 180 : hora * 30 * pi / 180;
+    final longManecilla = radio - 36.0;
+    canvas.drawCircle(centro, 6, Paint()..color = verde);
+    canvas.drawLine(centro,
+      Offset(centro.dx + longManecilla * sin(anguloManecilla),
+             centro.dy - longManecilla * cos(anguloManecilla)),
+      Paint()..color = verde..strokeWidth = 3..strokeCap = StrokeCap.round);
+    canvas.drawCircle(
+      Offset(centro.dx + longManecilla * sin(anguloManecilla),
+             centro.dy - longManecilla * cos(anguloManecilla)),
+      10, Paint()..color = verde);
+  }
+
+  @override
+  bool shouldRepaint(_RelojPainter old) =>
+      old.hora != hora || old.minuto != minuto ||
+      old.esPM != esPM || old.editandoMinutos != editandoMinutos;
 }
