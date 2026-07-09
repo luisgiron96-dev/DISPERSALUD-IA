@@ -6,6 +6,8 @@ import '../core/responsive.dart';
 import '../database/database_helper.dart';
 import '../services/ia_service.dart';
 import '../services/connectivity_service.dart';
+import '../widgets/ia_fab_boton.dart';
+import '../widgets/ia_icon_avatar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COLORES TEMÁTICOS (oscuro selvático)
@@ -469,12 +471,11 @@ Responde de forma breve y en español colombiano.
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kFondo,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _kMorado,
-        onPressed: () => setState(() => _iaVisible = !_iaVisible),
-        child: Icon(_iaVisible ? Icons.close : Icons.smart_toy_rounded,
-            color: Colors.white, size: 26),
-        tooltip: 'IA DISPERSALUD',
+      floatingActionButton: IaFabBoton(
+        abierto: _iaVisible,
+        online: _online,
+        colorPrincipal: _kMorado,
+        onTap: () => setState(() => _iaVisible = !_iaVisible),
       ),
       body: ResponsiveCenter(child: Stack(
         children: [
@@ -661,7 +662,7 @@ Responde de forma breve y en español colombiano.
           // ── CHAT IA FLOTANTE ──────────────────────────────────────────
           if (_iaVisible)
             Positioned(
-              bottom: 80, right: 12, left: 12,
+              bottom: 150, right: 12, left: 12,
               child: _chatIAPanel(),
             ),
         ],
@@ -780,15 +781,7 @@ Responde de forma breve y en español colombiano.
     return _Card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_kMorado, _kMoradoClaro]),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-          ),
+          const IaIconAvatar(size: 36, sombra: true),
           const SizedBox(width: 8),
           const Text('IA DISPERSALUD',
               style: TextStyle(color: _kMoradoClaro, fontSize: 12,
@@ -1059,13 +1052,14 @@ Responde de forma breve y en español colombiano.
             _kDorado, _agendarControl),
         const SizedBox(width: 8),
         _botonAccion(Icons.smart_toy_rounded, 'IA',
-            _kMorado, () => setState(() => _iaVisible = !_iaVisible)),
+            _kMorado, () => setState(() => _iaVisible = !_iaVisible),
+            iconoPersonalizado: const IaIconAvatar(size: 34)),
       ]),
     ]),
   );
 
   Widget _botonAccion(IconData icono, String label, Color color,
-      VoidCallback onTap) => Expanded(
+      VoidCallback onTap, {Widget? iconoPersonalizado}) => Expanded(
     child: GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1076,7 +1070,7 @@ Responde de forma breve y en español colombiano.
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(children: [
-          Container(
+          iconoPersonalizado ?? Container(
             width: 34, height: 34,
             decoration: BoxDecoration(
                 color: color.withOpacity(0.15), shape: BoxShape.circle),
@@ -1246,7 +1240,7 @@ Responde de forma breve y en español colombiano.
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Row(children: [
-          const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 18),
+          const IaIconAvatar(size: 24),
           const SizedBox(width: 8),
           const Expanded(child: Text('IA DISPERSALUD — Saberes Ancestrales',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,

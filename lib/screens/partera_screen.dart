@@ -10,6 +10,8 @@ import '../database/database_helper.dart';
 import '../core/responsive.dart';
 import '../services/connectivity_service.dart';
 import '../services/ia_service.dart';
+import '../widgets/ia_fab_boton.dart';
+import '../widgets/ia_icon_avatar.dart';
 
 const _kFondo       = Color(0xFF0A130B);
 const _kCard        = Color(0xFF101D11);
@@ -505,26 +507,14 @@ class _ParteraScreenState extends State<ParteraScreen> {
     final bp = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: _kFondo,
-      // ── FAB circular con gradiente (Canal B) ─────────────────────────
+      // ── FAB circular dinámico con la mascota IA (Canal B) ────────────
       floatingActionButton: Padding(
         padding: EdgeInsets.only(bottom: bp > 0 ? 60 : 50),
-        child: GestureDetector(
+        child: IaFabBoton(
+          abierto: _chatVisible,
+          online: _online,
+          colorPrincipal: _kMorado,
           onTap: () => setState(() => _chatVisible = !_chatVisible),
-          child: Container(
-            width: 58, height: 58,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                  colors: [_kMorado, Color(0xFF3A1D6E)],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight),
-              boxShadow: [
-                BoxShadow(color: _kMorado.withOpacity(0.5), blurRadius: 16),
-              ],
-            ),
-            child: Icon(
-              _chatVisible ? Icons.close_rounded : Icons.smart_toy_rounded,
-              color: Colors.white, size: 26),
-          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -566,7 +556,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
         // ── Panel chat libre (Canal B) ─────────────────────────────────
         if (_chatVisible)
           Positioned(
-            bottom: 90 + bp, right: 12, left: 12,
+            bottom: 150 + bp, right: 12, left: 12,
             child: _panelChat(),
           ),
       ]), ),
@@ -1009,10 +999,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
     border: Border.all(color: _kMorado.withOpacity(0.4)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Container(width: 36, height: 36,
-            decoration: BoxDecoration(
-                color: _kMorado, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 18)),
+        const IaIconAvatar(size: 36),
         const SizedBox(width: 10),
         const Expanded(child: Text('Análisis IA de la gestante',
             style: TextStyle(
@@ -1058,7 +1045,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
           icon: _analizandoIA
               ? const SizedBox(width: 14, height: 14,
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Icon(Icons.analytics_rounded, color: Colors.white, size: 16),
+              : const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
           label: Text(_analizandoIA ? 'Analizando...' : 'Analizar con IA',
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
@@ -1119,9 +1106,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
         const Expanded(child: Text(
             'Para preguntas libres usa el botón  •  abajo a la derecha',
             style: TextStyle(color: _kTextoHint, fontSize: 10.5))),
-        Container(width: 22, height: 22,
-            decoration: const BoxDecoration(color: _kMorado, shape: BoxShape.circle),
-            child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 13)),
+        const IaIconAvatar(size: 22, sombra: true),
       ]),
     ]),
   );
@@ -1783,12 +1768,14 @@ class _ParteraScreenState extends State<ParteraScreen> {
         const SizedBox(width: 8),
         Expanded(child: _accion(Icons.smart_toy_rounded,
             'Chat IA',  _kRosa,
-            () => setState(() => _chatVisible = !_chatVisible))),
+            () => setState(() => _chatVisible = !_chatVisible),
+            iconoPersonalizado: const IaIconAvatar(size: 24))),
       ]),
     ],
   ));
 
-  Widget _accion(IconData icono, String label, Color color, VoidCallback fn) =>
+  Widget _accion(IconData icono, String label, Color color, VoidCallback fn,
+          {Widget? iconoPersonalizado}) =>
       GestureDetector(
         onTap: fn,
         child: Container(
@@ -1798,7 +1785,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: color.withOpacity(0.4))),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icono, color: color, size: 18),
+            iconoPersonalizado ?? Icon(icono, color: color, size: 18),
             const SizedBox(height: 5),
             Text(label, textAlign: TextAlign.center,
                 style: TextStyle(color: color, fontSize: 9,
@@ -1824,7 +1811,7 @@ class _ParteraScreenState extends State<ParteraScreen> {
             gradient: LinearGradient(colors: [_kMorado, Color(0xFF3A1D6E)]),
             borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         child: Row(children: [
-          const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 18),
+          const IaIconAvatar(size: 24),
           const SizedBox(width: 8),
           const Expanded(child: Text('Chat IA — Preguntas libres',
               style: TextStyle(
