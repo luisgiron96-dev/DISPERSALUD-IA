@@ -128,7 +128,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre, vereda o municipio...',
                 hintStyle: TextStyle(color: _c(context).textHint, fontSize: 13),
-                prefixIcon: Icon(Icons.search, color: Colors.white38, size: 20),
+                prefixIcon: Icon(Icons.search, color: _c(context).textHint, size: 20),
                 filled: true, fillColor: _c(context).card,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -261,7 +261,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
                                           _cargar();
                                         },
                                         child: Icon(Icons.edit_outlined,
-                                            color: Colors.white38, size: 18),
+                                            color: _c(context).textSecondary, size: 18),
                                       ),
                                       SizedBox(width: 8),
                                       Icon(Icons.chevron_right,

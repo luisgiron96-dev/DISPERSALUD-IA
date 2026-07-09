@@ -254,8 +254,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final color = item.color;
+    final color = kVerde; // ← un solo color de acento para todos los ítems
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -265,56 +264,26 @@ class _NavItem extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
-          splashColor: color.withOpacity(0.12),
-          highlightColor: color.withOpacity(0.06),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
+          splashColor: color.withOpacity(0.08),
+          highlightColor: color.withOpacity(0.04),
+          child: Container(
             height: 48,
             padding: EdgeInsets.symmetric(
                 horizontal: extended ? 12 : 0),
-            decoration: BoxDecoration(
-              // Fondo activo: gradiente suave con el color del ítem
-              gradient: activo
-                  ? LinearGradient(
-                      colors: [
-                        color.withOpacity(dark ? 0.22 : 0.15),
-                        color.withOpacity(dark ? 0.10 : 0.07),
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    )
-                  : null,
-              borderRadius: BorderRadius.circular(14),
-              border: activo
-                  ? Border.all(color: color.withOpacity(0.35), width: 1)
-                  : null,
-            ),
             child: Row(
               mainAxisAlignment: extended
                   ? MainAxisAlignment.start
                   : MainAxisAlignment.center,
               children: [
-                // ── Icono con fondo colored ─────────────────────────────
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: activo
-                        ? color.withOpacity(dark ? 0.25 : 0.18)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    activo ? item.iconoActivo : item.icono,
-                    color: activo ? color : dc.textHint,
-                    size: 20,
-                  ),
+                Icon(
+                  item.icono, // mismo ícono siempre, solo cambia el color
+                  color: activo ? color : dc.textHint,
+                  size: 21,
                 ),
 
                 // ── Etiqueta (solo cuando extended) ────────────────────
                 if (extended) ...[
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       item.label,
@@ -328,13 +297,6 @@ class _NavItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Punto indicador a la derecha cuando activo
-                  if (activo)
-                    Container(
-                      width: 6, height: 6,
-                      decoration: BoxDecoration(
-                          color: color, shape: BoxShape.circle),
-                    ),
                 ],
               ],
             ),
@@ -363,61 +325,64 @@ class _BarraInferior extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: dc.card,
-        border: Border(top: BorderSide(color: dc.border, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        child: Container(
+          height: 68,
+          decoration: BoxDecoration(
+            color: dc.card,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: dc.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.22),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 60,
           child: Row(
             children: List.generate(_kItemsNav.length, (i) {
               final item   = _kItemsNav[i];
               final activo = i == tab;
-              final color  = activo ? item.color : dc.textHint;
+              final color  = activo ? kVerde : dc.textHint; // ← un solo color
               return Expanded(
                 child: GestureDetector(
                   onTap: () => onTap(i),
                   behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: activo
-                              ? item.color.withOpacity(0.15)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          activo ? item.iconoActivo : item.icono,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.icono, // mismo ícono siempre, solo cambia el color
                           color: color,
-                          size: 20,
+                          size: 21,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 9,
-                          fontWeight: activo
-                              ? FontWeight.w700
-                              : FontWeight.normal,
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          width: 56,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 9,
+                                fontWeight: activo
+                                    ? FontWeight.w700
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

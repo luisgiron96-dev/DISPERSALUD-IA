@@ -34,11 +34,27 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _tieneInternet = false;
   StreamSubscription<bool>? _connSub;
 
-  // ── Animación mascota FAB ────────────────────────────────────────────────
+  // ── Animación + interacción mascota FAB ─────────────────────────────────
   late AnimationController _flotarCtrl;
   late AnimationController _pulsoCtrl;
+  late AnimationController _burbujaCtrl;
   late Animation<double> _flotar;
   late Animation<double> _pulso;
+  late Animation<double> _burbuja;
+  bool   _mostrarBurbuja = false;
+  String _fraseActual    = '¡Listo para ayudarte! 💚';
+  int    _fraseIdx       = 0;
+
+  static const _kFrases = [
+    '¡Hola! ¿En qué te ayudo hoy? 🌿',
+    '¡Listo para ayudarte! 💚',
+    '¿Tienes una consulta? ¡Pregúntame! 🩺',
+    'Ante cualquier duda, ¡consúltame! 🌱',
+    '¿Ves algo urgente? Te oriento 🏥',
+    'Recuerda: ante signos de alarma, remite 🚨',
+    'Estoy aquí para apoyarte, promotor/a 👋',
+    '¿Cómo va el día en campo? 🌄',
+  ];
 
   // Datos
   int    _consultasHoy       = 0;
@@ -80,6 +96,14 @@ class _DashboardScreenState extends State<DashboardScreen>
       ..repeat(reverse: true);
     _pulso = Tween<double>(begin: 0.88, end: 1.08).animate(
         CurvedAnimation(parent: _pulsoCtrl, curve: Curves.easeInOut));
+    // Burbuja de texto
+    _burbujaCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 320));
+    _burbuja = CurvedAnimation(parent: _burbujaCtrl, curve: Curves.easeOut);
+    // Primera burbuja aparece sola a los 2 segundos
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) _mostrarFrasePeriodica();
+    });
   }
 
   Future<void> _initConectividad() async {
@@ -156,6 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _connSub?.cancel();
     _flotarCtrl.dispose();
     _pulsoCtrl.dispose();
+    _burbujaCtrl.dispose();
     super.dispose();
   }
 
@@ -215,76 +240,177 @@ class _DashboardScreenState extends State<DashboardScreen>
     return '↔ Igual que ayer';
   }
 
+  // ── Interacción mascota ──────────────────────────────────────────────────
+  Future<void> _mostrarFrasePeriodica() async {
+    if (!mounted) return;
+    _fraseIdx = (_fraseIdx + 1) % _kFrases.length;
+    _fraseActual = _kFrases[_fraseIdx];
+    if (mounted) setState(() => _mostrarBurbuja = true);
+    await _burbujaCtrl.forward();
+    await Future.delayed(const Duration(seconds: 4));
+    if (mounted) {
+      await _burbujaCtrl.reverse();
+      if (mounted) setState(() => _mostrarBurbuja = false);
+    }
+    // Siguiente frase en 15 segundos
+    Future.delayed(const Duration(seconds: 15), () {
+      if (mounted) _mostrarFrasePeriodica();
+    });
+  }
+
+  void _tocarMascota() {
+    // Frase inmediata al tocar
+    _fraseIdx = (_fraseIdx + 1) % _kFrases.length;
+    _fraseActual = _kFrases[_fraseIdx];
+    setState(() => _mostrarBurbuja = true);
+    _burbujaCtrl.forward();
+    Future.delayed(const Duration(seconds: 3), () async {
+      if (mounted) {
+        await _burbujaCtrl.reverse();
+        if (mounted) setState(() => _mostrarBurbuja = false);
+      }
+    });
+    // Luego abrir el asistente
+    Future.delayed(const Duration(milliseconds: 400), _abrirAsistente);
+  }
+
   @override
   Widget build(BuildContext context) {
     final dt = DT(context);
     return Scaffold(
       backgroundColor: dt.bg,
       floatingActionButton: AnimatedBuilder(
-        animation: Listenable.merge([_flotarCtrl, _pulsoCtrl]),
+        animation: Listenable.merge([_flotarCtrl, _pulsoCtrl, _burbujaCtrl]),
         builder: (_, __) => Transform.translate(
           offset: Offset(0, _flotar.value),
           child: GestureDetector(
-            onTap: _abrirAsistente,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Aura pulsante
-                Transform.scale(
-                  scale: _pulso.value,
-                  child: Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [
-                        _kVerde.withOpacity(0.35),
-                        _kVerde.withOpacity(0.0),
-                      ]),
+            onTap: _tocarMascota,
+            child: SizedBox(
+              width: 160,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+
+                  // ── Burbuja de texto ──────────────────────────────────
+                  if (_mostrarBurbuja)
+                    FadeTransition(
+                      opacity: _burbuja,
+                      child: ScaleTransition(
+                        scale: _burbuja,
+                        alignment: Alignment.bottomRight,
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 150),
+                          margin: const EdgeInsets.only(bottom: 6, right: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0B2A1A),
+                            borderRadius: const BorderRadius.only(
+                              topLeft:     Radius.circular(14),
+                              topRight:    Radius.circular(14),
+                              bottomLeft:  Radius.circular(14),
+                              bottomRight: Radius.circular(4),
+                            ),
+                            border: Border.all(
+                              color: const Color(0xFF1D9E75).withOpacity(0.7),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1D9E75).withOpacity(0.25),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            _fraseActual,
+                            style: const TextStyle(
+                              color: Color(0xFFB9F5D8),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                // Imagen circular
-                Container(
-                  width: 58, height: 58,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kVerde.withOpacity(0.5),
-                        blurRadius: 16, spreadRadius: 2,
-                        offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/mascota_ia.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                          Icons.smart_toy_rounded,
-                          color: Color(0xFF1D9E75), size: 30),
-                    ),
-                  ),
-                ),
-                // Punto verde de estado
-                Positioned(
-                  bottom: 6, right: 6,
-                  child: Container(
-                    width: 12, height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _tieneInternet
-                          ? const Color(0xFF2ECC71)
-                          : const Color(0xFFEF9F27),
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+
+                  // ── Mascota circular con aura ─────────────────────────
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+
+                      // Aura pulsante
+                      Transform.scale(
+                        scale: _pulso.value,
+                        child: Container(
+                          width: 72, height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                _kVerde.withOpacity(0.35),
+                                _kVerde.withOpacity(0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Imagen circular
+                      Container(
+                        width: 58, height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: _kVerde.withOpacity(0.5),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/mascota_ia.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.smart_toy_rounded,
+                              color: Color(0xFF1D9E75),
+                              size: 30,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Punto de estado online/offline
+                      Positioned(
+                        bottom: 2, right: 2,
+                        child: Container(
+                          width: 12, height: 12,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _tieneInternet
+                                ? const Color(0xFF2ECC71)
+                                : const Color(0xFFEF9F27),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
+
+                    ], // children Stack
+                  ),   // Stack mascota
+
+                ], // children Column
+              ),   // Column
+            ),     // SizedBox
+          ),       // GestureDetector
+        ),         // Transform.translate
+      ),           // AnimatedBuilder
       body: RefreshIndicator(
         onRefresh: _cargar,
         color: _kVerde,

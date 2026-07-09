@@ -682,7 +682,16 @@ class _EspecialistasScreenState extends State<EspecialistasScreen> {
       Container(width: 60, height: 60,
         decoration: BoxDecoration(color: const Color(0xFF1D9E75).withOpacity(0.15),
             borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF1D9E75).withOpacity(0.3))),
-        child: const Icon(Icons.smart_toy_rounded, color: Color(0xFF1D9E75), size: 32)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Image.asset(
+            'assets/mascota_ia.png',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Icon(
+                Icons.smart_toy_rounded,
+                color: Color(0xFF1D9E75), size: 32),
+          ),
+        )),
       const SizedBox(width: 14),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('IA DISPERSALUD', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),

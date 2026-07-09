@@ -1857,10 +1857,15 @@ class _ConfigScreenState extends State<ConfigScreen>
                 ),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                    child: Stack(alignment: Alignment.center, children: [
-                      const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 28),
-                      Positioned(top: 5, right: 5, child: Icon(Icons.auto_awesome, color: Colors.white.withOpacity(0.7), size: 10)),
-                    ])),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/mascota_ia.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                            Icons.smart_toy_rounded, color: Colors.white, size: 28),
+                      ),
+                    )),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('DISPERSALUD IA', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.3)),

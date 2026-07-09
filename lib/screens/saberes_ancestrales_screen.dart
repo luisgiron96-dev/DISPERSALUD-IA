@@ -718,9 +718,12 @@ Responde de forma breve y en español colombiano.
             setState(() {
               _pacienteSeleccionado = p;
               if (p != null) {
-                _nombreCtrl.text  = p['nombre'] as String? ?? '';
+                _nombreCtrl.text   = p['nombre']   as String? ?? '';
                 _telefonoCtrl.text = p['telefono'] as String? ?? '';
-                _comunidadSel     = p['municipio'] as String? ?? _comunidadSel;
+                // Solo asignar municipio si está en la lista de comunidades
+                // para no romper el DropdownButtonFormField
+                final muni = p['municipio'] as String? ?? '';
+                _comunidadSel = _comunidades.contains(muni) ? muni : 'Otra';
               }
             });
           },
@@ -857,7 +860,7 @@ Responde de forma breve y en español colombiano.
         Expanded(child: Column(children: [
           // Comunidad
           DropdownButtonFormField<String>(
-            value: _comunidadSel,
+            value: _comunidades.contains(_comunidadSel) ? _comunidadSel : 'Otra',
             isExpanded: true,
             dropdownColor: _kCardAlt,
             style: const TextStyle(color: _kTexto, fontSize: 11),

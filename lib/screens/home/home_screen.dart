@@ -1,10 +1,30 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/app_theme.dart';
 import '../../core/responsive.dart';
 import '../../database/database_helper.dart';
 import '../../services/connectivity_service.dart';
+
+/// Construye el widget de la foto de perfil, ya sea que venga de un archivo
+/// local (Android/iOS) o de un string base64 (web). Si el dato guardado
+/// está vacío o corrupto, muestra [fallback] en su lugar en vez de fallar.
+Widget _fotoPerfilWidget(String fotoPerfil, Widget fallback) {
+  if (fotoPerfil.isEmpty) return fallback;
+  try {
+    if (kIsWeb) {
+      final b64 = fotoPerfil.replaceFirst('data:base64,', '');
+      return Image.memory(base64Decode(b64), fit: BoxFit.cover);
+    } else {
+      return Image.file(File(fotoPerfil), fit: BoxFit.cover);
+    }
+  } catch (_) {
+    return fallback;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DATOS DE MÓDULOS
@@ -103,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _vereda     = '';
   String _municipio  = '';
   String _ultimaSync = '';
+  String _fotoPerfil = '';
 
   // Conectividad
   bool _online = false;
@@ -161,6 +182,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _nombre     = prefs.getString('promotor_nombre')    ?? '';
       _vereda     = prefs.getString('promotor_vereda')    ?? '';
       _municipio  = prefs.getString('promotor_municipio') ?? '';
+      _fotoPerfil = prefs.getString('promotor_foto')      ?? '';
       _ultimaSync = _formatSync(tsAMostrar);
     });
   }
@@ -244,6 +266,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ultimaSync: _ultimaSync,
                 online:     _online,
                 saludo:     _saludo(),
+                fotoPerfil: _fotoPerfil,
               ),
             ),
 
@@ -420,6 +443,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 // ─────────────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   final String nombre, vereda, municipio, ultimaSync, saludo;
+  final String fotoPerfil;
   final bool   online;
 
   const _Header({
@@ -429,6 +453,7 @@ class _Header extends StatelessWidget {
     required this.ultimaSync,
     required this.online,
     required this.saludo,
+    required this.fotoPerfil,
   });
 
   @override
@@ -504,14 +529,19 @@ class _Header extends StatelessWidget {
                             color: Colors.white.withOpacity(0.5),
                             width: 1.5),
                       ),
-                      child: Center(
-                        child: Text(
-                          nombre.isNotEmpty
-                              ? nombre[0].toUpperCase()
-                              : 'P',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 20,
-                              fontWeight: FontWeight.bold),
+                      child: ClipOval(
+                        child: _fotoPerfilWidget(
+                          fotoPerfil,
+                          Center(
+                            child: Text(
+                              nombre.isNotEmpty
+                                  ? nombre[0].toUpperCase()
+                                  : 'P',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 20,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
                       ),
                     ),
