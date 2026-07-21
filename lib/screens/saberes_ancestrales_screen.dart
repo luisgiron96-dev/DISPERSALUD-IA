@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/app_theme.dart';
@@ -55,6 +56,10 @@ const Map<String, List<_Planta>> _kPlantasPorCondicion = {
       uso: 'Infusión', beneficio: 'Reduce la acidez y relaja el estómago.',
       preparacion: 'Hervir 3 tallos en 1 litro de agua por 10 min. Tomar tibio.',
       icono: Icons.grass, color: Color(0xFF9ACD32)),
+    _Planta(nombre: 'Paico', nombreCientifico: 'Dysphania ambrosioides',
+      uso: 'Infusión', beneficio: 'Antiparasitario y ayuda a expulsar gases.',
+      preparacion: 'Unas hojas en agua caliente 5 min, no hervir mucho. Máximo 1 taza al día.',
+      icono: Icons.eco, color: Color(0xFF556B2F)),
   ],
   'gestacion': [
     _Planta(nombre: 'Jengibre', nombreCientifico: 'Zingiber officinale',
@@ -65,6 +70,10 @@ const Map<String, List<_Planta>> _kPlantasPorCondicion = {
       uso: 'Infusión', beneficio: 'Calma dolores leves, rica en antioxidantes.',
       preparacion: 'Hojas frescas en agua tibia. Dosis pequeña. Siempre consultar a la partera.',
       icono: Icons.local_florist, color: _kVerde),
+    _Planta(nombre: 'Toronjil', nombreCientifico: 'Melissa officinalis',
+      uso: 'Infusión suave', beneficio: 'Calma la ansiedad y ayuda a dormir mejor.',
+      preparacion: 'Hojas frescas en agua tibia, dosis baja. Evitar en primer trimestre sin supervisión.',
+      icono: Icons.spa, color: Color(0xFF90EE90)),
   ],
   'fiebre': [
     _Planta(nombre: 'Saúco', nombreCientifico: 'Sambucus nigra',
@@ -75,6 +84,10 @@ const Map<String, List<_Planta>> _kPlantasPorCondicion = {
       uso: 'Decocción', beneficio: 'Antipirético tradicional del Cauca.',
       preparacion: 'Corteza hervida 15 min. Solo adultos. Verificar con médico antes de usar en niños.',
       icono: Icons.park, color: Color(0xFF8B4513)),
+    _Planta(nombre: 'Sauco negro con limón', nombreCientifico: 'Sambucus nigra + Citrus limon',
+      uso: 'Infusión', beneficio: 'Refuerza defensas y ayuda a bajar la temperatura.',
+      preparacion: 'Hervir flores de saúco 10 min, agregar jugo de medio limón al servir. 2 veces al día.',
+      icono: Icons.local_drink, color: Color(0xFFF4D03F)),
   ],
   'dolor_cabeza': [
     _Planta(nombre: 'Toronjil', nombreCientifico: 'Melissa officinalis',
@@ -85,6 +98,118 @@ const Map<String, List<_Planta>> _kPlantasPorCondicion = {
       uso: 'Aromaterapia', beneficio: 'Reduce el dolor de cabeza por inhalación.',
       preparacion: 'Aplicar aceite en sienes. O inhalar flores frescas. También en infusión suave.',
       icono: Icons.spa, color: Color(0xFF967BB6)),
+    _Planta(nombre: 'Ruda', nombreCientifico: 'Ruta graveolens',
+      uso: 'Fricción / Infusión suave', beneficio: 'Alivia el dolor de cabeza y la tensión.',
+      preparacion: 'Frotar hojas machacadas en sienes (evitar ojos). Uso externo preferente; evitar en embarazo.',
+      icono: Icons.grass, color: Color(0xFF6B8E23)),
+  ],
+  'respiratorio': [
+    _Planta(nombre: 'Eucalipto', nombreCientifico: 'Eucalyptus globulus',
+      uso: 'Vahos / Infusión', beneficio: 'Descongestiona vías respiratorias y alivia la tos.',
+      preparacion: 'Hervir hojas y respirar el vapor cubierto con una toalla, 10 min. O en infusión, 2 veces al día.',
+      icono: Icons.air_rounded, color: Color(0xFF2E8B57)),
+    _Planta(nombre: 'Tomillo', nombreCientifico: 'Thymus vulgaris',
+      uso: 'Infusión', beneficio: 'Expectorante, ayuda a soltar la flema.',
+      preparacion: 'Hervir 1 cucharada de hojas en 1 taza de agua, 8 min. Endulzar con miel. 3 veces al día.',
+      icono: Icons.local_florist, color: Color(0xFF6B8E23)),
+    _Planta(nombre: 'Malva', nombreCientifico: 'Malva sylvestris',
+      uso: 'Infusión / Gárgaras', beneficio: 'Calma la garganta irritada y la tos seca.',
+      preparacion: 'Hojas y flores hervidas 10 min. Hacer gárgaras tibias o tomar como infusión.',
+      icono: Icons.spa, color: Color(0xFF9B6FCF)),
+  ],
+  'diarrea': [
+    _Planta(nombre: 'Hojas de guayaba', nombreCientifico: 'Psidium guajava',
+      uso: 'Decocción', beneficio: 'Astringente, ayuda a controlar la diarrea.',
+      preparacion: 'Hervir un puñado de hojas tiernas 10 min. Tomar tibio, 2-3 veces al día. Hidratar con SRO.',
+      icono: Icons.eco, color: Color(0xFF556B2F)),
+    _Planta(nombre: 'Cáscara de granada', nombreCientifico: 'Punica granatum',
+      uso: 'Decocción', beneficio: 'Astringente tradicional para el intestino.',
+      preparacion: 'Hervir cáscara seca 15 min en 1 litro de agua. Tomar en sorbos pequeños durante el día.',
+      icono: Icons.circle, color: Color(0xFFC0392B)),
+    _Planta(nombre: 'Agua de arroz tostado', nombreCientifico: 'Oryza sativa',
+      uso: 'Bebida', beneficio: 'Repone líquidos y calma el intestino irritado.',
+      preparacion: 'Tostar arroz, hervir en agua 15 min, colar. Tomar en pequeñas cantidades frecuentes.',
+      icono: Icons.rice_bowl, color: Color(0xFFDEB887)),
+  ],
+  'insomnio_ansiedad': [
+    _Planta(nombre: 'Valeriana', nombreCientifico: 'Valeriana officinalis',
+      uso: 'Infusión', beneficio: 'Ayuda a conciliar el sueño y calma los nervios.',
+      preparacion: 'Raíz seca en agua caliente 10 min. Tomar media hora antes de dormir.',
+      icono: Icons.nightlight_round, color: Color(0xFF6B3FA0)),
+    _Planta(nombre: 'Pasiflora', nombreCientifico: 'Passiflora incarnata',
+      uso: 'Infusión', beneficio: 'Reduce la ansiedad y facilita el descanso.',
+      preparacion: 'Hojas y flores en agua caliente 10 min. Tomar en la noche.',
+      icono: Icons.spa, color: Color(0xFF9B6FCF)),
+    _Planta(nombre: 'Toronjil', nombreCientifico: 'Melissa officinalis',
+      uso: 'Infusión', beneficio: 'Calma los nervios y el susto.',
+      preparacion: 'Hojas frescas en agua caliente 10 min. Tomar tibio antes de dormir.',
+      icono: Icons.local_florist, color: Color(0xFF90EE90)),
+  ],
+  'dolor_muscular': [
+    _Planta(nombre: 'Árnica', nombreCientifico: 'Arnica montana',
+      uso: 'Compresa / Ungüento', beneficio: 'Alivia golpes, torceduras y dolor muscular.',
+      preparacion: 'Aplicar compresa con infusión fría o ungüento sobre la zona. Solo uso externo, evitar piel abierta.',
+      icono: Icons.healing_rounded, color: Color(0xFFEF9F27)),
+    _Planta(nombre: 'Romero', nombreCientifico: 'Rosmarinus officinalis',
+      uso: 'Fricción / Baño', beneficio: 'Mejora la circulación y relaja músculos adoloridos.',
+      preparacion: 'Hervir ramas, usar el agua tibia en fricciones o baño de la zona afectada.',
+      icono: Icons.grass, color: Color(0xFF2E8B57)),
+    _Planta(nombre: 'Ruda', nombreCientifico: 'Ruta graveolens',
+      uso: 'Fricción', beneficio: 'Alivia dolores articulares y musculares.',
+      preparacion: 'Hojas machacadas con alcohol o aceite tibio, fricción local. Evitar en embarazo.',
+      icono: Icons.spa, color: Color(0xFF6B8E23)),
+  ],
+  'heridas_piel': [
+    _Planta(nombre: 'Sábila', nombreCientifico: 'Aloe vera',
+      uso: 'Gel', beneficio: 'Cicatrizante, calma quemaduras leves e irritaciones.',
+      preparacion: 'Aplicar gel fresco directo sobre la piel limpia, 2-3 veces al día.',
+      icono: Icons.eco, color: _kVerde),
+    _Planta(nombre: 'Caléndula', nombreCientifico: 'Calendula officinalis',
+      uso: 'Ungüento / Infusión', beneficio: 'Antiinflamatoria y cicatrizante para heridas.',
+      preparacion: 'Infusión de flores para lavar la herida limpia, o ungüento sobre la piel.',
+      icono: Icons.local_florist, color: Color(0xFFF4A300)),
+    _Planta(nombre: 'Llantén', nombreCientifico: 'Plantago major',
+      uso: 'Cataplasma', beneficio: 'Antiinflamatorio, ideal para picaduras y heridas leves.',
+      preparacion: 'Hojas limpias machacadas directo sobre la zona afectada.',
+      icono: Icons.grass, color: Color(0xFF6B8E23)),
+  ],
+  'infeccion_urinaria': [
+    _Planta(nombre: 'Cola de caballo', nombreCientifico: 'Equisetum arvense',
+      uso: 'Infusión', beneficio: 'Diurética, ayuda a limpiar las vías urinarias.',
+      preparacion: 'Hervir 1 cucharada en 1 taza de agua 10 min. Tomar 2-3 veces al día con abundante agua.',
+      icono: Icons.water_drop_outlined, color: Color(0xFF2E8B57)),
+    _Planta(nombre: 'Pelo de maíz', nombreCientifico: 'Zea mays',
+      uso: 'Infusión', beneficio: 'Diurético suave, tradicional para molestias urinarias.',
+      preparacion: 'Hervir los estigmas (pelos) de maíz 10 min. Tomar tibio varias veces al día.',
+      icono: Icons.eco, color: Color(0xFFF4D03F)),
+  ],
+  'menstrual': [
+    _Planta(nombre: 'Canela', nombreCientifico: 'Cinnamomum verum',
+      uso: 'Infusión', beneficio: 'Alivia cólicos menstruales y regula el flujo.',
+      preparacion: 'Una astilla hervida 10 min en agua. Tomar tibio 2 veces al día durante el ciclo.',
+      icono: Icons.local_cafe_outlined, color: Color(0xFF8B4513)),
+    _Planta(nombre: 'Manzanilla', nombreCientifico: 'Matricaria chamomilla',
+      uso: 'Infusión', beneficio: 'Relaja el útero y calma el dolor.',
+      preparacion: 'Flores secas en agua caliente 10 min. Tomar 2-3 tazas al día durante el dolor.',
+      icono: Icons.local_florist, color: Color(0xFFDEB887)),
+    _Planta(nombre: 'Ruda', nombreCientifico: 'Ruta graveolens',
+      uso: 'Infusión muy suave', beneficio: 'Uso tradicional para regular el ciclo menstrual.',
+      preparacion: 'Muy pocas hojas en agua caliente. NUNCA usar durante el embarazo (uterotónica).',
+      icono: Icons.spa, color: Color(0xFF6B8E23)),
+  ],
+  'susto_espanto': [
+    _Planta(nombre: 'Ruda', nombreCientifico: 'Ruta graveolens',
+      uso: 'Ritual / Baño', beneficio: 'Uso tradicional para el susto o espanto en la medicina ancestral.',
+      preparacion: 'Baño con infusión de ramas, según indicación de la sabedora o partera.',
+      icono: Icons.spa, color: Color(0xFF6B8E23)),
+    _Planta(nombre: 'Albahaca', nombreCientifico: 'Ocimum basilicum',
+      uso: 'Ritual / Infusión', beneficio: 'Calma el espíritu y ayuda a recuperar la energía.',
+      preparacion: 'Infusión suave para tomar, o en baño ritual guiado por la sabedora.',
+      icono: Icons.local_florist, color: _kVerde),
+    _Planta(nombre: 'Romero', nombreCientifico: 'Rosmarinus officinalis',
+      uso: 'Ritual / Sahumerio', beneficio: 'Purifica y da fuerza según la tradición ancestral.',
+      preparacion: 'Quemar ramas secas como sahumerio en espacio ventilado, guiado por la sabedora.',
+      icono: Icons.local_fire_department_outlined, color: Color(0xFF2E8B57)),
   ],
   'general': [
     _Planta(nombre: 'Manzanilla', nombreCientifico: 'Matricaria chamomilla',
@@ -99,6 +224,10 @@ const Map<String, List<_Planta>> _kPlantasPorCondicion = {
       uso: 'Cataplasma / Infusión', beneficio: 'Antiinflamatorio, ideal en zonas rurales.',
       preparacion: 'Hojas limpias sobre la zona afectada. En infusión: 3 hojas en 1 taza.',
       icono: Icons.grass, color: Color(0xFF6B8E23)),
+    _Planta(nombre: 'Toronjil', nombreCientifico: 'Melissa officinalis',
+      uso: 'Infusión', beneficio: 'Calmante general, útil para nervios y digestión leve.',
+      preparacion: 'Hojas frescas en agua caliente 10 min. Tomar cuando se necesite calma.',
+      icono: Icons.spa, color: Color(0xFF90EE90)),
   ],
 };
 
@@ -135,6 +264,17 @@ class _SaberesAncestalesScreenState extends State<SaberesAncestalesScreen> {
   List<Map<String, dynamic>> _pacientes = [];
   Map<String, dynamic>? _pacienteSeleccionado;
 
+  // ── Historial clínico del paciente seleccionado ─────────────────────────
+  bool _cargandoHistorial = false;
+  List<Map<String, dynamic>> _historialConsultas = [];
+  Map<String, dynamic>? _ultimaConsultaGestacion;
+  Map<String, dynamic>  _datosGestacion = {}; // datos_json ya decodificado
+
+  // ── Sabedora / partera de cabecera ───────────────────────────────────────
+  List<Map<String, dynamic>> _sabedoras = [];
+  Map<String, dynamic>?      _sabedoraSel;
+  bool                       _cargandoSabedoras = false;
+
   // Módulo IA
   bool _iaVisible = false;
   final _iaCtrl   = TextEditingController();
@@ -164,6 +304,7 @@ class _SaberesAncestalesScreenState extends State<SaberesAncestalesScreen> {
     super.initState();
     _initConn();
     _cargarPacientes();
+    _cargarSabedoras();
     _mensajesIA.add({
       'rol': 'ia',
       'texto': '🌿 Soy DISPERSALUD IA — integración medicina ancestral y occidental. '
@@ -191,6 +332,200 @@ class _SaberesAncestalesScreenState extends State<SaberesAncestalesScreen> {
   Future<void> _cargarPacientes() async {
     final lista = await DatabaseHelper.instance.obtenerPacientes();
     if (mounted) setState(() => _pacientes = lista);
+  }
+
+  // ── Sabedora / partera de cabecera ───────────────────────────────────────
+  // Reutiliza los registros del módulo de Especialistas (los mismos que
+  // se usan en la pantalla de Partera), filtrando por categoría o
+  // especialidad relacionada con partería, ginecología/obstetricia o
+  // saberes tradicionales.
+  Future<void> _cargarSabedoras() async {
+    setState(() => _cargandoSabedoras = true);
+    try {
+      final todos = await DatabaseHelper.instance.obtenerEspecialistas();
+      final lista = todos.where((e) {
+        final cat = (e['categoria_id'] as String? ?? '').toLowerCase();
+        final esp = (e['especialidad']  as String? ?? '').toLowerCase();
+        return cat.contains('parter') || cat.contains('ginec') ||
+               cat.contains('obste')  || esp.contains('parter') ||
+               esp.contains('matrona')|| esp.contains('ginec')  ||
+               esp.contains('obste')  || esp.contains('sabedor') ||
+               esp.contains('tradicional');
+      }).toList();
+      if (mounted) setState(() { _sabedoras = lista; _cargandoSabedoras = false; });
+    } catch (_) {
+      if (mounted) setState(() => _cargandoSabedoras = false);
+    }
+  }
+
+  Future<void> _llamarSabedora() async {
+    final tel = (_sabedoraSel?['telefono'] as String? ?? '').trim();
+    if (tel.isEmpty) { _snack('Sin número registrado para esta sabedora'); return; }
+    final uri = Uri.parse('tel:${tel.replaceAll(RegExp(r'[\s\-\(\)]'), '')}');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _whatsappSabedora() async {
+    final tel = (_sabedoraSel?['telefono'] as String? ?? '').trim();
+    if (tel.isEmpty) { _snack('Sin número de WhatsApp para esta sabedora'); return; }
+    var num = tel.replaceAll(RegExp(r'[^\d]'), '');
+    if (num.length == 10) num = '57$num';
+    final nombre   = _sabedoraSel?['nombre'] as String? ?? 'la sabedora';
+    final paciente = _nombreCtrl.text.trim().isNotEmpty ? _nombreCtrl.text.trim() : 'el paciente';
+    final msg = Uri.encodeComponent(
+        'Hola $nombre, le contacto desde DISPERSALUD IA para coordinar '
+        'el acompañamiento de $paciente. 🌿');
+    final uri = Uri.parse('https://wa.me/$num?text=$msg');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _agendarConSabedora() {
+    if (_sabedoraSel == null) return;
+    showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 3)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (_, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(primary: _kMorado),
+        ), child: child!,
+      ),
+    ).then((fecha) {
+      if (fecha != null) {
+        final meses = ['ene','feb','mar','abr','may','jun',
+                       'jul','ago','sep','oct','nov','dic'];
+        final nombre = _sabedoraSel?['nombre'] as String? ?? 'la sabedora';
+        _snack('✅ Cita con $nombre agendada: ${fecha.day} ${meses[fecha.month-1]} ${fecha.year}');
+      }
+    });
+  }
+
+  void _verPerfilSabedora() {
+    if (_sabedoraSel == null) return;
+    final p = _sabedoraSel!;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 68, height: 68,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kMorado.withOpacity(0.15),
+                border: Border.all(color: _kMoradoClaro.withOpacity(0.4), width: 2),
+              ),
+              child: const Icon(Icons.self_improvement_rounded, color: _kMoradoClaro, size: 34),
+            ),
+            const SizedBox(height: 12),
+            Text(p['nombre'] as String? ?? '-',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _kTexto, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(p['especialidad'] as String? ?? '-',
+                style: const TextStyle(color: _kMoradoClaro, fontSize: 12)),
+            const SizedBox(height: 14),
+            _filaDialogoSabedora(Icons.star_outline_rounded, 'Experiencia', '${p['anios_exp'] ?? '-'} años'),
+            _filaDialogoSabedora(Icons.location_on_outlined,  'Ciudad',     p['ciudad']    as String? ?? '-'),
+            _filaDialogoSabedora(Icons.phone_outlined,         'Teléfono',  p['telefono']  as String? ?? '-'),
+            _filaDialogoSabedora(Icons.star_rounded,           'Calificación', '${p['calificacion'] ?? '-'} / 5.0'),
+            _filaDialogoSabedora(Icons.schedule_outlined,      'Disponible',
+                (p['disponible'] == 1) ? '✅ Sí' : '❌ No'),
+            if ((p['proximo_horario'] as String? ?? '').isNotEmpty)
+              _filaDialogoSabedora(Icons.event_outlined, 'Próximo horario', p['proximo_horario'] as String),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(child: ElevatedButton.icon(
+                onPressed: () { Navigator.pop(context); _llamarSabedora(); },
+                icon: const Icon(Icons.call_rounded, size: 15),
+                label: const Text('Llamar'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kVerde, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: ElevatedButton.icon(
+                onPressed: () { Navigator.pop(context); _whatsappSabedora(); },
+                icon: const Icon(Icons.chat_rounded, size: 15),
+                label: const Text('WhatsApp'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+            ]),
+            const SizedBox(height: 6),
+            SizedBox(width: double.infinity, child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar', style: TextStyle(color: _kTextoHint)),
+            )),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _filaDialogoSabedora(IconData icono, String label, String valor) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(children: [
+      Icon(icono, color: _kTextoHint, size: 14),
+      const SizedBox(width: 8),
+      Text('$label: ', style: const TextStyle(color: _kTextoHint, fontSize: 11.5)),
+      Expanded(child: Text(valor,
+          style: const TextStyle(color: _kTexto, fontSize: 11.5, fontWeight: FontWeight.w600))),
+    ]),
+  );
+
+  // ── Cargar historial clínico del paciente seleccionado ───────────────────
+  // Busca todas las consultas previas del paciente (de cualquier módulo:
+  // Gestación, Infancia, etc.) y, si existe, toma la más reciente de
+  // Gestación para extraer semanas, ecografías y demás datos guardados
+  // desde el módulo de Gestación — así el promotor no tiene que volver a
+  // preguntar lo que ya quedó registrado.
+  Future<void> _cargarHistorialPaciente(int pacienteId) async {
+    setState(() {
+      _cargandoHistorial = true;
+      _historialConsultas = [];
+      _ultimaConsultaGestacion = null;
+      _datosGestacion = {};
+    });
+    try {
+      final consultas = await DatabaseHelper.instance.consultasDePaciente(pacienteId);
+      final gestacion = consultas.where((c) => c['modulo'] == 'Gestación').toList();
+      Map<String, dynamic> datosJson = {};
+      if (gestacion.isNotEmpty) {
+        final ultima = gestacion.first; // ya viene ordenado por fecha DESC
+        try {
+          final crudo = ultima['datos_json'];
+          if (crudo is String && crudo.isNotEmpty) {
+            datosJson = Map<String, dynamic>.from(jsonDecode(crudo));
+          }
+        } catch (_) {
+          // Si el JSON está corrupto o vacío, seguimos sin esos datos extra
+          // en vez de romper la pantalla completa.
+        }
+        // Autocompletar semanas de gestación con lo último registrado,
+        // solo si el promotor no las había escrito ya manualmente.
+        final semanasGuardadas = (ultima['semanas'] as String? ?? '').trim();
+        if (_semanas.isEmpty && semanasGuardadas.isNotEmpty) {
+          _semanas = semanasGuardadas;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _historialConsultas     = consultas;
+        _ultimaConsultaGestacion = gestacion.isNotEmpty ? gestacion.first : null;
+        _datosGestacion          = datosJson;
+        _cargandoHistorial       = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _cargandoHistorial = false);
+      _snack('No se pudo cargar el historial del paciente');
+    }
   }
 
   // ── Analizar con IA ───────────────────────────────────────────────────────
@@ -277,6 +612,41 @@ Responde de forma breve y en español colombiano.
     if (texto.contains('cabeza') || texto.contains('dolor de cabeza') ||
         texto.contains('cefal')) {
       return _kPlantasPorCondicion['dolor_cabeza']!;
+    }
+    if (texto.contains('tos') || texto.contains('gripa') || texto.contains('gripe') ||
+        texto.contains('congesti') || texto.contains('resfri') ||
+        texto.contains('garganta') || texto.contains('bronqui')) {
+      return _kPlantasPorCondicion['respiratorio']!;
+    }
+    if (texto.contains('diarrea') || texto.contains('suelto') ||
+        texto.contains('deposicion')) {
+      return _kPlantasPorCondicion['diarrea']!;
+    }
+    if (texto.contains('insomnio') || texto.contains('no duerme') ||
+        texto.contains('ansiedad') || texto.contains('nervios') ||
+        texto.contains('estres')) {
+      return _kPlantasPorCondicion['insomnio_ansiedad']!;
+    }
+    if (texto.contains('muscular') || texto.contains('golpe') ||
+        texto.contains('torcedura') || texto.contains('articula') ||
+        texto.contains('hueso')) {
+      return _kPlantasPorCondicion['dolor_muscular']!;
+    }
+    if (texto.contains('herida') || texto.contains('quemadura') ||
+        texto.contains('picadura') || texto.contains('piel')) {
+      return _kPlantasPorCondicion['heridas_piel']!;
+    }
+    if (texto.contains('orina') || texto.contains('urinaria') ||
+        texto.contains('vejiga') || texto.contains('ardor al orinar')) {
+      return _kPlantasPorCondicion['infeccion_urinaria']!;
+    }
+    if (texto.contains('menstrua') || texto.contains('regla') ||
+        texto.contains('colico') || texto.contains('periodo')) {
+      return _kPlantasPorCondicion['menstrual']!;
+    }
+    if (texto.contains('susto') || texto.contains('espanto') ||
+        texto.contains('mal de ojo')) {
+      return _kPlantasPorCondicion['susto_espanto']!;
     }
     return _kPlantasPorCondicion['general']!;
   }
@@ -597,12 +967,24 @@ Responde de forma breve y en español colombiano.
                       ]),
                       const SizedBox(height: 12),
 
+                      // ── SABEDORA / PARTERA DE CABECERA ────────────
+                      _cardSabedoraCabecera(),
+                      const SizedBox(height: 12),
+
                       // ── CONSULTA ACTUAL ───────────────────────────
                       _cardConsulta(),
                       const SizedBox(height: 12),
 
                       // ── DIAGNÓSTICO TRADICIONAL ───────────────────
                       _cardDiagnostico(),
+                      const SizedBox(height: 12),
+
+                      // ── CATÁLOGO COMPLETO DE PLANTAS (siempre visible) ──
+                      // A diferencia de la tarjeta de abajo (que solo
+                      // aparece tras analizar con IA), este acceso siempre
+                      // está disponible para consultar las 40 plantas de
+                      // las 12 condiciones registradas.
+                      _cardCatalogoPlantas(),
                       const SizedBox(height: 12),
 
                       // ── PLANTAS MEDICINALES ───────────────────────
@@ -719,16 +1101,21 @@ Responde de forma breve y en español colombiano.
             setState(() {
               _pacienteSeleccionado = p;
               if (p != null) {
-                _nombreCtrl.text   = p['nombre']   as String? ?? '';
+                _nombreCtrl.text  = p['nombre'] as String? ?? '';
                 _telefonoCtrl.text = p['telefono'] as String? ?? '';
-                // Solo asignar municipio si está en la lista de comunidades
-                // para no romper el DropdownButtonFormField
-                final muni = p['municipio'] as String? ?? '';
-                _comunidadSel = _comunidades.contains(muni) ? muni : 'Otra';
+                _comunidadSel     = p['municipio'] as String? ?? _comunidadSel;
               }
             });
+            if (p != null && p['id'] != null) {
+              _cargarHistorialPaciente(p['id'] as int);
+            }
           },
         ),
+        // ── Historial clínico del paciente (semanas, ecografías, etc.) ────
+        if (_pacienteSeleccionado != null) ...[
+          const SizedBox(height: 8),
+          _historialPacienteWidget(),
+        ],
         const SizedBox(height: 6),
         Text('— o ingresa nuevo —', style: TextStyle(
             color: _kTextoHint, fontSize: 8.5,
@@ -763,6 +1150,340 @@ Responde de forma breve y en español colombiano.
       ),
     ]),
   );
+
+  // ── Historial clínico del paciente seleccionado ──────────────────────────
+  // Muestra semanas de gestación, ecografías, último control y diagnóstico
+  // ya registrados en el módulo de Gestación (u otros), para que el
+  // promotor no tenga que volver a preguntarlos.
+  Widget _historialPacienteWidget() {
+    if (_cargandoHistorial) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+            color: _kFondo, borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kBorder)),
+        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(width: 14, height: 14,
+              child: CircularProgressIndicator(color: _kVerde, strokeWidth: 2)),
+          SizedBox(width: 8),
+          Text('Cargando historial...',
+              style: TextStyle(color: _kTextoHint, fontSize: 10.5)),
+        ]),
+      );
+    }
+
+    if (_historialConsultas.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+            color: _kFondo, borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kBorder)),
+        child: Row(children: [
+          Icon(Icons.info_outline_rounded, color: _kTextoHint, size: 14),
+          const SizedBox(width: 6),
+          Expanded(child: Text(
+              'Este paciente aún no tiene consultas registradas en la app.',
+              style: TextStyle(color: _kTextoHint, fontSize: 10, height: 1.3))),
+        ]),
+      );
+    }
+
+    final g = _ultimaConsultaGestacion;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _kVerdeOsc.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kVerde.withOpacity(0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.history_rounded, color: _kVerde, size: 14),
+          const SizedBox(width: 6),
+          Text('Historial clínico registrado',
+              style: TextStyle(color: _kVerde, fontSize: 10.5, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          Text('${_historialConsultas.length} consulta${_historialConsultas.length == 1 ? '' : 's'}',
+              style: TextStyle(color: _kTextoHint, fontSize: 9)),
+        ]),
+        const SizedBox(height: 8),
+
+        // ── Si tiene datos de Gestación, mostrarlos ─────────────────────
+        if (g != null) ...[
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            if ((g['semanas'] as String? ?? '').isNotEmpty)
+              _chipHistorial(Icons.pregnant_woman_rounded,
+                  '${g['semanas']} semanas', _kMoradoClaro),
+            if ((g['presion'] as String? ?? '').isNotEmpty)
+              _chipHistorial(Icons.favorite_rounded,
+                  'PA ${g['presion']}', Colors.redAccent),
+            if ((g['peso'] as String? ?? '').isNotEmpty)
+              _chipHistorial(Icons.monitor_weight_outlined,
+                  '${g['peso']} kg', _kDorado),
+          ]),
+          const SizedBox(height: 8),
+
+          // Ecografías por trimestre
+          Text('Ecografías realizadas', style: TextStyle(
+              color: _kTextoHint, fontSize: 9.5)),
+          const SizedBox(height: 4),
+          Row(children: [
+            _ecoChip('1er trimestre', _datosGestacion['ecografia_1t'] == true),
+            const SizedBox(width: 6),
+            _ecoChip('2do trimestre', _datosGestacion['ecografia_2t'] == true),
+            const SizedBox(width: 6),
+            _ecoChip('3er trimestre', _datosGestacion['ecografia_3t'] == true),
+          ]),
+          const SizedBox(height: 8),
+
+          if ((g['diagnostico'] as String? ?? '').isNotEmpty) ...[
+            Text('Último diagnóstico (${_fechaCorta(g['fecha'] as String?)})',
+                style: TextStyle(color: _kTextoHint, fontSize: 9.5)),
+            const SizedBox(height: 3),
+            Text(g['diagnostico'] as String,
+                style: const TextStyle(color: _kTextoSec, fontSize: 10, height: 1.4),
+                maxLines: 3, overflow: TextOverflow.ellipsis),
+          ],
+        ] else
+          Text(
+            'No hay controles de Gestación registrados, pero sí tiene '
+            '${_historialConsultas.length} consulta${_historialConsultas.length == 1 ? '' : 's'} '
+            'en otro${_historialConsultas.length == 1 ? '' : 's'} módulo${_historialConsultas.length == 1 ? '' : 's'}.',
+            style: TextStyle(color: _kTextoHint, fontSize: 10, height: 1.3),
+          ),
+      ]),
+    );
+  }
+
+  Widget _chipHistorial(IconData icono, String texto, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+        color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icono, color: color, size: 12),
+      const SizedBox(width: 4),
+      Text(texto, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+    ]),
+  );
+
+  Widget _ecoChip(String label, bool hecha) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: hecha ? _kVerde.withOpacity(0.15) : _kBorder.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: hecha ? _kVerde.withOpacity(0.4) : _kBorder),
+      ),
+      child: Column(children: [
+        Icon(hecha ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            color: hecha ? _kVerde : _kTextoHint, size: 14),
+        const SizedBox(height: 2),
+        Text(label, textAlign: TextAlign.center,
+            style: TextStyle(color: hecha ? _kVerde : _kTextoHint, fontSize: 8)),
+      ]),
+    ),
+  );
+
+  String _fechaCorta(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(iso);
+      const meses = ['ene','feb','mar','abr','may','jun',
+                     'jul','ago','sep','oct','nov','dic'];
+      return '${dt.day} ${meses[dt.month-1]}';
+    } catch (_) { return ''; }
+  }
+
+  // ── Card Sabedora / Partera de Cabecera ──────────────────────────────────
+  Widget _cardSabedoraCabecera() => _Card(
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const IaIconAvatar(size: 34, sombra: true),
+        const SizedBox(width: 8),
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Sabedora / Partera de Cabecera',
+              style: TextStyle(color: _kTexto, fontSize: 14, fontWeight: FontWeight.bold)),
+          Text('Responsable del acompañamiento ancestral',
+              style: TextStyle(color: _kTextoHint, fontSize: 10)),
+        ])),
+        if (_cargandoSabedoras)
+          const SizedBox(width: 14, height: 14,
+              child: CircularProgressIndicator(color: _kMoradoClaro, strokeWidth: 2)),
+      ]),
+      const SizedBox(height: 12),
+
+      // Selector
+      _sabedoras.isEmpty && !_cargandoSabedoras
+          ? Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                  color: _kCardAlt, borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kBorder)),
+              child: const Row(children: [
+                Icon(Icons.info_outline_rounded, color: Colors.orange, size: 15),
+                SizedBox(width: 8),
+                Expanded(child: Text(
+                    'No hay sabedoras/parteras registradas aún.\n'
+                    'Agrégalas desde el módulo de Especialistas.',
+                    style: TextStyle(color: _kTextoSec, fontSize: 11, height: 1.4))),
+              ]),
+            )
+          : DropdownButtonFormField<String>(
+              value: _sabedoras.any((p) => p['nombre'] == _sabedoraSel?['nombre'])
+                  ? _sabedoraSel!['nombre'] as String
+                  : null,
+              isExpanded: true,
+              dropdownColor: _kCardAlt,
+              style: const TextStyle(color: _kTexto, fontSize: 12),
+              hint: Text('Seleccionar sabedora de cabecera...',
+                  style: TextStyle(color: _kTextoHint, fontSize: 11)),
+              decoration: _inputDeco('Sabedora / partera'),
+              items: _sabedoras.map((p) => DropdownMenuItem(
+                  value: p['nombre'] as String,
+                  child: Text(p['nombre'] as String, overflow: TextOverflow.ellipsis))).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() =>
+                    _sabedoraSel = _sabedoras.firstWhere((p) => p['nombre'] == v));
+              },
+            ),
+
+      // Info sabedora seleccionada
+      if (_sabedoraSel != null) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: _kMorado.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kMorado.withOpacity(0.3))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+            // Avatar + nombre + disponibilidad
+            Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _kMorado.withOpacity(0.15),
+                    border: Border.all(color: _kMoradoClaro.withOpacity(0.4))),
+                child: const Icon(Icons.self_improvement_rounded, color: _kMoradoClaro, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_sabedoraSel!['nombre'] as String? ?? '-',
+                    style: const TextStyle(color: _kTexto, fontSize: 13, fontWeight: FontWeight.bold)),
+                Text(_sabedoraSel!['especialidad'] as String? ?? '-',
+                    style: const TextStyle(color: _kMoradoClaro, fontSize: 10.5)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (_sabedoraSel!['disponible'] == 1 ? _kVerde : Colors.redAccent).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: (_sabedoraSel!['disponible'] == 1 ? _kVerde : Colors.redAccent).withOpacity(0.4)),
+                ),
+                child: Text(
+                  _sabedoraSel!['disponible'] == 1 ? 'Disponible' : 'No disponible',
+                  style: TextStyle(
+                      color: _sabedoraSel!['disponible'] == 1 ? _kVerde : Colors.redAccent,
+                      fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            const Divider(color: _kBorder, height: 1),
+            const SizedBox(height: 10),
+
+            // Datos en 2 columnas
+            Row(children: [
+              Expanded(child: _infoItemSabedora(Icons.star_outline_rounded, 'Experiencia',
+                  '${_sabedoraSel!['anios_exp'] ?? '-'} años')),
+              Expanded(child: _infoItemSabedora(Icons.star_rounded, 'Calificación',
+                  '${_sabedoraSel!['calificacion'] ?? '-'} / 5.0')),
+            ]),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: _infoItemSabedora(Icons.location_on_outlined, 'Ciudad',
+                  _sabedoraSel!['ciudad'] as String? ?? '-')),
+              Expanded(child: _infoItemSabedora(Icons.phone_outlined, 'Teléfono',
+                  (_sabedoraSel!['telefono'] as String? ?? '').isEmpty
+                      ? 'Sin número' : _sabedoraSel!['telefono'] as String)),
+            ]),
+            if ((_sabedoraSel!['proximo_horario'] as String? ?? '').isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _infoItemSabedora(Icons.event_outlined, 'Próxima disponibilidad',
+                  _sabedoraSel!['proximo_horario'] as String),
+            ],
+            const SizedBox(height: 12),
+
+            // Botones
+            Row(children: [
+              Expanded(child: _btnSabedora(Icons.call_rounded,   'Llamar',     _kVerde,                 _llamarSabedora)),
+              const SizedBox(width: 6),
+              Expanded(child: _btnSabedora(Icons.chat_rounded,   'WhatsApp',   const Color(0xFF25D366), _whatsappSabedora)),
+              const SizedBox(width: 6),
+              Expanded(child: _btnSabedora(Icons.event_available_rounded, 'Agendar', _kDorado,          _agendarConSabedora)),
+              const SizedBox(width: 6),
+              Expanded(child: _btnSabedora(Icons.badge_outlined, 'Ver perfil', _kMoradoClaro,           _verPerfilSabedora)),
+            ]),
+          ]),
+        ),
+      ],
+
+      // Mensaje cuando no hay sabedora asignada aún
+      if (_sabedoraSel == null && _sabedoras.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: _kMorado.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _kMorado.withOpacity(0.2))),
+          child: const Row(children: [
+            Icon(Icons.info_outline_rounded, color: _kMoradoClaro, size: 14),
+            SizedBox(width: 8),
+            Expanded(child: Text(
+                'Selecciona una sabedora de cabecera para ver sus datos '
+                'y contactarla directamente desde aquí.',
+                style: TextStyle(color: _kTextoSec, fontSize: 11, height: 1.4))),
+          ]),
+        ),
+      ],
+    ]),
+  );
+
+  Widget _infoItemSabedora(IconData icono, String label, String valor) => Padding(
+    padding: const EdgeInsets.only(right: 4),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icono, color: _kTextoHint, size: 12),
+      const SizedBox(width: 4),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: _kTextoHint, fontSize: 9)),
+        Text(valor, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _kTextoSec, fontSize: 11, fontWeight: FontWeight.w600)),
+      ])),
+    ]),
+  );
+
+  Widget _btnSabedora(IconData icono, String label, Color color, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: color.withOpacity(0.35))),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icono, color: color, size: 16),
+            const SizedBox(height: 3),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(
+                color: color, fontSize: 9, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      );
 
   Widget _cardIA() {
     if (_analizando) {
@@ -827,7 +1548,7 @@ Responde de forma breve y en español colombiano.
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+              const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
               const SizedBox(width: 6),
               Text(_respuestaIA == null ? 'Ver análisis ›' : 'Reanalizar ›',
                   style: const TextStyle(color: Colors.white, fontSize: 12,
@@ -853,6 +1574,12 @@ Responde de forma breve y en español colombiano.
         Expanded(child: Column(children: [
           // Comunidad
           DropdownButtonFormField<String>(
+            // NOTA: antes usaba `value: _comunidadSel` directo. Si el
+            // paciente seleccionado tiene un municipio que no es una de
+            // las comunidades de la lista (ej. "Cali"), el valor no
+            // coincidía con ningún item y la app se cerraba con un
+            // assertion error. Con este guard, si no coincide exactamente
+            // con una opción, cae en 'Otra' en vez de fallar.
             value: _comunidades.contains(_comunidadSel) ? _comunidadSel : 'Otra',
             isExpanded: true,
             dropdownColor: _kCardAlt,
@@ -961,6 +1688,34 @@ Responde de forma breve y en español colombiano.
         )),
       ]),
     ]),
+  );
+
+  // Tarjeta siempre visible con acceso al catálogo completo de plantas
+  // (40 plantas en 12 condiciones), sin depender de haber analizado antes.
+  Widget _cardCatalogoPlantas() => _Card(
+    child: GestureDetector(
+      onTap: _verTodasPlantas,
+      child: Row(children: [
+        Container(
+          width: 46, height: 46,
+          decoration: BoxDecoration(
+            color: _kVerdeOsc.withOpacity(0.25),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kVerde.withOpacity(0.3)),
+          ),
+          child: const Icon(Icons.local_florist_rounded, color: _kVerde, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Catálogo de plantas medicinales',
+              style: TextStyle(color: _kTexto, fontSize: 13, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text('${_kPlantasPorCondicion.values.expand((l) => l).toSet().length} plantas · ${_kPlantasPorCondicion.length} condiciones',
+              style: TextStyle(color: _kTextoHint, fontSize: 10.5)),
+        ])),
+        const Icon(Icons.chevron_right_rounded, color: _kTextoHint, size: 20),
+      ]),
+    ),
   );
 
   Widget _cardPlantas() => _Card(
