@@ -544,17 +544,37 @@ class _SaberesAncestalesScreenState extends State<SaberesAncestalesScreen> {
     final comunidad = _comunidadCtrl.text.trim().isEmpty
         ? _comunidadSel : _comunidadCtrl.text.trim();
 
+    // Incluir datos clínicos del historial si están disponibles
+    final g = _ultimaConsultaGestacion;
+    final paHistorial    = (g?['presion']     as String? ?? '').trim();
+    final pesoHistorial  = (g?['peso']        as String? ?? '').trim();
+    final diagHistorial  = (g?['diagnostico'] as String? ?? '').trim();
+    final eco1t = _datosGestacion['ecografia_1t'] == true ? 'Sí' : 'No';
+    final eco2t = _datosGestacion['ecografia_2t'] == true ? 'Sí' : 'No';
+    final eco3t = _datosGestacion['ecografia_3t'] == true ? 'Sí' : 'No';
+
+    final datosHistorial = g != null ? '''
+Datos clínicos registrados:
+- Semanas de gestación: ${_semanas.isNotEmpty ? _semanas : (g['semanas'] as String? ?? 'desconocidas')}
+- Presión arterial: ${paHistorial.isNotEmpty ? paHistorial : 'no registrada'}
+- Peso: ${pesoHistorial.isNotEmpty ? '$pesoHistorial kg' : 'no registrado'}
+- Ecografías: 1er trimestre=$eco1t, 2do=$eco2t, 3er=$eco3t
+- Último diagnóstico: ${diagHistorial.isNotEmpty ? diagHistorial : 'sin registro'}
+''' : '';
+
     final pregunta = '''
-Consulta por saberes ancestrales.
+CONSULTA POR SABERES ANCESTRALES — responde ESPECÍFICAMENTE con estos datos.
 Paciente: $nombre$semanas, comunidad: $comunidad.
 Sabedora/partera: ${_sabedoraCtrl.text.trim()}.
-Motivo: $motivo. $deseq
-Por favor indica:
-1. Nivel de riesgo (Bajo, Medio, Alto, Urgente)
-2. Compatibilidad medicina ancestral + occidental (porcentaje)
-3. Recomendación principal (1 oración)
-4. Si requiere remisión médica
-Responde de forma breve y en español colombiano.
+Motivo de consulta: ${motivo.isNotEmpty ? motivo : 'control general'}.
+${deseq.isNotEmpty ? deseq : ''}
+$datosHistorial
+Con base en ESTOS datos específicos, indica:
+1. Nivel de riesgo (Bajo/Medio/Alto/Urgente) — justifica brevemente
+2. Recomendación principal para la partera en campo (1-2 oraciones concretas)
+3. ¿Requiere remisión médica urgente? Sí/No y por qué
+4. Una planta medicinal segura para este caso (si aplica)
+Responde en español colombiano, directo y práctico.
 ''';
 
     final resp = await IaService.instance.consultar(pregunta);
@@ -794,15 +814,38 @@ Responde de forma breve y en español colombiano.
       _enviandoIA = true;
     });
 
-    final contexto = _nombreCtrl.text.trim().isNotEmpty
-        ? 'Paciente: ${_nombreCtrl.text.trim()}. '
-          'Comunidad: $_comunidadSel. '
-          'Motivo: ${_motivoCtrl.text.trim()}. '
-          'Desequilibrio: $_desequilibrio. '
+    // Construir contexto clínico sin que domine el diagnóstico anterior
+    final nombre      = _nombreCtrl.text.trim();
+    final gChat       = _ultimaConsultaGestacion;
+    final paChat      = (gChat?['presion'] as String? ?? '').trim();
+    final semanasChat = _semanas.isNotEmpty
+        ? _semanas : (gChat?['semanas'] as String? ?? '');
+
+    // El diagnóstico anterior solo se menciona resumido para no contaminar
+    // la respuesta — evitamos pegar el texto completo de emergencias previas
+    final String infoAntecedente = gChat != null
+        ? '(antecedente: control de gestación previo registrado)'
         : '';
 
-    final resp = await IaService.instance.consultar(
-        '$contexto Pregunta del promotor: $txt');
+    final StringBuffer sb = StringBuffer();
+    sb.writeln('Responde ÚNICAMENTE la siguiente pregunta del promotor.');
+    sb.writeln('Pregunta: $txt');
+    sb.writeln('');
+    if (nombre.isNotEmpty) {
+      sb.writeln('Datos de referencia del paciente actual:');
+      sb.writeln('- Nombre: $nombre');
+      if (semanasChat.isNotEmpty) sb.writeln('- Semanas de gestación: $semanasChat');
+      if (paChat.isNotEmpty)      sb.writeln('- Presión arterial: $paChat');
+      if (_desequilibrio.isNotEmpty) sb.writeln('- Desequilibrio ancestral: $_desequilibrio');
+      if (_motivoCtrl.text.trim().isNotEmpty) sb.writeln('- Motivo de consulta: ${_motivoCtrl.text.trim()}');
+      if (infoAntecedente.isNotEmpty) sb.writeln('- $infoAntecedente');
+    }
+    sb.writeln('');
+    sb.writeln('Responde en español colombiano, breve y práctico, '
+        'enfocado SOLO en la pregunta planteada.');
+    final contexto = sb.toString();
+
+    final resp = await IaService.instance.consultar(contexto);
     if (mounted) setState(() {
       _mensajesIA.add({'rol': 'ia', 'texto': resp});
       _enviandoIA = false;
